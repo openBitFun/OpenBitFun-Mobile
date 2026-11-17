@@ -1,0 +1,39 @@
+{
+  "name": "openbitfun-mobile",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "packageManager": "pnpm@10.15.0",
+  "engines": {
+    "node": ">=22.12.0"
+  },
+  "scripts": {
+    "prepare:design": "pnpm --filter @openbitfun/design-tokens run build && pnpm --filter @openbitfun/theme-openbitfun run build",
+    "prepare:assets": "pnpm run prepare:design && node scripts/build-mobile-terminal.mjs --harmony && node src/apps/mobile/miniapps/generate.cjs android && node src/apps/mobile/miniapps/generate.cjs ios",
+    "harmony:architecture": "node scripts/check-harmonyos-architecture.mjs",
+    "mobile:architecture": "node scripts/check-mobile-architecture.mjs && node --test scripts/mobile-client-build.contract.test.mjs",
+    "mobile:ui:generate": "node scripts/mobile-ui-design-system.mjs",
+    "mobile:ui:check": "node scripts/mobile-ui-design-system.mjs --check && node scripts/mobile-ui-preview.mjs --check",
+    "mobile:ui:preview": "pnpm run prepare:design && node scripts/mobile-ui-design-system.mjs && node scripts/mobile-ui-preview.mjs",
+    "theme:color-audit:all": "node scripts/audit-frontend-colors.mjs",
+    "test:harmony": "node --test src/apps/mobile/harmonyos/tools/tests/*.test.cjs",
+    "test:miniapps": "node --test src/apps/mobile/miniapps/*.test.cjs src/apps/mobile/harmonyos/miniapps/*.test.cjs",
+    "test:browser": "node --test tests/browser/*.test.mjs",
+    "check:versions": "node scripts/verify-release-version-sync.mjs",
+    "check": "pnpm run harmony:architecture && pnpm run mobile:architecture && pnpm run mobile:ui:check && pnpm run theme:color-audit:all && pnpm run check:versions && pnpm run i18n:check",
+    "test:brand": "node --test tests/native-brand.test.mjs",
+    "test:release": "node --test tests/mobile-package.test.mjs",
+    "i18n:generate": "node scripts/generate-i18n-contract.mjs",
+    "i18n:check": "node scripts/generate-i18n-contract.mjs --check",
+    "brand:generate": "node scripts/generate-brand-assets.mjs"
+  },
+  "devDependencies": {
+    "typescript": "5.9.3",
+    "esbuild": "0.25.12",
+    "@xterm/xterm": "6.1.0-beta.141",
+    "@xterm/addon-fit": "0.12.0-beta.141",
+    "puppeteer-core": "21.11.0",
+    "sharp": "0.34.5",
+    "yaml": "2.8.1"
+  }
+}

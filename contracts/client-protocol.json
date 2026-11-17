@@ -1,0 +1,6 @@
+{
+  "clientProtocolVersion": 2,
+  "sourceRepository": "https://github.com/openBitFun/OpenBitFun",
+  "sourceCommit": "315c4ca62b6cd3a393e535a49ab68b2b21ce6862",
+  "sourcePath": "src/crates/contracts/product-domains/src/account.rs"
+}

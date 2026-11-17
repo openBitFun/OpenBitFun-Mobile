@@ -1,0 +1,208 @@
+{
+  "version": 1,
+  "description": "Authoritative registry for every OpenBitFun frontend color surface, its canonical token owner, narrowly scoped specialized palette owners, and non-product artifacts excluded from ordinary UI governance.",
+  "contracts": {
+    "webSystem": "design-system/packages/design-tokens/src/system.tokens.json",
+    "webTheme": "design-system/packages/theme-openbitfun/src/light.tokens.json",
+    "miniappAppearance": "src/shared/miniapp-appearance/contract.json",
+    "nativeMobile": "src/apps/mobile/design-system/tokens/mobile-tokens.json"
+  },
+  "discovery": {
+    "miniappParents": [
+      "src/crates/contracts/product-domains/src/miniapp/builtin/assets"
+    ]
+  },
+  "surfaces": [
+    {
+      "id": "mobile-design-preview",
+      "label": "Native mobile comparison preview",
+      "kind": "canonical-web",
+      "owner": "canonical web tokens for chrome and generated native mobile tokens for device content",
+      "root": "src/apps/mobile/design-system/preview",
+      "audit": {
+        "engine": "theme",
+        "policy": "canonical-ui-zero",
+        "packageContracts": [
+          "@openbitfun/design-tokens",
+          "@openbitfun/theme-openbitfun"
+        ],
+        "excludePaths": [
+          "generated"
+        ]
+      }
+    },
+    {
+      "id": "native-android",
+      "label": "Native Android",
+      "kind": "native-mobile",
+      "owner": "src/apps/mobile/design-system/tokens/mobile-tokens.json",
+      "root": "src/apps/mobile/android/app/src/main/kotlin",
+      "audit": {
+        "engine": "native",
+        "platform": "android",
+        "extensions": [
+          ".kt"
+        ],
+        "excludePaths": [
+          "com/openbitfun/mobile/app/ui/theme/generated",
+          "com/openbitfun/mobile/app/ui/preview/generated"
+        ]
+      }
+    },
+    {
+      "id": "native-ios",
+      "label": "Native iOS",
+      "kind": "native-mobile",
+      "owner": "src/apps/mobile/design-system/tokens/mobile-tokens.json",
+      "root": "src/apps/mobile/ios/OpenBitFun",
+      "audit": {
+        "engine": "native",
+        "platform": "ios",
+        "extensions": [
+          ".swift"
+        ],
+        "excludeFiles": [
+          "Features/DesignSystem/GeneratedMobileDesignTokens.swift",
+          "Features/DesignSystem/GeneratedMobilePreviewScenarios.swift"
+        ]
+      }
+    },
+    {
+      "id": "native-harmonyos",
+      "label": "Native HarmonyOS",
+      "kind": "native-mobile",
+      "owner": "src/apps/mobile/design-system/tokens/mobile-tokens.json",
+      "root": "src/apps/mobile/harmonyos/entry/src/main/ets",
+      "audit": {
+        "engine": "native",
+        "platform": "harmonyos",
+        "extensions": [
+          ".ets"
+        ],
+        "excludePaths": [
+          "generated"
+        ]
+      }
+    },
+    {
+      "id": "miniapp-divination",
+      "label": "Daily Divination MiniApp",
+      "kind": "miniapp",
+      "owner": "self-contained bespoke theme",
+      "root": "src/crates/contracts/product-domains/src/miniapp/builtin/assets/divination",
+      "audit": {
+        "engine": "miniapp",
+        "rawColorOwners": [
+          {
+            "kind": "bespoke-theme",
+            "pathPrefixes": [
+              "style.css",
+              "ui.js"
+            ],
+            "reason": "The tarot scene is an intentionally self-contained illustrated light/dark theme whose palette is the product content."
+          }
+        ]
+      }
+    },
+    {
+      "id": "miniapp-gomoku",
+      "label": "Gomoku MiniApp",
+      "kind": "miniapp",
+      "owner": "MiniApp public appearance contract",
+      "root": "src/crates/contracts/product-domains/src/miniapp/builtin/assets/gomoku",
+      "audit": {
+        "engine": "miniapp",
+        "rawColorOwners": [
+          {
+            "kind": "game-renderer",
+            "file": "style.css",
+            "linePattern": "^\\s*--g-stone-(?:black|white)(?:-stroke)?\\s*:",
+            "reason": "Stone fills and contrast rims are game-renderer content and must not become reusable UI tokens."
+          }
+        ]
+      }
+    },
+    {
+      "id": "miniapp-regex-playground",
+      "label": "Regex Playground MiniApp",
+      "kind": "miniapp",
+      "owner": "MiniApp public appearance contract",
+      "root": "src/crates/contracts/product-domains/src/miniapp/builtin/assets/regex-playground",
+      "audit": {
+        "engine": "miniapp"
+      }
+    }
+  ],
+  "mirrors": [],
+  "generatedChecks": [
+    {
+      "id": "native-mobile-token-projection",
+      "surfaceKinds": [
+        "native-mobile"
+      ],
+      "surfaceIds": [
+        "mobile-design-preview"
+      ],
+      "command": [
+        "node",
+        "scripts/mobile-ui-design-system.mjs",
+        "--check"
+      ]
+    },
+    {
+      "id": "native-mobile-preview-assets",
+      "surfaceKinds": [
+        "native-mobile"
+      ],
+      "surfaceIds": [
+        "mobile-design-preview"
+      ],
+      "command": [
+        "node",
+        "scripts/mobile-ui-preview.mjs",
+        "--check"
+      ]
+    },
+    {
+      "id": "miniapp-appearance-projection",
+      "surfaceKinds": [
+        "miniapp"
+      ],
+      "command": [
+        "node",
+        "scripts/generate-miniapp-appearance-contract.mjs",
+        "--check"
+      ]
+    }
+  ],
+  "exclusions": [
+    {
+      "id": "android-template-icons",
+      "path": "src/apps/mobile/android/app/src/main/res/drawable",
+      "kind": "native-template-asset",
+      "owner": "Android resource layer",
+      "reason": "Monochrome vector templates are tinted by native semantic tokens at render time."
+    },
+    {
+      "id": "ios-template-icons",
+      "path": "src/apps/mobile/ios/OpenBitFun/Resources.xcassets",
+      "kind": "native-template-asset",
+      "owner": "iOS asset catalog",
+      "reason": "Template images and app metadata are tinted or consumed by the platform asset layer."
+    },
+    {
+      "id": "harmony-template-media",
+      "path": "src/apps/mobile/harmonyos/entry/src/main/resources/base/media",
+      "kind": "native-template-asset",
+      "owner": "HarmonyOS resource layer",
+      "reason": "Template media is tinted by semantic ResourceColor values in the native UI."
+    },
+    {
+      "id": "mobile-preview-generated",
+      "path": "src/apps/mobile/design-system/preview/generated",
+      "kind": "generated-output",
+      "owner": "scripts/mobile-ui-design-system.mjs",
+      "reason": "Preview data is generated from the native mobile token contract and checked for drift."
+    }
+  ]
+}

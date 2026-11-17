@@ -1,0 +1,196 @@
+{
+  "repository": "https://github.com/openBitFun/OpenBitFun",
+  "commit": "315c4ca62b6cd3a393e535a49ab68b2b21ce6862",
+  "files": [
+    {
+      "path": "design-system/LICENSE",
+      "sha256": "26cde83e266e38c7800b35baa8005254378bd71aeca579a7e7047d27940296bf"
+    },
+    {
+      "path": "design-system/packages/design-tokens/README.md",
+      "sha256": "048fe6a072f19d2396d10632c9f3e518496babbd9eeab2944b35833b2ab2ba9a"
+    },
+    {
+      "path": "design-system/packages/design-tokens/package.json",
+      "sha256": "93fe5aed7b94436afc0bbb78ce84373120817a674aa0739767836964fee29025"
+    },
+    {
+      "path": "design-system/packages/design-tokens/scripts/build.mjs",
+      "sha256": "6eb2ee7bb4dc341b17a7934abff407db780e494c8e1b087695f5fd166e940179"
+    },
+    {
+      "path": "design-system/packages/design-tokens/src/density-compact.tokens.json",
+      "sha256": "0aee4048cdd9efb9a97041e56ed8ea899de9d60f72d9bd31d0dab8b6499a242a"
+    },
+    {
+      "path": "design-system/packages/design-tokens/src/density-touch.tokens.json",
+      "sha256": "1855e0613523c0657b06aee382b5fe347eb5d37da4ce6a1a569485d931bc6944"
+    },
+    {
+      "path": "design-system/packages/design-tokens/src/system.tokens.json",
+      "sha256": "bceae4c5803ce69eaf8f7cc3172356c8740636adadc48a228dea494b9339d14a"
+    },
+    {
+      "path": "design-system/packages/design-tokens/src/typography-runtime.d.ts",
+      "sha256": "bcdb39c306512d370eab7f9638c2b2840cf25dd2c0fd86b17b6f321dbcb50605"
+    },
+    {
+      "path": "design-system/packages/design-tokens/src/typography-runtime.mjs",
+      "sha256": "bac26687a26fcad72e6a4beaeeb5fc464ac70fee900658c093861497e213e677"
+    },
+    {
+      "path": "design-system/packages/design-tokens/tests/contract.test.mjs",
+      "sha256": "fcb48a01fa186deec717229fd40bc6910c8a2629dce833f6e8936d73b9a0a3af"
+    },
+    {
+      "path": "design-system/packages/theme-openbitfun/README.md",
+      "sha256": "6f15c3a5129e6817e206df341745e91c4e301713b3283d3b6f1a68a4f8e2ccfc"
+    },
+    {
+      "path": "design-system/packages/theme-openbitfun/package.json",
+      "sha256": "0de7a9e822ce3a09c3632fee128ce442592ef49ff69d9d86761aa60f56b40e5f"
+    },
+    {
+      "path": "design-system/packages/theme-openbitfun/scripts/build.mjs",
+      "sha256": "96b15bfcbf1912d9db74d7f803944ded58b7a37e6ef070daa5b5fd91dfaed3b7"
+    },
+    {
+      "path": "design-system/packages/theme-openbitfun/scripts/resolve-status-colors.mjs",
+      "sha256": "dc7eb89b016858f1f6069863f69ec785b6a6b51a60ef2a4e0b365fcba1ec9554"
+    },
+    {
+      "path": "design-system/packages/theme-openbitfun/src/dark.tokens.json",
+      "sha256": "81f5352767d5f0c3a0e2074b44c0308d235e4f11778f23d27a871a56c7f70d1e"
+    },
+    {
+      "path": "design-system/packages/theme-openbitfun/src/high-contrast-dark.tokens.json",
+      "sha256": "4ab64ab5679278f183fdee2fe289a377a20049faf8149bf8fd7a4e148597b34f"
+    },
+    {
+      "path": "design-system/packages/theme-openbitfun/src/high-contrast-light.tokens.json",
+      "sha256": "eb48ee498112714320c60c7e58c892f04d20b273972c9bba32ee23a2bb8b140f"
+    },
+    {
+      "path": "design-system/packages/theme-openbitfun/src/light.tokens.json",
+      "sha256": "8d0b18d3dcd160cf1001eecbffebd6bded0c491d8077cffd444c53a9bacbf3ab"
+    },
+    {
+      "path": "design-system/packages/theme-openbitfun/src/reference.tokens.json",
+      "sha256": "545509a5bb5b381d53eaacc2f87cb671c9938b0575f1f292d0cc5e779501a63b"
+    },
+    {
+      "path": "design-system/packages/theme-openbitfun/tests/theme-contract.test.mjs",
+      "sha256": "770985c3bd18d7ac038cb1a8aa46b42d3abaa7a119f819bd3e1d7cddae92cc74"
+    },
+    {
+      "path": "design-system/packages/ui/src/brand/assets/openbitfun-app-mark.png",
+      "sha256": "6cda0b01d037ef552690d210a1e5adfa807a806d685a49f46d110b1e3765b5a0"
+    },
+    {
+      "path": "design-system/packages/ui/src/brand/assets/openbitfun-mark.svg",
+      "sha256": "275d630d66b9199c7c008ddb9b209ddc5df1b29df8809e5e22710d2cdf17a283"
+    },
+    {
+      "path": "design-system/tooling/token-engine/README.md",
+      "sha256": "6ec57dcb3f64f05e70768728372cfe9198d6a425c89c003756fcb59182484f91"
+    },
+    {
+      "path": "design-system/tooling/token-engine/package.json",
+      "sha256": "b921b78c9a8b69cd6418e32d148721634909373ce0553f8f13914625238b94aa"
+    },
+    {
+      "path": "design-system/tooling/token-engine/src/cli.mjs",
+      "sha256": "5de3adcc7f6cee0360e069cb2651a733b160af9fca31128aa49d9a847b265c8d"
+    },
+    {
+      "path": "design-system/tooling/token-engine/src/index.mjs",
+      "sha256": "c23d000d922c6d752074a800f1b5bf46674f0928909d75bfcf54df83b7f23b6b"
+    },
+    {
+      "path": "design-system/tooling/token-engine/tests/token-engine.test.mjs",
+      "sha256": "729abcf215a276291425bd0b2e74a38fc35153882cc67fa04e15b75ddf8c1c53"
+    },
+    {
+      "path": "src/crates/contracts/product-domains/src/miniapp/builtin/assets/divination/index.html",
+      "sha256": "c3fd13531dad2c62b85330f23c6e7f4bb60df0107d52d13fb3f963fee7f875cc"
+    },
+    {
+      "path": "src/crates/contracts/product-domains/src/miniapp/builtin/assets/divination/meta.json",
+      "sha256": "1e4b392e9d3dca14f68c1f30cf406a63c590a4f04e9c880579fb69319c22e74b"
+    },
+    {
+      "path": "src/crates/contracts/product-domains/src/miniapp/builtin/assets/divination/style.css",
+      "sha256": "49ad23975537087194f0000709995c01ad7a65db146ff528b7385ed438f6e33c",
+      "sourceSha256": "8c6b0c162d5c7b90febceae09d353e257f8946f705c2e9b11dfe9a3c189bc0cb",
+      "normalization": "Trim trailing blank lines; source content unchanged."
+    },
+    {
+      "path": "src/crates/contracts/product-domains/src/miniapp/builtin/assets/divination/ui.js",
+      "sha256": "d928b2193ec2db732556f8579e2aa13a230c364172e1acbfd32e023b49aa1c64"
+    },
+    {
+      "path": "src/crates/contracts/product-domains/src/miniapp/builtin/assets/divination/worker.js",
+      "sha256": "570af178b031c7a73f0cbc0c5df36d100ad67d712a5726ec10b08a6571cb0a74"
+    },
+    {
+      "path": "src/crates/contracts/product-domains/src/miniapp/builtin/assets/gomoku/index.html",
+      "sha256": "8ef370479725099dac23f5aa0f900ad5825f0cd6379ccd1a952bf0fb914e33fa"
+    },
+    {
+      "path": "src/crates/contracts/product-domains/src/miniapp/builtin/assets/gomoku/meta.json",
+      "sha256": "4260c55981595c3ba91849c624a30888b9af731b3df66423d88ec603602e85cf"
+    },
+    {
+      "path": "src/crates/contracts/product-domains/src/miniapp/builtin/assets/gomoku/style.css",
+      "sha256": "c0026012d9ef3c338ddb32e52b65ceda2dac84390dbeb5d4644303697dacfd27"
+    },
+    {
+      "path": "src/crates/contracts/product-domains/src/miniapp/builtin/assets/gomoku/ui.js",
+      "sha256": "e264fcdf21f9739d7d039debc89d4ca5098bdbeb9d61e4ac90f1ecdea06e49e6"
+    },
+    {
+      "path": "src/crates/contracts/product-domains/src/miniapp/builtin/assets/gomoku/worker.js",
+      "sha256": "08dc2beebb680533654f24516713b670b8eb74b1a8bec05e5cade51c2cd4402a"
+    },
+    {
+      "path": "src/crates/contracts/product-domains/src/miniapp/builtin/assets/regex-playground/index.html",
+      "sha256": "f76e573ad999581896113e29dfdb1ca8c54c142b071349e9558ed86592ab20d0"
+    },
+    {
+      "path": "src/crates/contracts/product-domains/src/miniapp/builtin/assets/regex-playground/meta.json",
+      "sha256": "9566aee6a946fb330c242bf4c1b1178d05aa3267a8b7e5b6b4881c1d310fbca7"
+    },
+    {
+      "path": "src/crates/contracts/product-domains/src/miniapp/builtin/assets/regex-playground/style.css",
+      "sha256": "cdf1b7daa07a2ffba01c41e89649a187c785de1decead4a739d9d63fb7532733"
+    },
+    {
+      "path": "src/crates/contracts/product-domains/src/miniapp/builtin/assets/regex-playground/ui.js",
+      "sha256": "f216a3665c54d3712817746148ec82d62cde5327767eb92f6742e62c496eb993"
+    },
+    {
+      "path": "src/crates/contracts/product-domains/src/miniapp/builtin/assets/regex-playground/worker.js",
+      "sha256": "b64a6452c59c058b3396f8a714307f08cfdc9fe2a9f7de3c01393e1d80880c27"
+    },
+    {
+      "path": "src/shared/i18n/contract/locales.json",
+      "sha256": "8d46624dfb42c9ad2d3c2fc8fe3dcd887c2b4e4297fe0954e6741f4756a5cf3b"
+    },
+    {
+      "path": "src/shared/miniapp-appearance/contract.json",
+      "sha256": "6c4be3af1ef951769b2ff48ddb4c26b011dfa57cb5c91a65530aa776a63edcb5"
+    },
+    {
+      "path": "src/shared/relay-protocol-contract-fixtures/README.md",
+      "sha256": "7cb3ac4c78231d2400ea420a065270585384c37cd1249af6ff216264c7a03b05"
+    },
+    {
+      "path": "src/shared/relay-protocol-contract-fixtures/relay-message-encoding.json",
+      "sha256": "22c64224592b05ca23621cf240e8f1e77e29b6290ef487e46cd42681f262a0f0"
+    },
+    {
+      "path": "src/shared/relay-protocol-contract-fixtures/session-item.json",
+      "sha256": "728c225118c518fb2d5fcac17f3605cb3e08a9f34614b9507b9a5edc5cece32f"
+    }
+  ]
+}
