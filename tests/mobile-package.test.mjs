@@ -19,3 +19,14 @@ test('Mobile Package publishes Android assets from mobile-v tags', () => {
     /gh release create/,
   );
 });
+
+import {spawnSync} from 'node:child_process';
+test('mobile release versions stay synchronized', () => {
+ const result = spawnSync(process.execPath, ['scripts/verify-release-version-sync.mjs'], {encoding:'utf8',windowsHide:true});
+ assert.equal(result.status,0,result.stderr);
+});
+test('mobile release verification rejects a mismatched tag version', () => {
+ const result = spawnSync(process.execPath, ['scripts/verify-release-version-sync.mjs','--mobile-version','999.0.0'], {encoding:'utf8',windowsHide:true});
+ assert.notEqual(result.status,0);
+ assert.match(result.stderr,/expected 999\.0\.0/);
+});

@@ -71,13 +71,18 @@ class OkHttpRealtimeTest {
                         return ByteArray(length) { (bytes[it].toInt() xor mask[it % 4].toInt()).toByte() }
                             .toString(Charsets.UTF_8)
                     }
-                    send("0{\"sid\":\"test\",\"upgrades\":[],\"pingInterval\":${if (interruptFirst && connectionIndex == 0) 100 else 25000},\"pingTimeout\":${if (interruptFirst && connectionIndex == 0) 100 else 20000}}")
+                    // The reset case must fail because TCP is reset, not because
+                    // a loaded CI runner missed a 200 ms authentication window.
+                    val silentHeartbeat = interruptFirst && !resetFirst && connectionIndex == 0
+                    val pingInterval = if (silentHeartbeat) 1000 else 25000
+                    val pingTimeout = if (silentHeartbeat) 1000 else 20000
+                    send("0{\"sid\":\"test\",\"upgrades\":[],\"pingInterval\":$pingInterval,\"pingTimeout\":$pingTimeout}")
                     check(receive().startsWith("40"))
                     send("40{\"sid\":\"test\"}")
                     send("42[\"auth-ok\",{}]")
                     if (interruptFirst && connectionIndex == 0) {
                         // Stop sending Engine.IO heartbeats without closing TCP.
-                        if (resetFirst) socket.setSoLinger(true, 0) else delay(500)
+                        if (resetFirst) socket.setSoLinger(true, 0) else delay(2500)
                         return@use
                     }
                     if (invalidateCapabilities) {
