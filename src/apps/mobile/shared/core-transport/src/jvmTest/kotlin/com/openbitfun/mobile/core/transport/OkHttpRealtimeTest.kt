@@ -32,6 +32,7 @@ class OkHttpRealtimeTest {
         ServerSocket(0).use { server ->
             server.soTimeout = 10_000
             val received = CompletableDeferred<Unit>()
+            val firstAuthenticated = CompletableDeferred<Unit>()
             val capturedCapabilities = CompletableDeferred<Unit>()
             val host = async(Dispatchers.IO) {
                 repeat(if (interruptFirst) 2 else 1) { connectionIndex ->
@@ -81,6 +82,11 @@ class OkHttpRealtimeTest {
                     send("40{\"sid\":\"test\"}")
                     send("42[\"auth-ok\",{}]")
                     if (interruptFirst && connectionIndex == 0) {
+                        // A TCP reset can discard unread auth-ok bytes on Linux.
+                        // Observe the client's first authenticated epoch before
+                        // interrupting it, so this is a reconnect test rather
+                        // than a race between authentication and socket teardown.
+                        firstAuthenticated.await()
                         // Stop sending Engine.IO heartbeats without closing TCP.
                         if (resetFirst) socket.setSoLinger(true, 0) else delay(2500)
                         return@use
@@ -105,7 +111,11 @@ class OkHttpRealtimeTest {
             val http = relayHttpClient(OkHttp.create())
             val realtime = AccountRealtime(http, "http://127.0.0.1:${server.localPort}", "test-token")
             try {
-                if (interruptFirst) withTimeout(10_000) { realtime.connections.first { it >= 2 } }
+                if (interruptFirst) withTimeout(10_000) {
+                    realtime.connections.first { it >= 1 }
+                    firstAuthenticated.complete(Unit)
+                    realtime.connections.first { it >= 2 }
+                }
                 if (invalidateCapabilities) {
                     val prepared = realtime.readyForEncoding()
                     capturedCapabilities.complete(Unit)
