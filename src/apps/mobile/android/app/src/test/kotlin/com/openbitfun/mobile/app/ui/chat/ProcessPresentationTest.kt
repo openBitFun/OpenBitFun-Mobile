@@ -28,7 +28,7 @@ class ProcessPresentationTest {
         id, "Read", phase, ToolKind.DOCUMENT, ToolOperation.READ_FILE,
         "file.kt", "", "", "", "", null, emptySet(),
     )
-    @Test fun completedWorkSummarizesWithoutHidingLiveOrFailedTools() {
+    @Test fun completedWorkSummarizesWithoutHidingLiveToolsOrDiscardingFailures() {
         val thought = MessageBlock.Thinking("thinking", "Before", false)
         val first = MessageBlock.Tools("first", listOf(tool("one")))
         val between = MessageBlock.Thinking("between", "Between", false)
@@ -38,12 +38,19 @@ class ProcessPresentationTest {
         assertTrue(grouped.first().summarized)
         assertEquals(listOf("thinking", "tool:one", "between", "tool:two"), grouped.first().blocks.map { it.id })
         assertEquals(answer, grouped.last().blocks.single())
-        for (phase in listOf(ToolPhase.RUNNING, ToolPhase.FAILED)) {
-            val active = MessageBlock.Tools("active", listOf(tool("active", phase)))
-            val split = processGroups(listOf(thought, first, active, between, last))
-            assertEquals(3, split.size)
-            assertTrue(split.none { it.summarized })
-        }
+        val running = MessageBlock.Tools("active", listOf(tool("active", ToolPhase.RUNNING)))
+        val split = processGroups(listOf(thought, first, running, between, last))
+        assertEquals(3, split.size)
+        assertTrue(split.none { it.summarized })
+        assertEquals(ToolPhase.RUNNING, split[1].tools.single().phase)
+
+        // Shared presentation now folds failed work while retaining its details.
+        val failure = tool("failed", ToolPhase.FAILED).copy(output = "HTTP 404")
+        val failed = MessageBlock.Tools("failed", listOf(failure))
+        val summary = processGroups(listOf(thought, first, failed, between, last)).single()
+        assertTrue(summary.summarized)
+        assertEquals(listOf("one", "failed", "two"), summary.tools.map { it.id })
+        assertEquals(failure, summary.tools[1])
         assertEquals(grouped.first().id, processGroups(listOf(thought, first, between, last,
             MessageBlock.Tools("more", listOf(tool("three"))))).single().id)
     }
