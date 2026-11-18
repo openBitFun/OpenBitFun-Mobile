@@ -6,6 +6,9 @@ preview scenarios; it does not implement a cross-platform renderer.
 
 ## Ownership
 
+The [Mobile Design Lab](../../../../design-system/apps/design-lab/README.md)
+contains Cindy's browser-based design reference and standalone prototype.
+
 - `tokens/mobile-tokens.json`: the single source for semantic colors,
   typography, shared geometry, breakpoints, and motion durations.
 - `components/mobile-components.json`: component anatomy, states, and the token
