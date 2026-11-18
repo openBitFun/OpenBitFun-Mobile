@@ -14,6 +14,7 @@ import {
   stampRemoteSessionsDevice
 } from '../../services/RemoteSessionIdentity';
 import { RemoteUiState } from '../../services/RemoteUiState';
+import { LocalGenUILaunchInbox } from '../../services/local-genui/LocalGenUILaunchInbox';
 import { AppRootHostPort } from '../host/AppRootHostAdapter';
 import {
   AppNavigationBackAction,
@@ -41,6 +42,11 @@ export class AppRootRuntime extends AppRootRuntimeComposition {
   }
 
   async aboutToAppear(onAccountRestored?: (signedIn: boolean) => void): Promise<void> {
+    // A generated app opened from its home-screen card is local: it does not
+    // wait for account, device, or remote restoration below.
+    LocalGenUILaunchInbox.subscribe((appId: string): void => {
+      void this.localGenUIViewModel.openGalleryApp(appId);
+    });
     // Account login can be tapped while the rest of the cold-start work is
     // still running. Initialize its secure store first so the login path never
     // races the asynchronous cache and onboarding setup below.
@@ -85,6 +91,11 @@ export class AppRootRuntime extends AppRootRuntimeComposition {
   }
 
   onPageShow(): void {
+    this.localGenUIViewModel.setForeground(true);
+    // Wide layouts keep the local session sidebar mounted from the first
+    // frame, so there is no sidebar-open callback to trigger its first load.
+    // Refresh here for both cold starts and returns from the background.
+    void this.localGenUIViewModel.load();
     RemoteLogger.info(`page show state=${(this.remotePageState.connectionState as ConnectionState)} route=${this.appShellViewModel.currentRoute()}`);
     this.settingsController.setAuthorizationForeground(true);
     this.taskCompletionNotificationController.onForeground();
@@ -96,6 +107,8 @@ export class AppRootRuntime extends AppRootRuntimeComposition {
   }
 
   onPageHide(): void {
+    // Background: Local GenUI releases the camera immediately.
+    this.localGenUIViewModel.setForeground(false);
     RemoteLogger.info(`page hide state=${(this.remotePageState.connectionState as ConnectionState)} route=${this.appShellViewModel.currentRoute()}`);
     this.settingsController.setAuthorizationForeground(false);
     this.settingsController.stopPresencePolling();
@@ -115,7 +128,9 @@ export class AppRootRuntime extends AppRootRuntimeComposition {
   }
 
   aboutToDisappear(): void {
+    LocalGenUILaunchInbox.unsubscribe();
     this.miniAppViewModel.close();
+    this.localGenUIViewModel.close();
     this.settingsController.stopPresencePolling();
     this.watchProvisionController.stop();
     this.taskCompletionNotificationController.stop();
@@ -383,6 +398,8 @@ export class AppRootRuntime extends AppRootRuntimeComposition {
     this.host.animate(230, () => {
       this.appShellState.setSidebarVisible(true);
     });
+    // Local sessions are read from this phone's own store; no network.
+    void this.localGenUIViewModel.load();
     // The device rows are only on screen from here, and a desktop that came
     // online since the last look would otherwise stay grey.
     void this.settingsController.refreshAccountDevicesIfStale(DEVICE_PRESENCE_MAX_AGE_MS).then(() =>

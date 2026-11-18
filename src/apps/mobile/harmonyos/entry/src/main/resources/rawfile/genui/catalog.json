@@ -1,0 +1,173 @@
+{
+  "contractVersion": 4,
+  "profile": "harmony",
+  "template": {
+    "id": "openbitfun.harmony.app",
+    "library": "openbitfun.harmony.v1",
+    "description": "Explicit Harmony delivery component application; root is Page (Col remains readable).",
+    "roots": [
+      "Page",
+      "Col"
+    ]
+  },
+  "library": {
+    "id": "openbitfun.harmony.v1",
+    "revision": 4,
+    "adapterKind": "harmony-genui",
+    "rootComponent": "Page",
+    "components": [
+      "Badge",
+      "Box",
+      "Button",
+      "Caption",
+      "Card",
+      "Carousel",
+      "Catalog",
+      "Celebration",
+      "Chart",
+      "Checkbox",
+      "Checklist",
+      "Circle",
+      "Code",
+      "Col",
+      "CompareTable",
+      "Cover",
+      "CrossDeviceImage",
+      "DatePicker",
+      "Divider",
+      "Ellipse",
+      "EmptyState",
+      "Faq",
+      "Field",
+      "Flashcard",
+      "Form",
+      "FormCard",
+      "G",
+      "GestureTrigger",
+      "Grid",
+      "HeroStat",
+      "HtmlView",
+      "Icon",
+      "Icon3D",
+      "IconButton",
+      "Image",
+      "Input",
+      "ItemList",
+      "Label",
+      "Layout",
+      "Line",
+      "Link",
+      "List",
+      "ListItem",
+      "Map",
+      "MapMarker",
+      "Markdown",
+      "Math",
+      "Metric",
+      "Note",
+      "Page",
+      "Path",
+      "Plan",
+      "Plot",
+      "Polygon",
+      "Polyline",
+      "Popover",
+      "Pressable",
+      "ProCon",
+      "Progress",
+      "Prose",
+      "Quote",
+      "RadioGroup",
+      "RecordList",
+      "Rect",
+      "Row",
+      "Scoreboard",
+      "SearchImage",
+      "Section",
+      "Segmented",
+      "SegmentedControl",
+      "Select",
+      "Slider",
+      "Spacer",
+      "StatGrid",
+      "Steps",
+      "Svg",
+      "SvgText",
+      "TabPanel",
+      "Table",
+      "Tabs",
+      "Text",
+      "TextArea",
+      "Timeline",
+      "Timer",
+      "Title",
+      "TrendChart",
+      "YouTube"
+    ]
+  },
+  "designSpec": {
+    "id": "harmony.phone.v1",
+    "revision": 1,
+    "label": "Harmony phone",
+    "componentLibraries": [
+      "openbitfun.harmony.v1",
+      "openbitfun.harmony.readonly.v1"
+    ],
+    "sourceKinds": [
+      "openui-lang",
+      "html-document"
+    ],
+    "styleResources": [
+      "openbitfun-theme-tokens",
+      "openbitfun-harmony-components"
+    ],
+    "rules": [
+      "Compose for a phone screen; the desktop preview shows it in a 360 CSS-pixel phone frame.",
+      "On a device the page fills the screen: narrow screens stack the page blocks; wide screens (unfolded or landscape) keep one full-width column across the fold with a header-row cover, and only Layout or a block sets peers side by side; never author widths or columns.",
+      "The host draws the phone shell, status bar and page gutter; generate screen content only.",
+      "Build the page from the Harmony page blocks (Page, Cover, Section and the blocks they hold) and their host-owned styles.",
+      "Choose the Page theme from the topic; HarmonyOS Symbol icons and Icon3D pictures follow the library schema."
+    ],
+    "viewport": {
+      "mode": "fixed",
+      "width": 360,
+      "height": 764,
+      "unit": "css-px"
+    },
+    "shell": {
+      "kind": "phone",
+      "statusBarHeight": 36,
+      "hostOwnedParts": [
+        "device-frame",
+        "status-bar",
+        "screen-viewport"
+      ],
+      "forbiddenContentSelectors": [
+        "[data-gen-ui-host-part]",
+        ".gen-ui-phone-device",
+        ".gen-ui-phone-status-bar"
+      ],
+      "contentInsets": {
+        "top": 16,
+        "right": 16,
+        "bottom": 16,
+        "left": 16
+      }
+    },
+    "acceptance": {
+      "checks": [
+        "actual-render",
+        "declared-interactions",
+        "save-reopen",
+        "fixed-viewport",
+        "host-shell",
+        "host-shell-duplication",
+        "content-boundary",
+        "no-horizontal-overflow"
+      ]
+    }
+  },
+  "sourceKinds": [
+    "openui-lang"
+  ]
+}

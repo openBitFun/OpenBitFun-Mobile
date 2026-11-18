@@ -2,14 +2,28 @@
 
 These rules apply to all changes under `src/apps/mobile/harmonyos`.
 
-## Controller product boundary
+## Product modes
 
-Phone, tablet, and foldable entrypoints are remote controllers. They must not
-instantiate a local Agent Runtime, model provider, local chat command owner, or
-model configuration store. OpenBitFun account identity and the authenticated device directory
-are the authority for selection and reconnect; QR data supplies only a device id.
-Keep old persisted records readable and retained without activating legacy room
-credentials or local execution. Compact and wide hosts enforce the same boundary.
+Remote Chat remains a controller in compact and wide layouts. OpenBitFun account
+identity and the authenticated device directory control selection and reconnect.
+QR data supplies only a device ID. Keep legacy records readable and inert.
+
+The sidebar's Create mini apps entry opens Local GenUI. Only `services/local-genui/` owns its session
+controller, model provider, app owner and persistence. Local sessions use
+`local-genui:` IDs and separate storage tables. They use neither remote session
+IDs nor workspace identities, RemoteCommand, HostStream or the remote permission
+mailbox. The retired General Chat routes stay inert. Its saved model
+configuration can be imported into the encrypted Local GenUI model store.
+
+The ArkWeb bundle only parses and renders the pinned local contract. Keep
+calendar, camera gestures, haptics and cross-device images behind the typed
+local action host and platform permission checks. Device preview fixtures do
+not substitute for a real provider or permission test.
+
+From the repository root, run `pnpm run harmony:genui-runtime` before building a
+HAP and `pnpm run harmony:genui-runtime:check` to verify the generated contract.
+Run `node --test src/apps/mobile/harmonyos/tools/tests/local-genui-*.test.cjs`
+for focused host tests.
 
 ## MVVM Refactor Boundaries
 

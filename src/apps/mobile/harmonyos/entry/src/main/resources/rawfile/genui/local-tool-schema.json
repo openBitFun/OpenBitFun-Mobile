@@ -1,0 +1,31 @@
+{
+  "name": "GenerativeUI",
+  "description": "Create one interactive mini app for the user on this phone. Send title first, then source: the complete OpenUI Lang program as one string. values may give initial state values only. The host binds the component library, design specification and application identity; never send id, template, libraryId, libraryRevision or designSpec. source is the raw declarative program, not JSON, JSX, TSX, markdown or a compiled artifact; do not include ``` fences in source. Use one statement per line: `identifier = Expression`. The first statement should be `root = Component(...)`; references may be forward-referenced but every non-root statement must be reachable from root. Arguments are positional, not named: use `Card([body], \"Title\")`, never `Card(children: [body], title: \"Title\")`. Child slots are arrays of statement references. Use `$name` for reactive state bindings and `@Function(...)` for listed pure functions. Event handlers use OpenUI built-ins such as `@ToAssistant(...)`, `@OpenUrl(...)` or `Action([...])`, subject to the host capability bridge. Use only the selected library signatures and the examples supplied below.",
+  "input_schema": {
+    "type": "object",
+    "properties": {
+      "title": {
+        "type": "string",
+        "minLength": 1,
+        "description": "Short app name in the user's language."
+      },
+      "source": {
+        "type": "string",
+        "minLength": 1,
+        "description": "The complete OpenUI Lang program, one statement per line, starting with root = Page(...)."
+      },
+      "description": {
+        "type": "string"
+      },
+      "values": {
+        "type": "object",
+        "description": "Optional initial values for $state declared in source."
+      }
+    },
+    "required": [
+      "title",
+      "source"
+    ],
+    "additionalProperties": false
+  }
+}

@@ -60,7 +60,8 @@ export class ObservableChatTimelineItem implements ChatTimelineItem {
       thinking: message.thinking,
       tools: message.tools ? message.tools.slice() : undefined,
       items: message.items ? message.items.slice() : undefined,
-      images: message.images ? message.images.slice() : undefined
+      images: message.images ? message.images.slice() : undefined,
+      appCard: message.appCard
     };
   }
 }

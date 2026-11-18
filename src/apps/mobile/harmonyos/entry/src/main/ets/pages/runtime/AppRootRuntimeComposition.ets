@@ -9,6 +9,7 @@ import { WorkspaceToolsViewModel } from '../viewmodel/WorkspaceToolsViewModel';
 import { WorkspaceToolsIntent } from '../state/WorkspaceToolsState';
 import { BuiltinMiniAppHost } from '../../services/BuiltinMiniAppHost';
 import { MiniAppViewModel } from '../viewmodel/MiniAppViewModel';
+import { LocalGenUIViewModel } from '../viewmodel/LocalGenUIViewModel';
 import { SidebarConnectionActionPolicy } from '../policy/SidebarConnectionActionPolicy';
 import { accountDeviceLink } from '../../services/AccountDeviceLink';
 import {
@@ -157,6 +158,8 @@ export abstract class AppRootRuntimeComposition {
 
   readonly sessionManager: RemoteSessionManager = new RemoteSessionManager();
   readonly miniAppViewModel: MiniAppViewModel = new MiniAppViewModel(new BuiltinMiniAppHost((): Context => this.host.context()));
+  // Local GenUI Mode: constructs nothing local until the surface is opened.
+  readonly localGenUIViewModel: LocalGenUIViewModel = new LocalGenUIViewModel((): Context => this.host.context());
   readonly taskCompletionNotificationPort: HarmonyTaskCompletionNotificationPort =
     new HarmonyTaskCompletionNotificationPort((): Context => this.host.context());
   readonly taskCompletionNotificationController: TaskCompletionNotificationController =
@@ -978,7 +981,13 @@ export abstract class AppRootRuntimeComposition {
     onCompactLayoutEntered: (): void => this.enterCompactLayout(),
     onLayoutModeChanged: (wideLayout: boolean): void => this.appShellState.setWideLayout(wideLayout),
     onRemoteHome: {
-      openMiniApps: (): void => { this.closeAppSidebar(); this.miniAppViewModel.actions.open(); },
+      openMiniApps: (): void => {
+        this.closeAppSidebar();
+        this.localGenUIViewModel.close();
+        this.miniAppViewModel.actions.open();
+        // Generated apps the user added appear in the gallery; local data only.
+        void this.localGenUIViewModel.load();
+      },
       openSidebar: (): void => this.openAppSidebar(),
       connectWorkspace: (): void => this.openConnectSheet(),
       addConnection: (): void => this.openConnectSheet(),
@@ -986,6 +995,7 @@ export abstract class AppRootRuntimeComposition {
       showWorkspaces: (): void => { this.remoteWorkspaceViewModel.toggleRecentWorkspaces(); },
       showAssistants: (): void => { this.remoteWorkspaceViewModel.toggleAssistants(); },
       selectWorkspace: (path: string, deviceId?: string, connectionId?: string, sshHost?: string, workspaceId?: string): void => {
+        this.localGenUIViewModel.close();
         void this.selectWorkspaceOnDevice(path, deviceId, connectionId, sshHost, workspaceId);
       },
       selectAssistant: (path: string, workspaceId?: string): void => { this.selectAssistant(path, workspaceId); },
@@ -997,14 +1007,18 @@ export abstract class AppRootRuntimeComposition {
       reconnect: (): void => { this.reconnect(); },
       disconnect: (): void => { this.disconnect(false); },
       clearPairing: (): void => { this.disconnect(true); },
-      create: (agentType: string): void => { this.conversationController.createRemoteSession(agentType); },
+      create: (agentType: string): void => {
+        this.localGenUIViewModel.close(); this.conversationController.createRemoteSession(agentType); },
       createInPlace: (agentType: string): void => {
+        this.localGenUIViewModel.close();
         this.conversationController.createRemoteSession(agentType, true);
       },
       createInWorkspace: (path: string, agentType: string, deviceId?: string, connectionId?: string, sshHost?: string, workspaceId?: string): void => {
+        this.localGenUIViewModel.close();
         this.conversationController.createRemoteSessionInWorkspace(path, agentType, false, deviceId, connectionId, sshHost, workspaceId);
       },
       createInWorkspaceInPlace: (path: string, agentType: string, deviceId?: string, connectionId?: string, sshHost?: string, workspaceId?: string): void => {
+        this.localGenUIViewModel.close();
         this.conversationController.createRemoteSessionInWorkspace(path, agentType, true, deviceId, connectionId, sshHost, workspaceId);
       },
       selectDirectoryDevice: (deviceId: string): void => {
@@ -1020,17 +1034,25 @@ export abstract class AppRootRuntimeComposition {
         await this.loadWorkspaceSessionsOnDevice(deviceId, path, remoteConnectionId, remoteSshHost, workspaceId);
       },
       openSession: (session: RemoteSession): void => this.conversationController.openHomeSession(session),
-      openSessionInPlace: (session: RemoteSession): void => this.conversationController.openHomeSession(session, true),
+      openSessionInPlace: (session: RemoteSession): void => {
+        this.localGenUIViewModel.close();
+        this.conversationController.openHomeSession(session, true);
+      },
       deleteSession: (session: RemoteSession): void => { this.conversationController.deleteHomeSession(session); }
     },
     onSidebar: {
       close: (): void => this.closeAppSidebar(),
       openAssistant: (): void => { void this.assistantNavigationController.open(); },
-      openBot: (): void => { this.host.showToast(RemoteI18n.t('sidebar.botComingSoon'), 2200); },
+      openBot: (): void => {
+        this.closeAppSidebar();
+        this.miniAppViewModel.actions.close();
+        this.localGenUIViewModel.actions.open();
+      },
       newChat: async (agentType: string = 'code'): Promise<void> => {
         if (agentType === 'claw') { await this.assistantNavigationController.open(true); return; }
         if (!SidebarConnectionActionPolicy.canCreateSession(this.remotePageState.connectionState, this.remotePageState.isBusy)) return;
         this.closeAppSidebar();
+        this.localGenUIViewModel.close();
         await this.conversationController.createRemoteSession(agentType);
       },
       enterCode: (): void => { this.closeAppSidebar(); this.enterCodeEntry(); },
@@ -1053,6 +1075,7 @@ export abstract class AppRootRuntimeComposition {
         // The shell supplies the horizontal motion; do not stack a second
         // NavDestination push animation on top of the closing drawer.
         this.closeAppSidebar();
+        this.localGenUIViewModel.close();
         this.conversationController.openHomeSession(session, true);
       },
       deleteSession: (session: RemoteSession): void => { this.conversationController.deleteHomeSession(session); }

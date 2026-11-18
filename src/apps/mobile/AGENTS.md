@@ -119,7 +119,7 @@ isolation, run from `shared/` with the Android guide's Java runtime:
 `./gradlew :core-feature:jvmTest --tests '*promptSuggestion*' --tests '*SessionRecordReplicaTest*'`.
 These are simulated host streams, not evidence of a live remote connection.
 
-Native mobile surfaces are controllers. Desktop and CLI own execution, files, terminals and SSH credentials. Mobile workspace selection may use only connections already saved on the controlled runtime; it must not create an SSH connection or instantiate another runtime. Carry the selected connection identity through every operation, and report missing identity instead of falling back to local files.
+Native mobile remote surfaces are controllers. Desktop and CLI own remote execution, files, terminals and SSH credentials. Mobile workspace selection may use only connections already saved on the controlled runtime; it must not create an SSH connection or instantiate another runtime. Carry the selected connection identity through every operation, and report missing identity instead of falling back to local files.
 
 ## Offline Mini Apps
 

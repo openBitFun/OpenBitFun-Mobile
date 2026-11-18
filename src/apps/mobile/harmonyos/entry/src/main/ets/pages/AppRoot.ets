@@ -5,6 +5,7 @@ import { ColdStartHomeTransition } from './components/ColdStartHomeTransition';
 import { AppRootPresentation } from './components/AppRootPresentation';
 import { WatchProvisionCard } from './components/WatchProvisionCard';
 import { ArkUiAppRootHostAdapter } from './host/AppRootHostAdapter';
+import { LocalGenUIPresentation } from '../services/local-genui/LocalGenUIModels';
 import { AppRootRuntime } from './runtime/AppRootRuntime';
 
 @Entry
@@ -52,6 +53,9 @@ struct AppRoot {
   }
 
   onBackPress(): boolean {
+    if (this.runtime.localGenUIViewModel.back()) {
+      return true;
+    }
     if (this.runtime.miniAppViewModel.state.visible) {
       if (this.runtime.miniAppViewModel.state.appId) this.runtime.miniAppViewModel.actions.back();
       else this.runtime.miniAppViewModel.close();
@@ -66,6 +70,10 @@ struct AppRoot {
         shellState: this.runtime.appShellState,
         miniAppState: this.runtime.miniAppViewModel.state,
         miniAppActions: this.runtime.miniAppViewModel.actions,
+        localGenUIState: this.runtime.localGenUIViewModel.state,
+        localGenUIActions: this.runtime.localGenUIViewModel.actions,
+        localGenUIBridge: this.runtime.localGenUIViewModel.bridge,
+        onLocalGenUIPresentation: (report: LocalGenUIPresentation) => this.runtime.localGenUIViewModel.updatePresentation(report),
         navigationStack: this.runtime.navigationStack,
         remotePageState: this.runtime.remotePageState,
         deviceDirectoryState: this.runtime.deviceDirectoryState,

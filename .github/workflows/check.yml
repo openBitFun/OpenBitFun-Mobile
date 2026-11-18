@@ -19,6 +19,8 @@ jobs:
       - run: pnpm install --frozen-lockfile
       - run: pnpm run prepare:assets
       - run: pnpm run check
+      - run: pnpm run harmony:genui-runtime
+      - run: pnpm run harmony:genui-runtime:check
       - run: pnpm run test:harmony
       - run: pnpm run test:miniapps
       - run: pnpm run test:brand

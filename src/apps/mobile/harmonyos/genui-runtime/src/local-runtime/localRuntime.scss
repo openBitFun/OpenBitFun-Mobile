@@ -1,0 +1,23 @@
+/* The shared Web UI stylesheet fixes the document to a viewport and clips the
+ * root. The native ArkWeb host needs the document itself to grow so that the
+ * page can consume the WebView's vertical scroll gesture. */
+html, body {
+  margin: 0;
+  padding: 0;
+  width: 100%;
+  height: auto;
+  min-height: 100%;
+  background: var(--openbitfun-color-surface-canvas);
+  overflow-x: hidden;
+  overflow-y: auto;
+}
+#root {
+  width: 100%;
+  height: auto;
+  min-height: 100%;
+  overflow: visible;
+}
+.local-genui-runtime__unsupported { box-sizing: border-box; padding: 16px; color: var(--openbitfun-color-content-secondary); font-family: var(--openbitfun-type-body-sm-font-family); font-size: var(--openbitfun-type-body-sm-font-size); }
+.local-genui-runtime__waiting { min-height: 1px; }
+/* The page background reaches the bottom of a short page. */
+.local-genui-runtime .gen-ui-application--harmony-genui { box-sizing: border-box; min-height: 100vh; }

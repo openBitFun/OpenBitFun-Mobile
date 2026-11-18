@@ -3225,16 +3225,376 @@
       "value": "切换为卡片"
     },
     {
-      "name": "sidebar_bot",
-      "value": "Bot"
-    },
-    {
-      "name": "sidebar_botComingSoon",
-      "value": "开发中，敬请期待"
-    },
-    {
       "name": "sidebar_workspaceActionsHint",
       "value": "长按以新建会话"
+    },
+    {
+      "name": "permission_camera_reason",
+      "value": "用于响应手势的本机小应用，画面只在手机上识别，不会上传。"
+    },
+    {
+      "name": "permission_calendar_reason",
+      "value": "用于让手机上的 AI 小应用创建和管理 OpenBitFun 日历日程。"
+    },
+    {
+      "name": "localGenui_cameraOn",
+      "value": "摄像头已开"
+    },
+    {
+      "name": "localGenui_networkUnavailable",
+      "value": "连不上模型服务，请检查网络或模型地址。"
+    },
+    {
+      "name": "localGenui_localBadge",
+      "value": "在本机运行"
+    },
+    {
+      "name": "localGenui_newSession",
+      "value": "开始创作"
+    },
+    {
+      "name": "localGenui_backToChat",
+      "value": "对话"
+    },
+    {
+      "name": "localGenui_generating",
+      "value": "正在生成…"
+    },
+    {
+      "name": "localGenui_cancelled",
+      "value": "本轮已停止。"
+    },
+    {
+      "name": "localGenui_modelNotConfigured",
+      "value": "请先为本地小应用配置模型服务。"
+    },
+    {
+      "name": "localGenui_unsupportedAction",
+      "value": "此处不支持 %1$s：%2$s"
+    },
+    {
+      "name": "localGenui_appMissing",
+      "value": "找不到这个应用了。"
+    },
+    {
+      "name": "localGenui_appUnsupported",
+      "value": "这个应用是用其他版本做的，暂时打不开，内容已保留。"
+    },
+    {
+      "name": "localGenui_runtimeMismatch",
+      "value": "应用组件需要更新，请升级 OpenBitFun 后再试。"
+    },
+    {
+      "name": "localGenui_saveFailed",
+      "value": "修改未保存：%1$s"
+    },
+    {
+      "name": "localGenui_failed",
+      "value": "没有生成成功：%1$s"
+    },
+    {
+      "name": "localGenui_status_candidate",
+      "value": "正在准备"
+    },
+    {
+      "name": "localGenui_status_displayable",
+      "value": "可以使用"
+    },
+    {
+      "name": "localGenui_status_accepted",
+      "value": "可以使用"
+    },
+    {
+      "name": "localGenui_status_failed",
+      "value": "没有生成成功"
+    },
+    {
+      "name": "localGenui_status_state_migration_required",
+      "value": "新版本和已有数据不兼容，已保留原来的版本"
+    },
+    {
+      "name": "localGenui_status_unsupported",
+      "value": "当前版本打不开这个应用"
+    },
+    {
+      "name": "localGenui_apiKey",
+      "value": "API 密钥"
+    },
+    {
+      "name": "localGenui_apiKeyKept",
+      "value": "留空则保留已保存的密钥"
+    },
+    {
+      "name": "localGenui_saved",
+      "value": "已保存"
+    },
+    {
+      "name": "localGenui_autoRepair",
+      "value": "刚才的应用有点问题，正在自动修正"
+    },
+    {
+      "name": "localGenui_truncated",
+      "value": "内容太长没能生成完，可以再发一次，或者让它做得简单些。"
+    },
+    {
+      "name": "localGenui_history",
+      "value": "创作记录"
+    },
+    {
+      "name": "localGenui_noHistory",
+      "value": "还没有创作记录"
+    },
+    {
+      "name": "localGenui_generatedApps",
+      "value": "AI 生成的小应用"
+    },
+    {
+      "name": "localGenui_modelMissing",
+      "value": "这个会话使用的模型已删除，请重新选择模型。"
+    },
+    {
+      "name": "localGenui_manageModels",
+      "value": "管理模型"
+    },
+    {
+      "name": "localGenui_addModel",
+      "value": "添加模型"
+    },
+    {
+      "name": "localGenui_editModel",
+      "value": "编辑模型"
+    },
+    {
+      "name": "localGenui_deleteModel",
+      "value": "删除模型"
+    },
+    {
+      "name": "localGenui_noModels",
+      "value": "还没有模型，先添加一个。"
+    },
+    {
+      "name": "localGenui_modelDisplayName",
+      "value": "显示名称"
+    },
+    {
+      "name": "localGenui_modelDisplayNameHint",
+      "value": "可选，默认使用模型名称"
+    },
+    {
+      "name": "localGenui_fetchModels",
+      "value": "获取模型列表"
+    },
+    {
+      "name": "localGenui_noRemoteModels",
+      "value": "服务没有返回模型列表，请手动填写模型名称。"
+    },
+    {
+      "name": "localGenui_addToGallery",
+      "value": "添加到小应用"
+    },
+    {
+      "name": "localGenui_inGallery",
+      "value": "已在小应用中"
+    },
+    {
+      "name": "localGenui_removeFromGallery",
+      "value": "从小应用移除"
+    },
+    {
+      "name": "localGenui_addedToGallery",
+      "value": "已添加到小应用"
+    },
+    {
+      "name": "localGenui_entry",
+      "value": "创建小应用"
+    },
+    {
+      "name": "localGenui_linkUnsupported",
+      "value": "本地会话中无法打开这个链接。"
+    },
+    {
+      "name": "localGenui_generationInvalid",
+      "value": "这次没能做出应用，再发一次试试，或者换个说法。"
+    },
+    {
+      "name": "genui_card_name",
+      "value": "AI 小应用"
+    },
+    {
+      "name": "genui_card_desc",
+      "value": "打开在本机生成的小应用"
+    },
+    {
+      "name": "genui_card_pending",
+      "value": "打开 OpenBitFun"
+    },
+    {
+      "name": "genui_card_missing",
+      "value": "小应用已删除"
+    },
+    {
+      "name": "localGenui_addToDesktop",
+      "value": "添加到桌面"
+    },
+    {
+      "name": "localGenui_addedToDesktop",
+      "value": "已添加到桌面"
+    },
+    {
+      "name": "localGenui_addToDesktopFailed",
+      "value": "无法添加到桌面"
+    },
+    {
+      "name": "localGenui_appActions",
+      "value": "小应用操作"
+    },
+    {
+      "name": "localGenui_calendarCreated",
+      "value": "已添加日程（编号 %1$s）"
+    },
+    {
+      "name": "localGenui_calendarUpdated",
+      "value": "已更新日程（编号 %1$s）"
+    },
+    {
+      "name": "localGenui_calendarDeleted",
+      "value": "已删除日程（编号 %1$s）"
+    },
+    {
+      "name": "localGenui_calendarListed",
+      "value": "找到 %1$s 个日程"
+    },
+    {
+      "name": "collaboration_title",
+      "value": "跨设备取材验证"
+    },
+    {
+      "name": "collaboration_requirements",
+      "value": "两端需登录同一华为账号并开启 WLAN 和蓝牙。由系统选择设备，每次接收一张图片。"
+    },
+    {
+      "name": "collaboration_emulatorNotice",
+      "value": "模拟器用于验证构建和界面。系统能力声明不代表已发现设备；真实取材与回传需在支持的设备上验证。"
+    },
+    {
+      "name": "collaboration_photo",
+      "value": "从其他设备拍照"
+    },
+    {
+      "name": "collaboration_scan",
+      "value": "从其他设备扫描文档"
+    },
+    {
+      "name": "collaboration_gallery",
+      "value": "选择其他设备的图片"
+    },
+    {
+      "name": "collaboration_reset",
+      "value": "重新开始验证"
+    },
+    {
+      "name": "collaboration_resize",
+      "value": "切换内容宽度"
+    },
+    {
+      "name": "collaboration_resetNotice",
+      "value": "重新开始会关闭本地接收并清除预览，不代表已取消对端操作。此验证入口不保存图片，也不向模型发送图片。"
+    },
+    {
+      "name": "collaboration_result",
+      "value": "已接收 {0} 张图片 · 系统状态码 {1}"
+    },
+    {
+      "name": "collaboration_receivedImage",
+      "value": "跨设备接收的图片"
+    },
+    {
+      "name": "collaboration_phase_ready",
+      "value": "等待选择取材方式"
+    },
+    {
+      "name": "collaboration_phase_selecting",
+      "value": "等待在系统菜单选择设备"
+    },
+    {
+      "name": "collaboration_phase_active",
+      "value": "协同已建立，等待对端操作"
+    },
+    {
+      "name": "collaboration_phase_receiving",
+      "value": "正在接收和解析图片"
+    },
+    {
+      "name": "collaboration_phase_completed",
+      "value": "图片接收完成"
+    },
+    {
+      "name": "collaboration_phase_cancelled",
+      "value": "操作已取消"
+    },
+    {
+      "name": "collaboration_phase_failed",
+      "value": "取材失败"
+    },
+    {
+      "name": "collaboration_phase_closed",
+      "value": "本地接收已关闭"
+    },
+    {
+      "name": "collaboration_phase_unavailable",
+      "value": "当前环境不可用"
+    },
+    {
+      "name": "collaboration_reason_missingSyscap",
+      "value": "系统未声明跨设备取材能力。"
+    },
+    {
+      "name": "collaboration_reason_version",
+      "value": "此取材适配需要 API 23 或更高版本，当前系统不支持。"
+    },
+    {
+      "name": "collaboration_reason_deviceType",
+      "value": "当前设备类型不支持发起此操作。"
+    },
+    {
+      "name": "collaboration_reason_probeFailed",
+      "value": "读取系统能力失败，请重新开始验证。"
+    },
+    {
+      "name": "collaboration_reason_peerCancelled",
+      "value": "对端取消了操作。"
+    },
+    {
+      "name": "collaboration_reason_localCancelled",
+      "value": "本端取消了操作。"
+    },
+    {
+      "name": "collaboration_reason_invalidImage",
+      "value": "系统未返回有效的图片数据。"
+    },
+    {
+      "name": "collaboration_reason_imageLimit",
+      "value": "超出本次验证的图片限制：一张图片，最大 32 MiB。"
+    },
+    {
+      "name": "collaboration_reason_decodeFailed",
+      "value": "收到数据但无法解码为图片。"
+    },
+    {
+      "name": "collaboration_reason_emptyResult",
+      "value": "传输结束，但未收到图片。"
+    },
+    {
+      "name": "collaboration_reason_platformError",
+      "value": "系统协同返回错误，请查看状态码。"
+    },
+    {
+      "name": "collaboration_inputTitle",
+      "value": "从其他设备取材"
+    },
+    {
+      "name": "collaboration_closeInput",
+      "value": "结束本次接收"
     }
   ]
 }

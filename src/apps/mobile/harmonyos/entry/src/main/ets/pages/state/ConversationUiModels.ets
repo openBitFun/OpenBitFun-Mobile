@@ -1,6 +1,7 @@
 // Presentation-owned structures. Protocol DTOs are mapped at the boundary and
 // never imported by leaf rendering components.
 import {
+  ChatMessageAppCard,
   ChatMessage,
   ChatMessageItemResponse,
   ImageAttachment,
@@ -109,6 +110,7 @@ export interface ConversationUiMessage {
   tools?: ConversationUiToolStatus[];
   items?: ConversationUiMessageItem[];
   images?: ConversationUiImage[];
+  appCard?: ChatMessageAppCard;
 }
 
 /** Stable observable projection consumed by retained/reused message rows. */
@@ -127,6 +129,7 @@ export class ObservableConversationUiMessage implements ConversationUiMessage {
   @Trace tools: ConversationUiToolStatus[] | undefined = undefined;
   @Trace items: ConversationUiMessageItem[] | undefined = undefined;
   @Trace images: ConversationUiImage[] | undefined = undefined;
+  @Trace appCard: ChatMessageAppCard | undefined = undefined;
 
   updateFrom(source: ConversationUiMessage): void {
     this.id = source.id;
@@ -142,6 +145,7 @@ export class ObservableConversationUiMessage implements ConversationUiMessage {
     this.tools = source.tools;
     this.items = source.items;
     this.images = source.images;
+    this.appCard = source.appCard;
   }
 }
 
@@ -267,7 +271,8 @@ export function toConversationUiMessage(source: ChatMessage): ConversationUiMess
     thinking: source.thinking,
     tools: source.tools ? source.tools.map((tool: RemoteToolStatusResponse) => toConversationUiToolStatus(tool)) : undefined,
     items: source.items ? source.items.map((item: ChatMessageItemResponse) => toConversationUiMessageItem(item)) : undefined,
-    images: source.images ? source.images.map((image: ImageAttachment) => toConversationUiImage(image)) : undefined
+    images: source.images ? source.images.map((image: ImageAttachment) => toConversationUiImage(image)) : undefined,
+    appCard: source.appCard
   };
 }
 

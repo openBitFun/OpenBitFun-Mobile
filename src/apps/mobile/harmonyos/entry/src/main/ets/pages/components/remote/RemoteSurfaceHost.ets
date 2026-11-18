@@ -219,7 +219,8 @@ export struct RemoteSurfaceHost {
           this.actions.onSettings.openAccount();
         }
       },
-      onMiniApps: this.actions.onRemoteHome.openMiniApps
+      onMiniApps: this.actions.onRemoteHome.openMiniApps,
+      onOpenSidebar: () => this.onOpenSidebar()
     })
   }
 
