@@ -8,6 +8,8 @@
     "node": ">=22.12.0"
   },
   "scripts": {
+    "harmony:genui-runtime": "pnpm run prepare:design && node scripts/build-harmony-genui-runtime.mjs",
+    "harmony:genui-runtime:check": "node scripts/build-harmony-genui-runtime.mjs --check",
     "prepare:design": "pnpm --filter @openbitfun/design-tokens run build && pnpm --filter @openbitfun/theme-openbitfun run build",
     "prepare:assets": "pnpm run prepare:design && node scripts/build-mobile-terminal.mjs --harmony && node src/apps/mobile/miniapps/generate.cjs android && node src/apps/mobile/miniapps/generate.cjs ios",
     "harmony:architecture": "node scripts/check-harmonyos-architecture.mjs",

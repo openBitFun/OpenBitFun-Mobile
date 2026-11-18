@@ -3,6 +3,8 @@ import { hilog } from '@kit.PerformanceAnalysisKit';
 import { display, window } from '@kit.ArkUI';
 import { WindowOrientationService } from '../services/WindowOrientationService';
 import { MobileDesignColors, MobileTextScale } from '../generated/MobileDesignTokens';
+import { LocalGenUIDesktopCards } from '../services/local-genui/LocalGenUIDesktopCards';
+import { LocalGenUILaunchInbox } from '../services/local-genui/LocalGenUILaunchInbox';
 
 const DOMAIN = 0x0000;
 const TAG = 'OpenBitFunRemote';
@@ -36,7 +38,7 @@ export default class EntryAbility extends UIAbility {
       scenarioId === 'copy-rollback-busy' || scenarioId === 'copy-rollback-unsupported' ||
       scenarioId === 'interaction-mailbox' || scenarioId === 'interaction-mailbox-dark' ||
       scenarioId.startsWith('command-palette') ||
-      deviceModelScenario) {
+      scenarioId.startsWith('collaboration') || deviceModelScenario) {
       this.initialPage = 'pages/preview/MobileDesignGallery';
       this.previewStorage = new LocalStorage();
       this.previewStorage.setOrCreate('scenarioId', scenarioId);
@@ -51,10 +53,11 @@ export default class EntryAbility extends UIAbility {
       const previewDark = this.previewStorage !== undefined &&
         want.parameters?.['openbitfunDesignAppearance'] === 'dark';
       const colorMode = previewDark || scenarioId === 'cold-start-home-dark' || scenarioId === 'catalog-refresh-dark' || scenarioId === 'model-role-selector-dark' || scenarioId === 'subagent-process-dark' || scenarioId === 'subagent-swarm-dark' || scenarioId === 'file-visibility-dark' || scenarioId === 'immersive-bottom-dark' || scenarioId === 'immersive-bottom-drawer-dark' || scenarioId === 'immersive-bottom-settings-dark' || scenarioId === 'composer-overflow-dark' || scenarioId === 'composer-overflow-expanded-dark' || scenarioId === 'device-selector-dark' || scenarioId === 'streaming-dark' || scenarioId === 'interaction-mailbox-dark' || scenarioId === 'copy-selection-dark' || scenarioId === 'copy-rollback-dark' || scenarioId === 'copy-rollback-send-dark' || scenarioId === 'copy-rollback-fail-dark' || (scenarioId.startsWith('command-palette') && scenarioId.endsWith('-dark')) ||
-        (deviceModelScenario && scenarioId.endsWith('-dark'))
+        (deviceModelScenario && scenarioId.endsWith('-dark')) ||
+        (scenarioId.startsWith('collaboration') && scenarioId.endsWith('-dark'))
         ? ConfigurationConstant.ColorMode.COLOR_MODE_DARK
         : scenarioId === 'cold-start-home' || scenarioId === 'catalog-refresh' || scenarioId === 'model-role-selector' || scenarioId === 'model-role-selector-wide' || scenarioId === 'subagent-process' || scenarioId === 'subagent-swarm' || scenarioId === 'file-visibility' || scenarioId === 'immersive-bottom' || scenarioId === 'immersive-bottom-wide' || scenarioId === 'immersive-bottom-drawer' || scenarioId === 'immersive-bottom-settings' || scenarioId === 'immersive-bottom-cover' || scenarioId === 'immersive-bottom-miniapps' || scenarioId === 'immersive-bottom-wide-shell' || scenarioId === 'immersive-bottom-tools' || scenarioId === 'immersive-bottom-tools-editor' || scenarioId === 'immersive-bottom-tools-file-action' || scenarioId === 'immersive-bottom-view-settings' || scenarioId === 'immersive-bottom-connect' || scenarioId === 'composer-overflow' || scenarioId === 'composer-overflow-empty' || scenarioId === 'composer-overflow-wide' || scenarioId === 'composer-overflow-expanded' || scenarioId === 'device-selector' || scenarioId === 'connected-conversation' || scenarioId === 'reconnecting-wide' || scenarioId === 'copy-selection' || scenarioId === 'copy-selection-nav' || scenarioId === 'copy-selection-wide' || scenarioId === 'copy-rollback' || scenarioId === 'copy-rollback-send' || scenarioId === 'copy-rollback-send-fail' || scenarioId === 'copy-rollback-fail' || scenarioId === 'copy-rollback-stale' || scenarioId === 'copy-rollback-busy' || scenarioId === 'copy-rollback-unsupported' || (scenarioId.startsWith('command-palette') && !scenarioId.endsWith('-dark')) ||
-          (deviceModelScenario && !scenarioId.endsWith('-dark'))
+          ((deviceModelScenario || scenarioId.startsWith('collaboration')) && !scenarioId.endsWith('-dark'))
           ? ConfigurationConstant.ColorMode.COLOR_MODE_LIGHT
           : ConfigurationConstant.ColorMode.COLOR_MODE_NOT_SET;
       this.context.getApplicationContext().setColorMode(colorMode);
@@ -62,7 +65,25 @@ export default class EntryAbility extends UIAbility {
       hilog.error(DOMAIN, TAG, 'Failed to set colorMode. Cause: %{public}s', JSON.stringify(err));
     }
     this.applyTextScale();
+    if (!this.previewStorage) {
+      this.deliverCardLaunch(want);
+    }
     hilog.info(DOMAIN, TAG, '%{public}s', 'Ability onCreate');
+  }
+
+  onNewWant(want: Want, _launchParam: AbilityConstant.LaunchParam): void {
+    if (!this.previewStorage) {
+      this.deliverCardLaunch(want);
+    }
+  }
+
+  /** A tap on a generated app's home-screen card opens that app. */
+  private deliverCardLaunch(want: Want): void {
+    const appId = LocalGenUIDesktopCards.launchAppId(want.parameters as Record<string, Object> | undefined);
+    if (appId.length > 0) {
+      hilog.info(DOMAIN, TAG, '%{public}s', 'Opening a generated app from its desktop card');
+      LocalGenUILaunchInbox.deliver(appId);
+    }
   }
 
   // The type ramp is read through getters, so this has to land before the first

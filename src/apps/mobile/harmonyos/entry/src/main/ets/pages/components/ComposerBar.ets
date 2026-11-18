@@ -114,6 +114,7 @@ export struct ComposerBar {
   @Event onStop: () => void = () => {};
   @Event onVoiceInput: () => void = () => {};
   @Event onSelectModel: (modelId: string) => void = (_modelId: string) => {};
+  @Event onManageModels: () => void = () => {};
   @Event onChatInputChange: (value: string) => void = (_value: string) => {};
 
   aboutToAppear(): void {
@@ -329,6 +330,11 @@ export struct ComposerBar {
       }
     })
     .onClick(() => {
+      // A surface that owns its models opens their manager when none exist yet.
+      if (this.enabledModels().length === 0 && this.capabilities.supportsModelManagement) {
+        this.onManageModels();
+        return;
+      }
       this.toggleModelSelectorPopover();
     })
   }
@@ -361,6 +367,32 @@ export struct ComposerBar {
       .scrollBar(BarState.Auto)
       .edgeEffect(EdgeEffect.Spring)
       .divider(null)
+      if (this.capabilities.supportsModelManagement) {
+        Divider()
+          .strokeWidth(COMPOSER_MODEL_DEFAULTS_DIVIDER_STROKE)
+          .color(LINE)
+          .width('100%')
+        Row({ space: 10 }) {
+          Stack({ alignContent: Alignment.Center }) {
+            SymbolGlyph($r('sys.symbol.gearshape')).fontSize(16).fontColor([INK])
+          }
+          .width(20)
+          .height(20)
+          Text(RemoteI18n.t('localGenui.manageModels'))
+            .fontSize(MobileDesignTypography.bodySmall.size)
+            .fontWeight(FontWeight.Medium)
+            .fontColor(INK)
+            .layoutWeight(1)
+        }
+        .width('100%')
+        .constraintSize({ minHeight: MobileDesignGeometry.composerModelSelectorRowHeight })
+        .padding({ left: 10, right: 10, top: 8, bottom: 8 })
+        .borderRadius(MobileDesignGeometry.composerModelSelectorRowRadius)
+        .onClick(() => {
+          this.closeModelSelector(true);
+          this.onManageModels();
+        })
+      }
     }
     .width(MobileDesignGeometry.composerModelSelectorWidth)
     .padding({ left: 10, right: 10, top: 10, bottom: 10 })
@@ -880,7 +912,7 @@ export struct ComposerBar {
   }
 
   private shouldShowModelControl(): boolean {
-    return this.enabledModels().length > 0;
+    return this.enabledModels().length > 0 || this.capabilities.supportsModelManagement;
   }
 
   private enabledModels(): ConversationUiModel[] {
@@ -922,6 +954,9 @@ export struct ComposerBar {
       return RemoteI18n.t(roleKey);
     }
     const selected = this.selectedModel();
+    if (!selected && this.enabledModels().length === 0 && this.capabilities.supportsModelManagement) {
+      return RemoteI18n.t('localGenui.addModel');
+    }
     return selected ? ConversationModelPresentationPolicy.primaryLabel(selected, RemoteI18n.t('chat.model')) :
       RemoteI18n.t('chat.model');
   }

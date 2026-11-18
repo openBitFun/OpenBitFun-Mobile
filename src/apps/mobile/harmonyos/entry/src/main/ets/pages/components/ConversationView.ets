@@ -527,7 +527,7 @@ export struct ConversationView {
       subtitle: this.headerSubtitle(),
       titleFallback: this.headerFallback(),
       allowRename: this.headerAllowRename(),
-      showActions: this.headerShowActions(),
+      showActions: this.surface === ChatSurface.Local || this.headerShowActions(),
       showSidebarButton: this.showSidebarButton,
       showBackButton: this.showBackButton,
       showSidebarRestoreButton: this.showSidebarRestoreButton,
@@ -707,6 +707,9 @@ export struct ConversationView {
       onVoiceInput: () => {
         this.onVoiceInput();
       },
+      onManageModels: () => {
+        this.dispatchValue(ConversationIntentType.ManageModels, '');
+      },
       onSelectModel: (modelId: string) => {
         this.onSelectModel(modelId);
       },
@@ -769,15 +772,23 @@ export struct ConversationView {
         this.isSessionPinned ? RemoteI18n.t('chat.unpin') : RemoteI18n.t('chat.pin'),
         () => this.onTogglePinSession(), this.isSessionPinned)
     }
-    this.RemoteStyleMenuItem('remote_actions_cloud', RemoteI18n.t('chat.uploadedFiles'),
-      () => this.onShowUploadedFiles())
+    if (this.surface === ChatSurface.Local) {
+      this.RemoteStyleMenuItem('remote_actions_folder', RemoteI18n.t('localGenui.history'),
+        () => this.dispatchSimple(ConversationIntentType.OpenBotHistory))
+      if (this.headerShowActions()) {
+        this.RemoteStyleMenuItem('delete', RemoteI18n.t('common.delete'), () => this.onDeleteSession())
+      }
+    } else {
+      this.RemoteStyleMenuItem('remote_actions_cloud', RemoteI18n.t('chat.uploadedFiles'),
+        () => this.onShowUploadedFiles())
+    }
     if (this.surface === ChatSurface.General) {
       Divider().strokeWidth(1).color(LINE).margin({ top: 8, bottom: 8 })
       this.RemoteStyleMenuItem('remote_actions_folder', RemoteI18n.t('sidebar.archive'),
         () => this.onArchiveSession())
       this.RemoteStyleMenuItem('delete', RemoteI18n.t('common.delete'),
         () => this.onDeleteSession())
-    } else if (this.canStop && this.connectionState === 'connected') {
+    } else if (this.surface === ChatSurface.Remote && this.canStop && this.connectionState === 'connected') {
       Divider().strokeWidth(1).color(LINE).margin({ top: 8, bottom: 8 })
       this.RemoteStyleMenuItem('stop', RemoteI18n.t('chat.stop'), () => this.onStop())
     }
@@ -1038,7 +1049,8 @@ export struct ConversationView {
   }
 
   private headerFallback(): string {
-    return RemoteI18n.t(this.headerPresentation().fallbackKey);
+    return RemoteI18n.t(this.surface === ChatSurface.Local ? 'localGenui.entry' :
+      this.headerPresentation().fallbackKey);
   }
 
   private headerAllowRename(): boolean {

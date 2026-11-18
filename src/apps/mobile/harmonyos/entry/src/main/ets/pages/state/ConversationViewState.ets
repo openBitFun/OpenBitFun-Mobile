@@ -10,6 +10,7 @@ import { RemoteUiState } from '../../services/RemoteUiState';
 import {
   ChatComposerCapabilities,
   GENERAL_CHAT_COMPOSER_CAPABILITIES,
+  LOCAL_GENUI_COMPOSER_CAPABILITIES,
   REMOTE_CHAT_COMPOSER_CAPABILITIES
 } from './ChatComposerCapabilities';
 import { ChatSurface } from './ChatSurface';
@@ -143,6 +144,17 @@ export class ConversationViewState {
     state.rollbackOutcome = remote.rollbackOutcome;
     state.rollbackOutcomeSeq = remote.rollbackOutcomeSeq;
     state.sessionContextRevision = remote.sessionContextRevision;
+    return state;
+  }
+
+  /** Local GenUI conversation: the same view, phone-owned models and sessions. */
+  static local(core: ConversationCoreState, inlineStatus: string): ConversationViewState {
+    const state = ConversationViewState.fromCore(core);
+    state.surface = ChatSurface.Local;
+    state.inlineStatusText = inlineStatus;
+    state.connectionState = 'connected';
+    state.composerCapabilities = LOCAL_GENUI_COMPOSER_CAPABILITIES;
+    state.showSuggestionsWhenEmpty = false;
     return state;
   }
 

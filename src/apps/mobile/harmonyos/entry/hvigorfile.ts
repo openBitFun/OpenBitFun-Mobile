@@ -4,6 +4,7 @@ import { hapTasks } from '@ohos/hvigor-ohos-plugin';
 require('../miniapps/generate.cjs').generate();
 // Regenerate the HostTextRetranslator i18n rawfile catalog on every build.
 require('../i18n/generate.cjs').generate();
+require('../tools/genui-runtime-freshness.cjs').assertRuntimeFresh();
 
 export default {
   system: hapTasks, /* Built-in plugin of Hvigor. It cannot be modified. */

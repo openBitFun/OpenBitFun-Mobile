@@ -2,8 +2,10 @@ import { MobileDesignGeometry, MobileDesignTypography } from '../../generated/Mo
 import { MiniAppActions, emptyMiniAppActions } from '../../model/MiniAppModels';
 import { RemoteI18n } from '../../i18n/RemoteI18n';
 import { MiniAppState } from '../state/MiniAppState';
-import { TemplateIcon } from './TemplateIcon';
+import { LocalGenUIState } from '../state/LocalGenUIState';
+import { LocalGenUIGalleryEntry } from '../../services/local-genui/LocalGenUIModels';
 import { MiniAppGallery } from './MiniAppGallery';
+import { TemplateIcon } from './TemplateIcon';
 import { MiniAppWebView } from './MiniAppWebView';
 import { NavigationBackButton } from './NavigationBackButton';
 import { PAGE_BG, INK, MUTED, SOFT, TRANSPARENT } from './Theme';
@@ -13,6 +15,15 @@ import { WindowInsetsBinding } from '../../services/WindowSystemBarService';
 export struct MiniAppSurface {
   @Param state: MiniAppState = new MiniAppState();
   @Param actions: MiniAppActions = emptyMiniAppActions();
+  /** Generated apps the user added to the gallery (Local GenUI Mode). */
+  @Param generatedApps: LocalGenUIGalleryEntry[] = [];
+  @Event onOpenGenerated: (appId: string) => void = (_appId: string) => {};
+  @Event onRemoveGenerated: (appId: string) => void = (_appId: string) => {};
+  /** Local GenUI projection; supplies the add-to-desktop want. */
+  @Param generatedState: LocalGenUIState = new LocalGenUIState();
+  @Event onPrepareDesktopCard: (appId: string) => void = (_appId: string) => {};
+  @Event onDesktopCardAdded: (appId: string, formId: string, error: string) => void =
+    (_appId: string, _formId: string, _error: string) => {};
   @Local insets: WindowInsetsBinding = new WindowInsetsBinding();
 
   aboutToAppear(): void {
@@ -47,11 +58,21 @@ export struct MiniAppSurface {
               .fontColor(MUTED).padding({ top: 16, bottom: 16 }).copyOption(CopyOptions.InApp)
             Button(RemoteI18n.t('miniapp.refresh'))
               .fontColor(INK).backgroundColor(SOFT).onClick(() => this.actions.refresh())
-          } else if (this.state.apps.length === 0) {
+          } else if (this.state.apps.length === 0 && this.generatedApps.length === 0) {
             Text(RemoteI18n.t('miniapp.empty')).fontSize(MobileDesignTypography.bodyMedium.size)
               .fontColor(MUTED).padding(24)
           } else {
-            MiniAppGallery({ state: this.state, bottomInset: this.insets.bottom, onSelect: this.actions.select })
+            MiniAppGallery({
+              state: this.state,
+              bottomInset: this.insets.bottom,
+              onSelect: this.actions.select,
+              generatedApps: this.generatedApps,
+              generatedState: this.generatedState,
+              onOpenGenerated: this.onOpenGenerated,
+              onRemoveGenerated: this.onRemoveGenerated,
+              onPrepareDesktopCard: this.onPrepareDesktopCard,
+              onDesktopCardAdded: this.onDesktopCardAdded
+            })
               .layoutWeight(1)
           }
         }.width('100%').constraintSize({ maxWidth: 1000 }).layoutWeight(1)

@@ -1,4 +1,5 @@
 import { InteractionMailboxState } from '../../model/InteractionMailbox';
+import { MessageAppCard } from './MessageAppCard';
 import { MobileDesignTypography } from '../../generated/MobileDesignTokens';
 import { ConversationUiImage, ConversationUiMessage, ConversationUiMessageItem, ConversationUiQuestionAnswer, ConversationUiToolStatus } from '../state/ConversationUiModels';
 import { MessageCopyScope } from '../actions/ConversationIntent';
@@ -159,6 +160,12 @@ export struct ChatMessageBubble {
         }
         if (this.item.images && this.item.images.length > 0) {
           this.MessageImages(this.item.images)
+        }
+        if (this.item.appCard) {
+          MessageAppCard({
+            card: this.item.appCard,
+            onOpen: (link: string, title: string) => this.onOpenFilePreview(link, title)
+          })
         }
         if (this.isFailedAssistant(this.item) && (this.item.error || '').trim().length > 0) {
           this.AssistantFailure(

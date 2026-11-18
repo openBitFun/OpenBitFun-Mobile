@@ -21,6 +21,12 @@ export struct SidebarGlyph {
       this.Clock()
     } else if (this.kind === 'apps') {
       this.Apps()
+    } else if (this.kind === 'create_app') {
+      Stack({ alignContent: Alignment.Center }) {
+        SymbolGlyph($r('sys.symbol.wand_and_stars'))
+          .fontSize(this.iconSize).fontColor([this.tint])
+      }
+      .width(this.iconSize).height(this.iconSize)
     } else if (this.kind === 'assistant') {
       this.Assistant()
     } else if (this.kind === 'code_flower') {

@@ -70,6 +70,21 @@ export interface RemoteSession {
   deviceId?: string;
 }
 
+/**
+ * A generated mini app attached to an assistant message. Only Local GenUI
+ * produces it; remote hosts never send this field.
+ */
+export interface ChatMessageAppCard {
+  appId: string;
+  title: string;
+  /** Localized status line. */
+  status: string;
+  /** Preview image on this phone, or '' for the drawn fallback. */
+  thumbnailPath: string;
+  /** Reference handed back through the existing open-link intent. */
+  link: string;
+}
+
 export interface ChatMessage {
   id: string;
   role: string;
@@ -84,6 +99,7 @@ export interface ChatMessage {
   tools?: RemoteToolStatusResponse[];
   items?: ChatMessageItemResponse[];
   images?: ImageAttachment[];
+  appCard?: ChatMessageAppCard;
 }
 
 export interface SessionSummary {

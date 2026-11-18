@@ -1,0 +1,419 @@
+{
+  "description": "Shared GenerativeUI tool-call argument fixtures. Consumed by the Desktop accumulator (agent-stream tool_call_accumulator tests) and the Harmony Local GenUI adapter (src/apps/mobile/harmonyos/tools/tests/local-genui-stream.test.cjs). Each delta is one provider frame; completion is the provider stop reason (absent means the stream ended without one); stream lists the OpenUI text emitted per frame that produced text; local is the Harmony terminal decision.",
+  "toolName": "GenerativeUI",
+  "cases": [
+    {
+      "name": "append-split-statements",
+      "deltas": [
+        {
+          "arguments": "{\"protocol\":\"openbitfun.genui.v1\",\"messages\":[{\"createSurface\":{\"title\":\"Todo\",\"source\":{\"kind\":\"openui-lang\",\"content\":\"root = Col("
+        },
+        {
+          "arguments": "[a])\\na = Te"
+        },
+        {
+          "arguments": "xt(\\\"Hi\\\")\"}}}]}"
+        }
+      ],
+      "expect": {
+        "stream": [
+          {
+            "text": "root = Col(",
+            "reset": false
+          },
+          {
+            "text": "[a])\na = Te",
+            "reset": false
+          },
+          {
+            "text": "xt(\"Hi\")",
+            "reset": false
+          }
+        ],
+        "source": "root = Col([a])\na = Text(\"Hi\")",
+        "local": {
+          "accepted": true,
+          "title": "Todo",
+          "values": {}
+        }
+      }
+    },
+    {
+      "name": "escape-split-across-chunks",
+      "note": "the first chunk ends with a lone backslash",
+      "deltas": [
+        {
+          "arguments": "{\"protocol\":\"openbitfun.genui.v1\",\"messages\":[{\"createSurface\":{\"title\":\"Todo\",\"source\":{\"kind\":\"openui-lang\",\"content\":\"root = Text(\\"
+        },
+        {
+          "arguments": "\"q\\\")\"}}}]}"
+        }
+      ],
+      "expect": {
+        "stream": [
+          {
+            "text": "root = Text(",
+            "reset": false
+          },
+          {
+            "text": "\"q\")",
+            "reset": false
+          }
+        ],
+        "source": "root = Text(\"q\")",
+        "local": {
+          "accepted": true,
+          "title": "Todo",
+          "values": {}
+        }
+      }
+    },
+    {
+      "name": "unicode-and-surrogate-split",
+      "note": "a \\u escape and a surrogate pair are split across chunks",
+      "deltas": [
+        {
+          "arguments": "{\"protocol\":\"openbitfun.genui.v1\",\"messages\":[{\"createSurface\":{\"title\":\"Todo\",\"source\":{\"kind\":\"openui-lang\",\"content\":\"root = Text(\\\"\\u4e"
+        },
+        {
+          "arguments": "2d\\ud83d"
+        },
+        {
+          "arguments": "\\ude00\\\")\"}}}]}"
+        }
+      ],
+      "expect": {
+        "stream": [
+          {
+            "text": "root = Text(\"",
+            "reset": false
+          },
+          {
+            "text": "中",
+            "reset": false
+          },
+          {
+            "text": "😀\")",
+            "reset": false
+          }
+        ],
+        "source": "root = Text(\"中😀\")",
+        "local": {
+          "accepted": true,
+          "title": "Todo",
+          "values": {}
+        }
+      }
+    },
+    {
+      "name": "cumulative-snapshot-without-flag",
+      "note": "the provider resends the whole prefix on every frame",
+      "deltas": [
+        {
+          "arguments": "{\"protocol\":\"openbitfun.genui.v1\",\"messages\":[{\"createSurface\":{\"title\":\"Todo\",\"source\":{\"kind\":\"openui-lang\",\"content\":\"root = Col("
+        },
+        {
+          "arguments": "{\"protocol\":\"openbitfun.genui.v1\",\"messages\":[{\"createSurface\":{\"title\":\"Todo\",\"source\":{\"kind\":\"openui-lang\",\"content\":\"root = Col([])\"}}}]}"
+        }
+      ],
+      "expect": {
+        "stream": [
+          {
+            "text": "root = Col(",
+            "reset": false
+          },
+          {
+            "text": "[])",
+            "reset": false
+          }
+        ],
+        "source": "root = Col([])",
+        "local": {
+          "accepted": true,
+          "title": "Todo",
+          "values": {}
+        }
+      }
+    },
+    {
+      "name": "declared-snapshot-reset",
+      "note": "a declared snapshot that is not a prefix restarts the source",
+      "deltas": [
+        {
+          "arguments": "{\"protocol\":\"openbitfun.genui.v1\",\"messages\":[{\"createSurface\":{\"title\":\"Todo\",\"source\":{\"kind\":\"openui-lang\",\"content\":\"root = Old(",
+          "snapshot": true
+        },
+        {
+          "arguments": "{\"protocol\":\"openbitfun.genui.v1\",\"messages\":[{\"createSurface\":{\"title\":\"Todo\",\"source\":{\"kind\":\"openui-lang\",\"content\":\"root = Col([])\"}}}]}",
+          "snapshot": true
+        }
+      ],
+      "expect": {
+        "stream": [
+          {
+            "text": "root = Old(",
+            "reset": false
+          },
+          {
+            "text": "root = Col([])",
+            "reset": true
+          }
+        ],
+        "source": "root = Col([])",
+        "local": {
+          "accepted": true,
+          "title": "Todo",
+          "values": {}
+        }
+      }
+    },
+    {
+      "name": "reset-before-content-text",
+      "note": "a reset whose first decoded frame is empty must stay pending until text arrives",
+      "deltas": [
+        {
+          "arguments": "{\"protocol\":\"openbitfun.genui.v1\",\"messages\":[{\"createSurface\":{\"title\":\"Todo\",\"source\":{\"kind\":\"openui-lang\",\"content\":\"root = Old(",
+          "snapshot": true
+        },
+        {
+          "arguments": "{\"protocol\":\"openbitfun.genui.v1\",\"messages\":[{\"createSurface\":{\"title\":\"New\",\"source\":{\"kind\":\"openui-lang\",\"content\":\"",
+          "snapshot": true
+        },
+        {
+          "arguments": "root = Col([])\"}}}]}"
+        }
+      ],
+      "expect": {
+        "stream": [
+          {
+            "text": "root = Old(",
+            "reset": false
+          },
+          {
+            "text": "root = Col([])",
+            "reset": true
+          }
+        ],
+        "source": "root = Col([])",
+        "local": {
+          "accepted": true,
+          "title": "New",
+          "values": {}
+        }
+      }
+    },
+    {
+      "name": "split-before-content-quote",
+      "note": "frames split between the colon, whitespace and the opening quote",
+      "deltas": [
+        {
+          "arguments": "{\"protocol\":\"openbitfun.genui.v1\",\"messages\":[{\"createSurface\":{\"title\":\"Todo\",\"source\":{\"kind\":\"openui-lang\",\"content\""
+        },
+        {
+          "arguments": ": "
+        },
+        {
+          "arguments": "\"root = Col("
+        },
+        {
+          "arguments": "[])\"}}}]}"
+        }
+      ],
+      "expect": {
+        "stream": [
+          {
+            "text": "root = Col(",
+            "reset": false
+          },
+          {
+            "text": "[])",
+            "reset": false
+          }
+        ],
+        "source": "root = Col([])",
+        "local": {
+          "accepted": true,
+          "title": "Todo",
+          "values": {}
+        }
+      }
+    },
+    {
+      "name": "missing-closer-after-normal-completion",
+      "note": "the provider omitted one object closer; repaired close-only after finish_reason=tool_calls",
+      "deltas": [
+        {
+          "arguments": "{\"protocol\":\"openbitfun.genui.v1\",\"messages\":[{\"createSurface\":{\"title\":\"Ledger\",\"source\":{\"kind\":\"openui-lang\",\"content\":\"root = Col([])\"}}]}"
+        }
+      ],
+      "expect": {
+        "stream": [
+          {
+            "text": "root = Col([])",
+            "reset": false
+          }
+        ],
+        "source": "root = Col([])",
+        "local": {
+          "accepted": true,
+          "title": "Ledger",
+          "values": {}
+        }
+      },
+      "completion": "tool_calls"
+    },
+    {
+      "name": "missing-closer-after-length-stop",
+      "note": "no repair when the provider stopped for length",
+      "deltas": [
+        {
+          "arguments": "{\"protocol\":\"openbitfun.genui.v1\",\"messages\":[{\"createSurface\":{\"title\":\"Ledger\",\"source\":{\"kind\":\"openui-lang\",\"content\":\"root = Col([])\"}}]}"
+        }
+      ],
+      "expect": {
+        "stream": [
+          {
+            "text": "root = Col([])",
+            "reset": false
+          }
+        ],
+        "source": "root = Col([])",
+        "local": {
+          "accepted": false,
+          "error": "incomplete"
+        }
+      },
+      "completion": "length"
+    },
+    {
+      "name": "truncated-stream",
+      "deltas": [
+        {
+          "arguments": "{\"protocol\":\"openbitfun.genui.v1\",\"messages\":[{\"createSurface\":{\"title\":\"Todo\",\"source\":{\"kind\":\"openui-lang\",\"content\":\"root = Col("
+        }
+      ],
+      "expect": {
+        "stream": [
+          {
+            "text": "root = Col(",
+            "reset": false
+          }
+        ],
+        "source": "root = Col(",
+        "local": {
+          "accepted": false,
+          "error": "incomplete"
+        }
+      }
+    },
+    {
+      "name": "owner-identity-fields-from-provider",
+      "note": "Desktop reads legacy identity fields; Harmony Local rejects them",
+      "deltas": [
+        {
+          "arguments": "{\"protocol\":\"openbitfun.genui.v1\",\"messages\":[{\"createSurface\":{\"id\":\"x\",\"title\":\"Todo\",\"libraryId\":\"openbitfun.composable.v1\",\"libraryRevision\":2,\"source\":{\"kind\":\"openui-lang\",\"content\":\"root = Col([])\"}}}]}"
+        }
+      ],
+      "expect": {
+        "stream": [
+          {
+            "text": "root = Col([])",
+            "reset": false
+          }
+        ],
+        "source": "root = Col([])",
+        "local": {
+          "accepted": false,
+          "error": "owner-bound"
+        },
+        "desktop": {
+          "appId": "x",
+          "libraryId": "openbitfun.composable.v1",
+          "libraryRevision": 2
+        }
+      }
+    },
+    {
+      "name": "html-document-is-not-streamed",
+      "deltas": [
+        {
+          "arguments": "{\"protocol\":\"openbitfun.genui.v1\",\"messages\":[{\"createSurface\":{\"title\":\"Doc\",\"source\":{\"kind\":\"html-document\",\"html\":\"<main>x</main>\"}}}]}"
+        }
+      ],
+      "expect": {
+        "stream": [],
+        "source": "",
+        "local": {
+          "accepted": false,
+          "error": "source kind"
+        }
+      }
+    },
+    {
+      "name": "duplicate-create-surface",
+      "deltas": [
+        {
+          "arguments": "{\"protocol\":\"openbitfun.genui.v1\",\"messages\":[{\"createSurface\":{\"title\":\"A\",\"source\":{\"kind\":\"openui-lang\",\"content\":\"root = Col([])\"}}},{\"createSurface\":{\"title\":\"B\",\"source\":{\"kind\":\"openui-lang\",\"content\":\"root = Row([])\"}}}]}"
+        }
+      ],
+      "expect": {
+        "stream": [
+          {
+            "text": "root = Col([])",
+            "reset": false
+          }
+        ],
+        "source": "root = Col([])",
+        "local": {
+          "accepted": false,
+          "error": "only once"
+        }
+      }
+    },
+    {
+      "name": "initial-values",
+      "deltas": [
+        {
+          "arguments": "{\"protocol\":\"openbitfun.genui.v1\",\"messages\":[{\"createSurface\":{\"title\":\"Counter\",\"source\":{\"kind\":\"openui-lang\",\"content\":\"root = Col([])\"}}},{\"updateDataModel\":{\"values\":{\"count\":2}}}]}"
+        }
+      ],
+      "expect": {
+        "stream": [
+          {
+            "text": "root = Col([])",
+            "reset": false
+          }
+        ],
+        "source": "root = Col([])",
+        "local": {
+          "accepted": true,
+          "title": "Counter",
+          "values": {
+            "count": 2
+          }
+        }
+      }
+    },
+    {
+      "name": "graph-messages-rejected",
+      "deltas": [
+        {
+          "arguments": "{\"protocol\":\"openbitfun.genui.v1\",\"messages\":[{\"createSurface\":{\"title\":\"G\",\"source\":{\"kind\":\"openui-lang\",\"content\":\"root = Col([])\"}}},{\"updateComponents\":{\"components\":[]}}]}"
+        }
+      ],
+      "expect": {
+        "stream": [
+          {
+            "text": "root = Col([])",
+            "reset": false
+          }
+        ],
+        "source": "root = Col([])",
+        "local": {
+          "accepted": false,
+          "error": "graph"
+        }
+      }
+    }
+  ]
+}

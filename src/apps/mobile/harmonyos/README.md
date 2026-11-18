@@ -48,6 +48,20 @@ can still produce an unsigned HAP.
 The current project targets HarmonyOS `6.1.1(24)` and supports
 `6.0.1(21)` or newer on phone and tablet devices.
 
+## Local GenUI
+
+Open the left sidebar and choose **Create mini apps** to see your saved creation
+sessions. Select a session or start a new one. Back returns to the list.
+The composer includes **Manage
+models** for adding an API endpoint and model. Conversation history, generated
+app source and app state are stored on the phone. Generation uses the selected
+model API directly from the phone and does not require a desktop connection.
+
+Before building the HAP, run `pnpm run harmony:genui-runtime` from the
+repository root. The contract comes from `src/shared/generative-ui/library.json`.
+The source and build configuration for the bundled ArkWeb renderer live in
+`genui-runtime/`.
+
 ## Built-in MiniApps
 
 Choose **MiniApps** from the sidebar to open Gomoku, Regex Playground,

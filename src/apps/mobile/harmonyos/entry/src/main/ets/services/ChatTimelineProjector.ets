@@ -126,7 +126,8 @@ export class ChatTimelineProjector {
             thinking: message.thinking,
             tools: message.tools,
             items: message.items,
-            images: message.images
+            images: message.images,
+            appCard: message.appCard
           };
         }
       }

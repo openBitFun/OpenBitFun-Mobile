@@ -3225,16 +3225,376 @@
       "value": "Show app cards"
     },
     {
-      "name": "sidebar_bot",
-      "value": "Bot"
-    },
-    {
-      "name": "sidebar_botComingSoon",
-      "value": "In development. Stay tuned."
-    },
-    {
       "name": "sidebar_workspaceActionsHint",
       "value": "Long press to create a session in this workspace"
+    },
+    {
+      "name": "permission_camera_reason",
+      "value": "Used by local mini apps that respond to body gestures; frames are analyzed on the device and never uploaded."
+    },
+    {
+      "name": "permission_calendar_reason",
+      "value": "Used by local AI mini apps to create and manage OpenBitFun calendar events."
+    },
+    {
+      "name": "localGenui_cameraOn",
+      "value": "Camera on"
+    },
+    {
+      "name": "localGenui_networkUnavailable",
+      "value": "Can't reach the model service. Check the network or the model URL."
+    },
+    {
+      "name": "localGenui_localBadge",
+      "value": "Runs on this phone"
+    },
+    {
+      "name": "localGenui_newSession",
+      "value": "Start creating"
+    },
+    {
+      "name": "localGenui_backToChat",
+      "value": "Conversation"
+    },
+    {
+      "name": "localGenui_generating",
+      "value": "Generating…"
+    },
+    {
+      "name": "localGenui_cancelled",
+      "value": "The turn was stopped."
+    },
+    {
+      "name": "localGenui_modelNotConfigured",
+      "value": "Set up a model service for local mini apps first."
+    },
+    {
+      "name": "localGenui_unsupportedAction",
+      "value": "%1$s is not available here: %2$s"
+    },
+    {
+      "name": "localGenui_appMissing",
+      "value": "This app is no longer available."
+    },
+    {
+      "name": "localGenui_appUnsupported",
+      "value": "This app was made with another version and cannot open yet. Its content is kept."
+    },
+    {
+      "name": "localGenui_runtimeMismatch",
+      "value": "App components need an update. Update OpenBitFun and try again."
+    },
+    {
+      "name": "localGenui_saveFailed",
+      "value": "The change was not saved: %1$s"
+    },
+    {
+      "name": "localGenui_failed",
+      "value": "Could not create the app: %1$s"
+    },
+    {
+      "name": "localGenui_status_candidate",
+      "value": "Getting ready"
+    },
+    {
+      "name": "localGenui_status_displayable",
+      "value": "Ready to use"
+    },
+    {
+      "name": "localGenui_status_accepted",
+      "value": "Ready to use"
+    },
+    {
+      "name": "localGenui_status_failed",
+      "value": "Could not be created"
+    },
+    {
+      "name": "localGenui_status_state_migration_required",
+      "value": "The new version does not fit your saved data, so the previous version is kept"
+    },
+    {
+      "name": "localGenui_status_unsupported",
+      "value": "This version cannot open the app"
+    },
+    {
+      "name": "localGenui_apiKey",
+      "value": "API key"
+    },
+    {
+      "name": "localGenui_apiKeyKept",
+      "value": "Leave empty to keep the saved key"
+    },
+    {
+      "name": "localGenui_saved",
+      "value": "Saved"
+    },
+    {
+      "name": "localGenui_autoRepair",
+      "value": "The last app had a problem; fixing it automatically"
+    },
+    {
+      "name": "localGenui_truncated",
+      "value": "The reply was too long to finish. Send it again, or ask for something simpler."
+    },
+    {
+      "name": "localGenui_history",
+      "value": "Creation history"
+    },
+    {
+      "name": "localGenui_noHistory",
+      "value": "No creation sessions yet"
+    },
+    {
+      "name": "localGenui_generatedApps",
+      "value": "AI-generated mini app"
+    },
+    {
+      "name": "localGenui_modelMissing",
+      "value": "This conversation's model was deleted. Choose another model."
+    },
+    {
+      "name": "localGenui_manageModels",
+      "value": "Manage models"
+    },
+    {
+      "name": "localGenui_addModel",
+      "value": "Add model"
+    },
+    {
+      "name": "localGenui_editModel",
+      "value": "Edit model"
+    },
+    {
+      "name": "localGenui_deleteModel",
+      "value": "Delete model"
+    },
+    {
+      "name": "localGenui_noModels",
+      "value": "No models yet. Add one to start."
+    },
+    {
+      "name": "localGenui_modelDisplayName",
+      "value": "Display name"
+    },
+    {
+      "name": "localGenui_modelDisplayNameHint",
+      "value": "Optional, defaults to the model name"
+    },
+    {
+      "name": "localGenui_fetchModels",
+      "value": "Fetch models"
+    },
+    {
+      "name": "localGenui_noRemoteModels",
+      "value": "The service returned no models. Enter the model name manually."
+    },
+    {
+      "name": "localGenui_addToGallery",
+      "value": "Add to MiniApps"
+    },
+    {
+      "name": "localGenui_inGallery",
+      "value": "In MiniApps"
+    },
+    {
+      "name": "localGenui_removeFromGallery",
+      "value": "Remove from MiniApps"
+    },
+    {
+      "name": "localGenui_addedToGallery",
+      "value": "Added to MiniApps"
+    },
+    {
+      "name": "localGenui_entry",
+      "value": "Create mini apps"
+    },
+    {
+      "name": "localGenui_linkUnsupported",
+      "value": "This link cannot be opened in a local conversation."
+    },
+    {
+      "name": "localGenui_generationInvalid",
+      "value": "The app could not be made this time. Try again or rephrase it."
+    },
+    {
+      "name": "genui_card_name",
+      "value": "AI mini app"
+    },
+    {
+      "name": "genui_card_desc",
+      "value": "Opens a mini app generated on this phone"
+    },
+    {
+      "name": "genui_card_pending",
+      "value": "Open OpenBitFun"
+    },
+    {
+      "name": "genui_card_missing",
+      "value": "This mini app was deleted"
+    },
+    {
+      "name": "localGenui_addToDesktop",
+      "value": "Add to desktop"
+    },
+    {
+      "name": "localGenui_addedToDesktop",
+      "value": "Added to desktop"
+    },
+    {
+      "name": "localGenui_addToDesktopFailed",
+      "value": "Could not add to desktop"
+    },
+    {
+      "name": "localGenui_appActions",
+      "value": "Mini app actions"
+    },
+    {
+      "name": "localGenui_calendarCreated",
+      "value": "Calendar event added (ID %1$s)"
+    },
+    {
+      "name": "localGenui_calendarUpdated",
+      "value": "Calendar event updated (ID %1$s)"
+    },
+    {
+      "name": "localGenui_calendarDeleted",
+      "value": "Calendar event deleted (ID %1$s)"
+    },
+    {
+      "name": "localGenui_calendarListed",
+      "value": "%1$s calendar events found"
+    },
+    {
+      "name": "collaboration_title",
+      "value": "Cross-device media probe"
+    },
+    {
+      "name": "collaboration_requirements",
+      "value": "Sign in with the same HUAWEI ID and enable Wi-Fi and Bluetooth on both devices. Choose a device in the system menu; receive one image per request."
+    },
+    {
+      "name": "collaboration_emulatorNotice",
+      "value": "Use the emulator to verify the build and UI. A system capability declaration does not prove device discovery; real transfers require supported devices."
+    },
+    {
+      "name": "collaboration_photo",
+      "value": "Take photo on another device"
+    },
+    {
+      "name": "collaboration_scan",
+      "value": "Scan on another device"
+    },
+    {
+      "name": "collaboration_gallery",
+      "value": "Choose image on another device"
+    },
+    {
+      "name": "collaboration_reset",
+      "value": "Restart probe"
+    },
+    {
+      "name": "collaboration_resize",
+      "value": "Toggle content width"
+    },
+    {
+      "name": "collaboration_resetNotice",
+      "value": "Restart closes the local receiver and clears the preview; it does not confirm remote cancellation. This probe does not save images or send them to a model."
+    },
+    {
+      "name": "collaboration_result",
+      "value": "Received {0} images · System status {1}"
+    },
+    {
+      "name": "collaboration_receivedImage",
+      "value": "Image received from another device"
+    },
+    {
+      "name": "collaboration_phase_ready",
+      "value": "Choose a media source"
+    },
+    {
+      "name": "collaboration_phase_selecting",
+      "value": "Choose a device in the system menu"
+    },
+    {
+      "name": "collaboration_phase_active",
+      "value": "Connected; waiting for the other device"
+    },
+    {
+      "name": "collaboration_phase_receiving",
+      "value": "Receiving and decoding image"
+    },
+    {
+      "name": "collaboration_phase_completed",
+      "value": "Image transfer complete"
+    },
+    {
+      "name": "collaboration_phase_cancelled",
+      "value": "Operation cancelled"
+    },
+    {
+      "name": "collaboration_phase_failed",
+      "value": "Media request failed"
+    },
+    {
+      "name": "collaboration_phase_closed",
+      "value": "Local receiver closed"
+    },
+    {
+      "name": "collaboration_phase_unavailable",
+      "value": "Unavailable in this environment"
+    },
+    {
+      "name": "collaboration_reason_missingSyscap",
+      "value": "The system does not declare device interconnectivity support."
+    },
+    {
+      "name": "collaboration_reason_version",
+      "value": "This media adapter requires API 23 or later; the current OS is unsupported."
+    },
+    {
+      "name": "collaboration_reason_deviceType",
+      "value": "This device type cannot initiate this operation."
+    },
+    {
+      "name": "collaboration_reason_probeFailed",
+      "value": "Cannot read system capabilities. Restart the probe."
+    },
+    {
+      "name": "collaboration_reason_peerCancelled",
+      "value": "The other device cancelled the operation."
+    },
+    {
+      "name": "collaboration_reason_localCancelled",
+      "value": "The operation was cancelled locally."
+    },
+    {
+      "name": "collaboration_reason_invalidImage",
+      "value": "The system did not return valid image data."
+    },
+    {
+      "name": "collaboration_reason_imageLimit",
+      "value": "Probe image limit exceeded: one image, up to 32 MiB."
+    },
+    {
+      "name": "collaboration_reason_decodeFailed",
+      "value": "Data was received but could not be decoded as an image."
+    },
+    {
+      "name": "collaboration_reason_emptyResult",
+      "value": "The transfer ended without an image."
+    },
+    {
+      "name": "collaboration_reason_platformError",
+      "value": "The system collaboration service reported an error. See the status code."
+    },
+    {
+      "name": "collaboration_inputTitle",
+      "value": "Get an image from another device"
+    },
+    {
+      "name": "collaboration_closeInput",
+      "value": "Close this request"
     }
   ]
 }

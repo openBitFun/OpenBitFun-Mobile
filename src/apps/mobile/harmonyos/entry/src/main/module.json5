@@ -41,8 +41,41 @@
         }
       },
       {
+        "name": "ohos.permission.CAMERA",
+        "reason": "$string:permission_camera_reason",
+        "usedScene": {
+          "abilities": [
+            "EntryAbility"
+          ],
+          "when": "inuse"
+        }
+      },
+      {
+        "name": "ohos.permission.VIBRATE"
+      },
+      {
         "name": "ohos.permission.MICROPHONE",
         "reason": "$string:permission_microphone_reason",
+        "usedScene": {
+          "abilities": [
+            "EntryAbility"
+          ],
+          "when": "inuse"
+        }
+      },
+      {
+        "name": "ohos.permission.READ_CALENDAR",
+        "reason": "$string:permission_calendar_reason",
+        "usedScene": {
+          "abilities": [
+            "EntryAbility"
+          ],
+          "when": "inuse"
+        }
+      },
+      {
+        "name": "ohos.permission.WRITE_CALENDAR",
+        "reason": "$string:permission_calendar_reason",
         "usedScene": {
           "abilities": [
             "EntryAbility"
@@ -103,6 +136,22 @@
             "resource": "$profile:backup_config"
           }
         ],
+      },
+      {
+        // Home-screen cards of generated mini apps (Local GenUI). The card is an
+        // entry that opens the app in EntryAbility; it never runs the app.
+        "name": "LocalGenUIFormAbility",
+        "srcEntry": "./ets/genuiform/LocalGenUIFormAbility.ets",
+        "label": "$string:genui_card_name",
+        "description": "$string:genui_card_desc",
+        "type": "form",
+        "exported": true,
+        "metadata": [
+          {
+            "name": "ohos.extension.form",
+            "resource": "$profile:local_genui_form_config"
+          }
+        ]
       }
     ]
   }

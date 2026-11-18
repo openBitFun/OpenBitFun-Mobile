@@ -1,3 +1,4 @@
+import { SidebarToggleButton } from './SidebarToggleButton';
 import { RemoteI18n } from '../../i18n/RemoteI18n';
 import { MobileDesignTypography, MobileDesignGeometry as G } from '../../generated/MobileDesignTokens';
 import { WelcomePhrase } from './WelcomePhrase';
@@ -18,6 +19,7 @@ import { INK, PAGE_BG, WELCOME_PAGE_BG, MUTED, TRANSPARENT } from './Theme';
 export struct WelcomeHome {
   @Param signedIn: boolean = false;
   @Event onLogin: () => void = () => {};
+  @Event onOpenSidebar: () => void = () => {};
   @Event onMiniApps: () => void = () => {};
   @Local pageHeight: number = 700;
   @Local pageWidth: number = 390;
@@ -52,6 +54,9 @@ export struct WelcomeHome {
       Column() {
         Row() {
           ForEach('OpenBitFun'.split(''), (letter: string) => { this.Glyph(letter, G.welcomeHeaderWordSize); })
+          Blank()
+          SidebarToggleButton({ restore: true, controlSize: G.controlTouchSize,
+            onToggle: () => this.onOpenSidebar() })
         }.width('100%').height(G.welcomeHeaderHeight)
           .padding({ left: this.wide() ? 40 : G.welcomeGutter, right: G.welcomeGutter })
         if (this.landscape()) {

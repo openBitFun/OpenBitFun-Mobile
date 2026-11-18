@@ -4,6 +4,10 @@ import { RemoteCompactHomePolicy } from '../policy/RemoteCompactHomePolicy';
 import { MiniAppActions, emptyMiniAppActions } from '../../model/MiniAppModels';
 import { MiniAppState } from '../state/MiniAppState';
 import { MiniAppSurface } from './MiniAppSurface';
+import { LocalGenUIActions, LocalGenUIState, emptyLocalGenUIActions } from '../state/LocalGenUIState';
+import { LocalGenUIRuntimeBridge } from '../../services/local-genui/LocalGenUIRuntimeBridge';
+import { LocalGenUISurface } from './LocalGenUISurface';
+import { LocalGenUIPresentation } from '../../services/local-genui/LocalGenUIModels';
 import display from '@ohos.display';
 import mediaQuery from '@ohos.mediaquery';
 import { RemoteUiState } from '../../services/RemoteUiState';
@@ -68,6 +72,10 @@ enum WideWorkspacePresentationMode {
 export struct AppRootPresentation {
   @Param miniAppState: MiniAppState = new MiniAppState();
   @Param miniAppActions: MiniAppActions = emptyMiniAppActions();
+  @Param localGenUIState: LocalGenUIState = new LocalGenUIState();
+  @Param localGenUIActions: LocalGenUIActions = emptyLocalGenUIActions();
+  @Param localGenUIBridge: LocalGenUIRuntimeBridge = new LocalGenUIRuntimeBridge();
+  @Event onLocalGenUIPresentation: (report: LocalGenUIPresentation) => void = () => {};
   @Param shellState: AppShellState = new AppShellState();
   @Param navigationStack: NavPathStack = new NavPathStack();
   @Param remotePageState: RemotePageState = new RemotePageState();
@@ -145,7 +153,7 @@ export struct AppRootPresentation {
       AppShell({
         shellState: this.shellState,
         useWideLayout: this.isWideLayout(),
-        allowSidebar: !this.showWelcomeHome(),
+        allowSidebar: true,
         settingsPlacement: this.settingsPlacement,
         compactAccountLogin: this.shellState.settingsMode === 'account' &&
           this.remotePageState.accountUserId.trim().length === 0,
@@ -205,7 +213,26 @@ export struct AppRootPresentation {
       // Sidebar destinations belong to the moving content pane. A root-level
       // overlay would cover the drawer before its closing animation can run.
       if (this.miniAppState.visible) {
-        MiniAppSurface({ state: this.miniAppState, actions: this.miniAppActions })
+        MiniAppSurface({
+          state: this.miniAppState,
+          actions: this.miniAppActions,
+          generatedApps: this.localGenUIState.gallery,
+          onOpenGenerated: (appId: string) => this.localGenUIActions.openGalleryApp(appId),
+          onRemoveGenerated: (appId: string) => this.localGenUIActions.removeFromGallery(appId),
+          generatedState: this.localGenUIState,
+          onPrepareDesktopCard: (appId: string) => this.localGenUIActions.prepareDesktopCard(appId),
+          onDesktopCardAdded: (appId: string, formId: string, error: string) =>
+            this.localGenUIActions.desktopCardAdded(appId, formId, error)
+        })
+      }
+      if (this.localGenUIState.visible) {
+        LocalGenUISurface({
+          state: this.localGenUIState,
+          actions: this.localGenUIActions,
+          bridge: this.localGenUIBridge,
+          locale: RemoteI18n.language(),
+          onPresentation: (report: LocalGenUIPresentation) => this.onLocalGenUIPresentation(report)
+        })
       }
     }
     .width('100%')

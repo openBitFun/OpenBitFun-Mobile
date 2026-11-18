@@ -126,14 +126,13 @@ export struct AppSidebar {
   private EmptySlot() {
   }
 
-  /** Reserved for the future on-device assistant, never a remote-session shortcut. */
   @Builder
-  private BotEntryRow() {
+  private CreateMiniAppEntryRow() {
     Button({ type: ButtonType.Normal }) {
       Row({ space: SidebarLayoutPolicy.ROW_GAP }) {
-        SidebarGlyph({ kind: 'assistant', iconSize: SidebarLayoutPolicy.PROMINENT_ICON_SLOT_SIZE,
+        SidebarGlyph({ kind: 'create_app', iconSize: SidebarLayoutPolicy.PROMINENT_ICON_SLOT_SIZE,
           tint: SIDEBAR_MUTED })
-        Text(RemoteI18n.t('sidebar.bot'))
+        Text(RemoteI18n.t('localGenui.entry'))
           .fontSize(MobileDesignTypography.bodyMedium.size)
           .fontWeight(FontWeight.Regular)
           .fontColor(SIDEBAR_MUTED)
@@ -141,12 +140,12 @@ export struct AppSidebar {
       }.width('100%').alignItems(VerticalAlign.Center)
     }
     .width('100%')
-    .height(40)
+    .height(SidebarLayoutPolicy.ENTRY_ROW_HEIGHT)
     .padding({ left: SidebarLayoutPolicy.ROW_HORIZONTAL_PADDING, right: SidebarLayoutPolicy.ROW_HORIZONTAL_PADDING })
     .backgroundColor(TRANSPARENT)
     .borderRadius(6)
     .id('sidebar-local-bot')
-    .accessibilityText(RemoteI18n.t('sidebar.bot'))
+    .accessibilityText(RemoteI18n.t('localGenui.entry'))
     .onClick(() => this.onOpenBot())
   }
 
@@ -309,7 +308,7 @@ export struct AppSidebar {
   private NavigationScroll() {
     Scroll() {
       Column() {
-        this.BotEntryRow()
+        this.CreateMiniAppEntryRow()
         this.MiniAppsEntryRow()
         if (this.showWorkspaceSection) {
           this.contentSlot()

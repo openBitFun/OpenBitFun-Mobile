@@ -1,15 +1,32 @@
+import { AddFormMenuItem } from '@kit.ArkUI';
+import { BusinessError } from '@kit.BasicServicesKit';
+import { LocalGenUIState } from '../state/LocalGenUIState';
+import { LocalGenUIGalleryEntry } from '../../services/local-genui/LocalGenUIModels';
 import { MobileDesignGeometry, MobileDesignTypography } from '../../generated/MobileDesignTokens';
 import { MiniAppSummary } from '../../model/MiniAppModels';
 import { RemoteI18n } from '../../i18n/RemoteI18n';
 import { MiniAppState } from '../state/MiniAppState';
 import { MiniAppGalleryPolicy } from '../policy/MiniAppGalleryPolicy';
-import { CARD, INK, MUTED, LINE, SUBTLE, SHADOW_SUBTLE } from './Theme';
+import { CARD, INK, MUTED, LINE, SUBTLE, SHADOW_SUBTLE, CONNECT_HERO_ACCENT, CONNECT_HERO_SURFACE, TRANSPARENT } from './Theme';
+
+interface MiniAppGalleryItem extends MiniAppSummary {
+  generatedId: string;
+  thumbnailPath: string;
+}
 
 @ComponentV2
 export struct MiniAppGallery {
   @Require @Param state: MiniAppState;
   @Param bottomInset: number = 0;
   @Event onSelect: (id: string) => void = (_id: string) => {};
+  @Param generatedApps: LocalGenUIGalleryEntry[] = [];
+  @Param generatedState: LocalGenUIState = new LocalGenUIState();
+  @Event onOpenGenerated: (id: string) => void = (_id: string) => {};
+  @Event onRemoveGenerated: (id: string) => void = (_id: string) => {};
+  @Event onPrepareDesktopCard: (id: string) => void = (_id: string) => {};
+  @Event onDesktopCardAdded: (id: string, formId: string, error: string) => void =
+    (_id: string, _formId: string, _error: string) => {};
+  @Local failedThumbnails: string[] = [];
   @Local viewportWidth: number = 360;
   @Local stackHeight: number = 480;
 
@@ -19,23 +36,23 @@ export struct MiniAppGallery {
         this.ListView()
       } else {
         Stack({ alignContent: Alignment.Center }) {
-          ForEach(this.state.apps, (app: MiniAppSummary, index: number) => {
+          ForEach(this.items(), (app: MiniAppGalleryItem, index: number) => {
             this.SwipeCard(app, index)
-          }, (app: MiniAppSummary): string => app.id)
+          }, (app: MiniAppGalleryItem): string => app.id)
         }
         .width('100%').layoutWeight(1).clip(true)
         .onAreaChange((_old: Area, area: Area) => { this.stackHeight = Number(area.height); })
         .gesture(PanGesture({ direction: PanDirection.Horizontal, distance: 12 })
           .onActionEnd((event: GestureEvent) => {
-            const index = MiniAppGalleryPolicy.nextIndex(this.currentIndex(), event.offsetX, this.state.apps.length);
+            const index = MiniAppGalleryPolicy.nextIndex(this.currentIndex(), event.offsetX, this.items().length);
             this.focus(index);
           }))
         Row({ space: 8 }) {
-          ForEach(this.state.apps, (app: MiniAppSummary, index: number) => {
+          ForEach(this.items(), (app: MiniAppGalleryItem, index: number) => {
             Row().width(index === this.currentIndex() ? 24 : 8).height(8)
               .borderRadius(4).backgroundColor(index === this.currentIndex() ? INK : SUBTLE)
               .opacity(index === this.currentIndex() ? 1 : 0.4)
-          }, (app: MiniAppSummary): string => app.id)
+          }, (app: MiniAppGalleryItem): string => app.id)
         }.justifyContent(FlexAlign.Center).padding({ top: 20, bottom: 12 })
           .accessibilityLevel('no')
         Text(RemoteI18n.t('miniapp.swipeHint')).fontSize(MobileDesignTypography.labelSmall.size)
@@ -46,11 +63,10 @@ export struct MiniAppGallery {
   }
 
   @Builder
-  private SwipeCard(app: MiniAppSummary, index: number) {
+  private SwipeCard(app: MiniAppGalleryItem, index: number) {
     Button({ type: ButtonType.Normal }) {
       Column() {
-        Image(this.preview(app.id)).width('100%').height('65%').objectFit(ImageFit.Cover)
-          .draggable(false).accessibilityLevel('no')
+        this.Cover(app, '100%', '65%')
         Column({ space: 8 }) {
           Text(app.name).fontSize(MobileDesignTypography.titleSmall.size).fontWeight(FontWeight.Bold)
             .fontColor(INK).maxLines(1).textOverflow({ overflow: TextOverflow.Ellipsis }).width('100%')
@@ -60,7 +76,7 @@ export struct MiniAppGallery {
           .alignItems(HorizontalAlign.Start)
       }.width('100%').height('100%')
     }
-    .id(`miniapp-card-${app.id}`)
+    .id(this.elementId(app, true))
     .width(MiniAppGalleryPolicy.cardWidth(this.viewportWidth))
     .height(MiniAppGalleryPolicy.cardHeight(this.viewportWidth, this.stackHeight))
     .padding(0).backgroundColor(CARD).borderRadius(MobileDesignGeometry.miniappCardRadius).clip(true)
@@ -73,19 +89,23 @@ export struct MiniAppGallery {
     .hitTestBehavior(index === this.currentIndex() ? HitTestMode.Default : HitTestMode.None)
     .accessibilityLevel(index === this.currentIndex() ? 'yes' : 'no-hide-descendants')
     .accessibilityText(`${app.name}, ${app.description}`)
-    .onClick(() => { if (index === this.currentIndex()) { this.state.galleryAppId = app.id; this.onSelect(app.id); } })
+    .onClick(() => { if (index === this.currentIndex()) this.select(app); })
+    .bindContextMenu(this.GeneratedActions(app, true), ResponseType.LongPress, {
+      onAppear: () => {
+        if (app.generatedId.length > 0) this.onPrepareDesktopCard(app.generatedId);
+      }
+    })
   }
 
   @Builder
   private ListView() {
     Grid() {
-      ForEach(this.state.apps, (app: MiniAppSummary) => {
+      ForEach(this.items(), (app: MiniAppGalleryItem) => {
         GridItem() {
           Button({ type: ButtonType.Normal }) {
             Row() {
-              Image(this.preview(app.id)).width(Math.min(MobileDesignGeometry.miniappListCoverSize, this.viewportWidth * 0.36))
-                .height(MobileDesignGeometry.miniappListCoverSize).objectFit(ImageFit.Cover).draggable(false)
-                .accessibilityLevel('no')
+              this.Cover(app, Math.min(MobileDesignGeometry.miniappListCoverSize, this.viewportWidth * 0.36),
+                MobileDesignGeometry.miniappListCoverSize)
               Column({ space: 8 }) {
                 Text(app.name).fontSize(MobileDesignTypography.titleSmall.size).fontWeight(FontWeight.Bold)
                   .fontColor(INK).maxLines(2).textOverflow({ overflow: TextOverflow.Ellipsis }).width('100%')
@@ -93,12 +113,17 @@ export struct MiniAppGallery {
                   .maxLines(3).textOverflow({ overflow: TextOverflow.Ellipsis }).width('100%')
               }.layoutWeight(1).padding(16).alignItems(HorizontalAlign.Start)
             }.width('100%')
-          }.id(`miniapp-list-${app.id}`).width('100%').padding(0).backgroundColor(CARD)
+          }.id(this.elementId(app, false)).width('100%').padding(0).backgroundColor(CARD)
             .border({ width: 1, color: LINE, radius: MobileDesignGeometry.miniappListRadius }).clip(true)
             .accessibilityText(`${app.name}, ${app.description}`)
-            .onClick(() => { this.state.galleryAppId = app.id; this.onSelect(app.id); })
+            .onClick(() => this.select(app))
+            .bindContextMenu(this.GeneratedActions(app, false), ResponseType.LongPress, {
+              onAppear: () => {
+                if (app.generatedId.length > 0) this.onPrepareDesktopCard(app.generatedId);
+              }
+            })
         }
-      }, (app: MiniAppSummary): string => app.id)
+      }, (app: MiniAppGalleryItem): string => app.id)
       GridItem() { Row().height(this.bottomInset + 24).hitTestBehavior(HitTestMode.None) }
         .columnStart(0).columnEnd(MiniAppGalleryPolicy.columns(this.viewportWidth) - 1)
     }.width('100%').layoutWeight(1).padding({ left: 16, right: 16 })
@@ -107,12 +132,75 @@ export struct MiniAppGallery {
       .scrollBar(BarState.Off)
   }
 
+  @Builder
+  private Cover(app: MiniAppGalleryItem, width: Length, height: Length) {
+    Stack() {
+      if (app.generatedId.length === 0) {
+        Image(this.preview(app.id)).width('100%').height('100%').objectFit(ImageFit.Cover)
+          .draggable(false).accessibilityLevel('no')
+      } else if (app.thumbnailPath.length > 0 && !this.failedThumbnails.includes(app.thumbnailPath)) {
+        Image(`file://${app.thumbnailPath}`).width('100%').height('100%').objectFit(ImageFit.Contain)
+          .draggable(false).accessibilityLevel('no')
+          .onError(() => { this.failedThumbnails = this.failedThumbnails.concat([app.thumbnailPath]); })
+      } else {
+        SymbolGlyph($r('sys.symbol.square_grid_2x2'))
+          .fontSize(30).fontColor([CONNECT_HERO_ACCENT]).accessibilityLevel('no')
+      }
+    }
+    .width(width).height(height).clip(true)
+    .backgroundColor(app.generatedId.length > 0 ? CONNECT_HERO_SURFACE : TRANSPARENT)
+  }
+
+  @Builder
+  private GeneratedActions(app: MiniAppGalleryItem, card: boolean) {
+    if (app.generatedId.length > 0) {
+      Menu() {
+        if (this.generatedState.canAddToDesktop(app.generatedId)) {
+          AddFormMenuItem(this.generatedState.desktopCardWant(app.generatedId), this.elementId(app, card), {
+            formBindingData: this.generatedState.desktopCardInitialData(app.generatedId, app.name),
+            style: { options: { content: RemoteI18n.t('localGenui.addToDesktop') } },
+            callback: (error: BusinessError, formId: string) => {
+              this.onDesktopCardAdded(app.generatedId, formId ?? '', error && error.code ? `${error.code}` : '');
+            }
+          })
+        }
+        MenuItem({ content: RemoteI18n.t('localGenui.removeFromGallery') })
+          .onClick(() => this.onRemoveGenerated(app.generatedId))
+      }
+    }
+  }
+
+  private items(): MiniAppGalleryItem[] {
+    const builtins = this.state.apps.map((app: MiniAppSummary): MiniAppGalleryItem => ({
+      id: app.id, name: app.name, description: app.description, generatedId: '', thumbnailPath: ''
+    }));
+    const generated = this.generatedApps.map((entry: LocalGenUIGalleryEntry): MiniAppGalleryItem => ({
+      id: `generated:${entry.appId}`,
+      name: entry.title,
+      description: RemoteI18n.t('localGenui.generatedApps'),
+      generatedId: entry.appId,
+      thumbnailPath: entry.thumbnailPath ?? ''
+    }));
+    return builtins.concat(generated);
+  }
+
+  private elementId(app: MiniAppGalleryItem, card: boolean): string {
+    const id = app.id.replace(/[^A-Za-z0-9_-]/g, '_');
+    return card ? `miniapp-card-${id}` : `miniapp-list-${id}`;
+  }
+
+  private select(app: MiniAppGalleryItem): void {
+    this.state.galleryAppId = app.id;
+    if (app.generatedId.length > 0) this.onOpenGenerated(app.generatedId);
+    else this.onSelect(app.id);
+  }
+
   private currentIndex(): number {
-    return Math.max(0, this.state.apps.findIndex((app: MiniAppSummary): boolean => app.id === this.state.galleryAppId));
+    return Math.max(0, this.items().findIndex((app: MiniAppGalleryItem): boolean => app.id === this.state.galleryAppId));
   }
 
   private focus(index: number): void {
-    const app = this.state.apps[index];
+    const app = this.items()[index];
     if (!app) return;
     this.getUIContext().animateTo({ duration: 240, curve: Curve.EaseOut }, () => { this.state.galleryAppId = app.id; });
   }

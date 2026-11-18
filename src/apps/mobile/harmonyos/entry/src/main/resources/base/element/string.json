@@ -93,16 +93,168 @@
       "value": "Show app cards"
     },
     {
-      "name": "sidebar_bot",
-      "value": "Bot"
-    },
-    {
-      "name": "sidebar_botComingSoon",
-      "value": "In development. Stay tuned."
+      "name": "localGenui_entry",
+      "value": "Create mini apps"
     },
     {
       "name": "sidebar_workspaceActionsHint",
       "value": "Long press to create a session in this workspace"
+    },
+    {
+      "name": "permission_camera_reason",
+      "value": "Used by local mini apps that respond to body gestures; frames are analyzed on the device and never uploaded."
+    },
+    {
+      "name": "permission_calendar_reason",
+      "value": "Used by local AI mini apps to create and manage OpenBitFun calendar events."
+    },
+    {
+      "name": "genui_card_name",
+      "value": "AI mini app"
+    },
+    {
+      "name": "genui_card_desc",
+      "value": "Opens a mini app generated on this phone"
+    },
+    {
+      "name": "genui_card_pending",
+      "value": "Open OpenBitFun"
+    },
+    {
+      "name": "genui_card_missing",
+      "value": "This mini app was deleted"
+    },
+    {
+      "name": "collaboration_title",
+      "value": "跨设备取材验证"
+    },
+    {
+      "name": "collaboration_requirements",
+      "value": "两端需登录同一华为账号并开启 WLAN 和蓝牙。由系统选择设备，每次接收一张图片。"
+    },
+    {
+      "name": "collaboration_emulatorNotice",
+      "value": "模拟器用于验证构建和界面。系统能力声明不代表已发现设备；真实取材与回传需在支持的设备上验证。"
+    },
+    {
+      "name": "collaboration_photo",
+      "value": "从其他设备拍照"
+    },
+    {
+      "name": "collaboration_scan",
+      "value": "从其他设备扫描文档"
+    },
+    {
+      "name": "collaboration_gallery",
+      "value": "选择其他设备的图片"
+    },
+    {
+      "name": "collaboration_reset",
+      "value": "重新开始验证"
+    },
+    {
+      "name": "collaboration_resize",
+      "value": "切换内容宽度"
+    },
+    {
+      "name": "collaboration_resetNotice",
+      "value": "重新开始会关闭本地接收并清除预览，不代表已取消对端操作。此验证入口不保存图片，也不向模型发送图片。"
+    },
+    {
+      "name": "collaboration_result",
+      "value": "已接收 {0} 张图片 · 系统状态码 {1}"
+    },
+    {
+      "name": "collaboration_receivedImage",
+      "value": "跨设备接收的图片"
+    },
+    {
+      "name": "collaboration_phase_ready",
+      "value": "等待选择取材方式"
+    },
+    {
+      "name": "collaboration_phase_selecting",
+      "value": "等待在系统菜单选择设备"
+    },
+    {
+      "name": "collaboration_phase_active",
+      "value": "协同已建立，等待对端操作"
+    },
+    {
+      "name": "collaboration_phase_receiving",
+      "value": "正在接收和解析图片"
+    },
+    {
+      "name": "collaboration_phase_completed",
+      "value": "图片接收完成"
+    },
+    {
+      "name": "collaboration_phase_cancelled",
+      "value": "操作已取消"
+    },
+    {
+      "name": "collaboration_phase_failed",
+      "value": "取材失败"
+    },
+    {
+      "name": "collaboration_phase_closed",
+      "value": "本地接收已关闭"
+    },
+    {
+      "name": "collaboration_phase_unavailable",
+      "value": "当前环境不可用"
+    },
+    {
+      "name": "collaboration_reason_missingSyscap",
+      "value": "系统未声明跨设备取材能力。"
+    },
+    {
+      "name": "collaboration_reason_version",
+      "value": "此取材适配需要 API 23 或更高版本，当前系统不支持。"
+    },
+    {
+      "name": "collaboration_reason_deviceType",
+      "value": "当前设备类型不支持发起此操作。"
+    },
+    {
+      "name": "collaboration_reason_probeFailed",
+      "value": "读取系统能力失败，请重新开始验证。"
+    },
+    {
+      "name": "collaboration_reason_peerCancelled",
+      "value": "对端取消了操作。"
+    },
+    {
+      "name": "collaboration_reason_localCancelled",
+      "value": "本端取消了操作。"
+    },
+    {
+      "name": "collaboration_reason_invalidImage",
+      "value": "系统未返回有效的图片数据。"
+    },
+    {
+      "name": "collaboration_reason_imageLimit",
+      "value": "超出本次验证的图片限制：一张图片，最大 32 MiB。"
+    },
+    {
+      "name": "collaboration_reason_decodeFailed",
+      "value": "收到数据但无法解码为图片。"
+    },
+    {
+      "name": "collaboration_reason_emptyResult",
+      "value": "传输结束，但未收到图片。"
+    },
+    {
+      "name": "collaboration_reason_platformError",
+      "value": "系统协同返回错误，请查看状态码。"
+    },
+    {
+      "name": "collaboration_inputTitle",
+      "value": "从其他设备取材"
+    },
+    {
+      "name": "collaboration_closeInput",
+      "value": "结束本次接收"
     }
   ]
 }

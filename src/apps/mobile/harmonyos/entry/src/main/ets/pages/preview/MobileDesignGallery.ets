@@ -1,3 +1,4 @@
+import { CollaborationPreview } from './CollaborationPreview';
 import { HistoryScrollPreview } from './HistoryScrollPreview';
 import { ColdStartHomePreview } from './ColdStartHomePreview';
 import { ComposerSubmissionPreview } from './ComposerSubmissionPreview';
@@ -48,7 +49,9 @@ struct MobileDesignGallery {
   }
 
   build() {
-    if ((AppStorage.get<string>('scenarioId') || '').startsWith('cold-start-home')) {
+    if ((AppStorage.get<string>('scenarioId') || '').startsWith('collaboration')) {
+      CollaborationPreview()
+    } else if ((AppStorage.get<string>('scenarioId') || '').startsWith('cold-start-home')) {
       ColdStartHomePreview()
     } else if (AppStorage.get<string>('scenarioId') === 'history-scroll') {
       HistoryScrollPreview()

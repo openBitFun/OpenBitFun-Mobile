@@ -159,7 +159,8 @@ export class ChatTimelineStore {
           thinking: message.thinking,
           tools: message.tools,
           items: message.items,
-          images: message.images
+          images: message.images,
+          appCard: message.appCard
         };
       });
     this.state = {
@@ -747,7 +748,8 @@ export class ChatTimelineStore {
         thinking: message.thinking,
         tools: message.tools,
         items: ChatTimelineStore.mergeActiveItems(activeTurn.items || [], message.items || []),
-        images: message.images
+        images: message.images,
+        appCard: message.appCard
       };
     });
   }

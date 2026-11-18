@@ -36,6 +36,9 @@ export class ConversationMessageRenderPolicy {
     if (item.images && item.images.length > 0) {
       return true;
     }
+    if (item.appCard) {
+      return true;
+    }
     const status = (item.status || '').toLowerCase();
     return status === 'active' || status === 'failed';
   }
