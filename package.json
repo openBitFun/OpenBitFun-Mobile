@@ -15,6 +15,8 @@
     "mobile:ui:generate": "node scripts/mobile-ui-design-system.mjs",
     "mobile:ui:check": "node scripts/mobile-ui-design-system.mjs --check && node scripts/mobile-ui-preview.mjs --check",
     "mobile:ui:preview": "pnpm run prepare:design && node scripts/mobile-ui-design-system.mjs && node scripts/mobile-ui-preview.mjs",
+    "mobile:design-lab": "pnpm run prepare:design && pnpm --filter @openbitfun/ui build && pnpm --filter @openbitfun/mobile-design-lab dev",
+    "mobile:design-lab:check": "pnpm run prepare:design && pnpm --filter @openbitfun/ui test && pnpm --filter @openbitfun/mobile-design-lab build",
     "theme:color-audit:all": "node scripts/audit-frontend-colors.mjs",
     "test:harmony": "node --test src/apps/mobile/harmonyos/tools/tests/*.test.cjs",
     "test:miniapps": "node --test src/apps/mobile/miniapps/*.test.cjs src/apps/mobile/harmonyos/miniapps/*.test.cjs",

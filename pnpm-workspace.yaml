@@ -1,4 +1,6 @@
 packages:
+  - design-system/apps/design-lab
   - design-system/packages/design-tokens
   - design-system/packages/theme-openbitfun
+  - design-system/packages/ui
   - design-system/tooling/token-engine

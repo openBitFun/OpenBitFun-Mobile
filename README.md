@@ -21,6 +21,7 @@ pnpm run check
 - [HarmonyOS](src/apps/mobile/harmonyos/README.md): DevEco Studio; local signing and SDK configuration stay outside Git.
 - [Shared core](src/apps/mobile/AGENTS.md): run `./gradlew jvmTest` from `src/apps/mobile/shared`.
 - [Design preview](src/apps/mobile/design-system/README.md): `pnpm run mobile:ui:preview`.
+- [Mobile Design Lab and standalone prototype](design-system/apps/design-lab/README.md): `pnpm run mobile:design-lab`.
 
 See [migration and compatibility ownership](MIGRATION.md), [app features](src/apps/mobile/README.md), and [contributing instructions](AGENTS.md).
 
