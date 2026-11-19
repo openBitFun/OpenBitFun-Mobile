@@ -8,6 +8,18 @@ function isTransparent(color: string): boolean {
   return channels.length === 4 && Number(channels[3]) === 0;
 }
 
+/** Frame loading is asynchronous; most pages have no frames and do not wait. */
+export async function waitForHtmlViews(): Promise<void> {
+  const pending = () => document.querySelector('[data-gen-ui-content] [data-html-view-status="pending"]');
+  if (!pending()) return;
+  await new Promise<void>(resolve => {
+    const finish = () => { observer.disconnect(); clearTimeout(timeout); resolve(); };
+    const observer = new MutationObserver(() => { if (!pending()) finish(); });
+    observer.observe(document.body, { subtree: true, childList: true, attributes: true, attributeFilter: ['data-html-view-status'] });
+    const timeout = setTimeout(finish, 2000);
+  });
+}
+
 /**
  * Read-only geometry probe for local acceptance. It never dispatches events or
  * runs actions; it reports what the mounted canvas actually rendered.
@@ -48,6 +60,9 @@ export function probeLocalCanvas(requestId: string, snapshot: LocalRuntimeSnapsh
   }
   const origin = canvasRect ?? { left: 0, top: 0, width: 0 };
   const renderErrors = [
+    ...Array.from(content?.querySelectorAll<HTMLElement>('[data-html-view-status]') ?? [])
+      .filter(frame => frame.dataset.htmlViewStatus !== 'ready')
+      .map(frame => `HtmlView: ${frame.dataset.htmlViewError || 'document did not start'}`),
     ...(report?.issues ?? []).filter(issue => issue.severity === 'error').map(issue => `${issue.path}: ${issue.message}`),
     ...Array.from(document.querySelectorAll('.gen-ui-application__error')).map(element => element.textContent ?? ''),
   ].filter(Boolean);

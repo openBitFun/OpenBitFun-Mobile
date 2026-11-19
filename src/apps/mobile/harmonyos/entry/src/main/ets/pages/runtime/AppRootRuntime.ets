@@ -42,16 +42,20 @@ export class AppRootRuntime extends AppRootRuntimeComposition {
     super(host);
   }
 
-  async aboutToAppear(onAccountRestored?: (signedIn: boolean) => void): Promise<void> {
+  subscribeToDesktopLaunch(onLaunch: () => void): void {
     // A generated app opened from its home-screen card is local: it does not
     // wait for account, device, or remote restoration below.
     LocalGenUILaunchInbox.subscribe((appId: string): void => {
+      onLaunch();
       if (BUILTIN_MINIAPP_IDS.includes(appId)) {
         void this.miniAppViewModel.openShortcut(appId);
       } else {
         void this.localGenUIViewModel.openGalleryApp(appId);
       }
     });
+  }
+
+  async aboutToAppear(onAccountRestored?: (signedIn: boolean) => void): Promise<void> {
     // Account login can be tapped while the rest of the cold-start work is
     // still running. Initialize its secure store first so the login path never
     // races the asynchronous cache and onboarding setup below.

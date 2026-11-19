@@ -16,7 +16,7 @@ import {
   type LocalRuntimeMessage,
   type LocalRuntimeSnapshot,
 } from './localRuntimeProtocol';
-import { probeLocalCanvas } from './localRuntimeProbe';
+import { probeLocalCanvas, waitForHtmlViews } from './localRuntimeProbe';
 import {
   GenUIDeviceCapabilitiesContext,
   type GenUIDeviceCapabilityPort,
@@ -182,7 +182,8 @@ export default function LocalRuntimeApp({ bridge, build }: { bridge: LocalRuntim
     }
     if (message.type === 'probe') {
       // Let layout settle for the latest source before measuring.
-      requestAnimationFrame(() => requestAnimationFrame(() => {
+      requestAnimationFrame(() => requestAnimationFrame(async () => {
+        await waitForHtmlViews();
         const current = snapshotRef.current;
         const report: LocalProbeReport = probeLocalCanvas(message.requestId, current, build, reportRef.current, declarationsRef.current);
         bridge.post({ type: 'probe_result', report });

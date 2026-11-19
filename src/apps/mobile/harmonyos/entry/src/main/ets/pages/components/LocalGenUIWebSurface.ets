@@ -6,16 +6,12 @@ import { LocalGenUIRuntimeBridge } from '../../services/local-genui/LocalGenUIRu
 import { LOCAL_GENUI_ICON3D_ROOT } from '../../services/local-genui/LocalGenUIIcon3DStore';
 import { LOCAL_GENUI_PHOTO_ROOT } from '../../services/local-genui/LocalGenUIImageSearch';
 import { LOCAL_GENUI_COLLABORATION_ROOT } from '../../services/local-genui/LocalGenUICollaborationAssets';
+import { HTML_SANDBOX_URL, htmlSandboxResponse } from '../../services/local-genui/LocalGenUIHtmlSandbox';
 import { RemoteLogger } from '../../services/RemoteLogger';
 
 const LOCAL_GENUI_WEB_ID: string = 'local-genui-runtime-web';
 
-/** ArkWeb javaScriptProxy object. Every message is untrusted input. */
-class LocalGenUINativeChannel {
-  private readonly dispatch: (raw: string) => void;
-  constructor(dispatch: (raw: string) => void) { this.dispatch = dispatch; }
-  post(raw: string): void { this.dispatch(raw); }
-}
+const RUNTIME_URL: string = 'resource://rawfile/genui/runtime/index.html';
 
 /**
  * Platform leaf for the Local GenUI runtime. It owns only the WebView
@@ -31,9 +27,19 @@ export struct LocalGenUIWebSurface {
   private alive: boolean = true;
   // Offline documents repeat the same blocked-resource warning on every render.
   private loggedConsole: Set<string> = new Set<string>();
-  private channel: LocalGenUINativeChannel = new LocalGenUINativeChannel((raw: string): void => {
-    if (this.alive) this.bridge.receive(raw);
-  });
+  private port?: webview.WebMessagePort;
+
+  private connectRuntime(url: string): void {
+    if (!this.alive || url !== RUNTIME_URL || this.controller.getUrl() !== RUNTIME_URL) return;
+    this.port?.close();
+    const ports = this.controller.createWebMessagePorts();
+    this.port = ports[0];
+    this.port.onMessageEvent((data: webview.WebMessage): void => {
+      if (this.alive && typeof data === 'string') this.bridge.receive(data);
+    });
+    // postMessage targets the main document. No JavaScript proxy is injected into frames.
+    this.controller.postMessage('local-genui-port', [ports[1]], '*');
+  }
 
   aboutToAppear(): void {
     if (BuildProfile.DEBUG) {
@@ -45,6 +51,8 @@ export struct LocalGenUIWebSurface {
 
   aboutToDisappear(): void {
     this.alive = false;
+    this.port?.close();
+    this.port = undefined;
     this.bridge.detach();
   }
 
@@ -100,15 +108,15 @@ export struct LocalGenUIWebSurface {
       .darkMode(WebDarkMode.Off)
       .forceDarkAccess(false)
       .overScrollMode(OverScrollMode.NEVER)
-      .javaScriptProxy({ object: this.channel, name: 'genuiNative', methodList: ['post'], controller: this.controller })
+      .onPageEnd((event) => { if (event) this.connectRuntime(event.url); })
       .onControllerAttached(() => {
         this.bridge.attach((json: string): void => this.send(json));
         this.bridge.attachSnapshot((): Promise<image.PixelMap | undefined> => this.capture());
       })
       .onInterceptRequest((event: OnInterceptRequestEvent): WebResourceResponse | null => {
-        // Host-served 3D pictures; nothing else is intercepted. Answers are
-        // asynchronous: the picture may need one download before the cache has it.
+        // Both the sandbox document and host-served images are answered locally.
         const url = event.request.getRequestUrl();
+        if (!event.request.isMainFrame() && url === HTML_SANDBOX_URL) return htmlSandboxResponse();
         const collaborationImage = url.startsWith(LOCAL_GENUI_COLLABORATION_ROOT);
         const photo = url.startsWith(LOCAL_GENUI_PHOTO_ROOT);
         if (!url.startsWith(LOCAL_GENUI_ICON3D_ROOT) && !collaborationImage && !photo) {
@@ -140,7 +148,7 @@ export struct LocalGenUIWebSurface {
       })
       .onOverrideUrlLoading((request: WebResourceRequest) => {
         // The runtime never navigates. Generated content cannot open pages.
-        return request.getRequestUrl().indexOf('genui/runtime/index.html') < 0;
+        return request.isMainFrame() ? request.getRequestUrl() !== RUNTIME_URL : request.getRequestUrl() !== HTML_SANDBOX_URL;
       })
       .onConsole((event) => {
         if (event && event.message.getMessageLevel() === MessageLevel.Error) {

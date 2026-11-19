@@ -35,9 +35,13 @@ test('the standalone Harmony GenUI bundle boots and renders at phone and foldabl
     page.on('pageerror', error => errors.push(error.message));
     await page.evaluateOnNewDocument(() => {
       window.messages = [];
-      window.genuiNative = { post: raw => window.messages.push(JSON.parse(raw)) };
     });
     await page.goto(`http://127.0.0.1:${server.address().port}/`);
+    await page.evaluate(() => {
+      const channel = new MessageChannel();
+      channel.port1.onmessage = event => window.messages.push(JSON.parse(event.data));
+      window.dispatchEvent(new MessageEvent('message', { data: 'local-genui-port', ports: [channel.port2] }));
+    });
     await page.waitForFunction(revision => window.messages.some(message =>
       message.type === 'boot' && message.rendererRevision === revision), { timeout: 5000 }, manifest.rendererRevision);
 
@@ -79,7 +83,44 @@ test('the standalone Harmony GenUI bundle boots and renders at phone and foldabl
         assert.ok(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth));
       }
     }
-    assert.deepEqual(errors, []);
+    const loader = await readFile(new URL('html-view.html', resources), 'utf8');
+    await page.setRequestInterception(true);
+    page.on('request', request => {
+      if (request.url() === 'https://genui-sandbox.openbitfun.invalid/view') {
+        void request.respond({ status: 200, contentType: 'text/html', body: loader, headers: {
+          'content-security-policy': "sandbox allow-scripts; default-src 'none'; script-src 'unsafe-inline'; style-src 'unsafe-inline'",
+        } });
+      } else {
+        void request.continue();
+      }
+    });
+    const mountHtml = async (html, revision) => {
+      await page.evaluate(message => window.__genuiHost.receive(JSON.stringify(message)), {
+        type: 'init', manifest, identity, mode: 'live', sourceRevision: revision,
+        source: 'root = Page([game], "HTML test")\ngame = HtmlView(' + JSON.stringify(html) + ', 300, "Fixture")',
+        stateRevision: 0, state: {}, streaming: false, scheme: 'light', locale: 'en-US',
+      });
+    };
+    await mountHtml('<button>Draw</button><canvas width="8" height="8"></canvas><script>' +
+      'document.querySelector("button").onclick = () => document.querySelector("canvas").getContext("2d").fillRect(0,0,8,8)' +
+      '</script>', 4);
+    await page.waitForSelector('iframe[data-html-view-status="ready"]', { timeout: 5000 });
+    const game = await (await page.$('iframe.gen-ui-oi-html')).contentFrame();
+    await game.$eval('button', button => button.click());
+    assert.equal(await game.evaluate(() => document.querySelector('canvas').getContext('2d').getImageData(0,0,1,1).data[3]), 255);
+
+    await mountHtml('<h1>Static chart</h1><div style="height:1600px">Chart details</div>', 5);
+    const chart = await page.waitForFrame(frame => frame.url() === 'about:srcdoc', { timeout: 5000 });
+    await chart.waitForSelector('h1', { timeout: 5000 });
+    assert.equal(await chart.$eval('h1', node => node.textContent), 'Static chart');
+    assert.ok(await chart.evaluate(() => { window.scrollTo(0, 80); return window.scrollY > 0; }));
+    await mountHtml('<canvas></canvas><script>throw new Error("test game startup failed")</script>', 6);
+    await page.waitForSelector('iframe[data-html-view-status="error"]', { timeout: 4000 });
+    await page.evaluate(() => window.__genuiHost.receive(JSON.stringify({ type: 'probe', requestId: 'game-startup' })));
+    const probe = await page.waitForFunction(() => window.messages.find(message => message.type === 'probe_result' &&
+      message.report.requestId === 'game-startup'), { timeout: 4000 });
+    assert.match((await probe.jsonValue()).report.renderErrors.join(' '), /HtmlView: .+/);
+    assert.deepEqual(errors.filter(error => !error.includes("test game startup failed")), []);
   } finally {
     await browser.close();
     await new Promise(resolve => server.close(resolve));
