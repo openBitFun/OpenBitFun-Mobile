@@ -433,7 +433,9 @@ test('the settings sheet viewport reaches the screen edge and its rows end in a 
 
 test('both mini-app modes keep their interactive content clear of the navigation bar', () => {
   assert.match(normalize(miniAppSurface), /bottomInset: this\.insets\.bottom/);
-  assert.match(normalize(miniAppGallery), /\.margin\(\{ bottom: this\.bottomInset \+ 16 \}\)/);
+  assert.match(normalize(builderBody(miniAppGallery, 'GalleryContent')),
+    /\.justifyContent\(FlexAlign\.Center\)\s*\.padding\(\{ top: 20, bottom: this\.bottomInset \+ 16 \}\)/,
+    'the pager indicators must reserve the navigation inset below the swipe cards');
   assert.match(normalize(miniAppGallery), /GridItem\(\) \{ Row\(\)\.height\(this\.bottomInset \+ 24\)/);
   assert.match(normalize(miniAppGallery), /\.columnEnd\(MiniAppGalleryPolicy\.columns\(this\.viewportWidth\) - 1\)/);
   assert.match(normalize(miniAppGallery), /\.columnsTemplate\(MiniAppGalleryPolicy\.columns\(this\.viewportWidth\) === 2/);
