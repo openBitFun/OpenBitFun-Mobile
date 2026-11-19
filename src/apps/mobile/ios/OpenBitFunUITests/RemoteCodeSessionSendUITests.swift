@@ -1010,15 +1010,15 @@ final class StreamingPresentationUITests: XCTestCase {
         app.launch()
         let open = app.buttons["fixture.openDelayed"]
         XCTAssertTrue(open.waitForExistence(timeout: 15))
-        let status = app.descendants(matching: .any)["conversation.connectionStatus"].firstMatch
-        XCTAssertTrue(status.exists)
-        XCTAssertEqual(status.frame.height, 48, accuracy: 1)
+        let initial = app.descendants(matching: .any)["conversation.session.fixture"].firstMatch
+        let loading = app.descendants(matching: .any)["conversation.loading"].firstMatch
+        XCTAssertTrue(initial.exists)
+        XCTAssertFalse(loading.exists)
         open.tap()
         let detail = app.descendants(matching: .any)["conversation.session.delayed"].firstMatch
         XCTAssertTrue(detail.waitForExistence(timeout: 2))
-        let loading = app.descendants(matching: .any)["conversation.loading"].firstMatch
+        XCTAssertFalse(initial.exists)
         XCTAssertTrue(loading.waitForExistence(timeout: 2))
-        XCTAssertFalse(status.exists, "The connection strip must not compete with the loading skeleton")
         app.buttons["fixture.bindTarget"].tap()
         XCTAssertTrue(detail.exists, "Binding the selected device must preserve pending navigation")
         XCTAssertTrue(loading.waitForExistence(timeout: 2))
