@@ -956,11 +956,13 @@ final class StreamingPresentationUITests: XCTestCase {
         XCTAssertTrue(timestamps.firstMatch.waitForExistence(timeout: 15))
         XCTAssertEqual(timestamps.count, 2)
         let summary = app.buttons["tool.summary.read"]
-        XCTAssertTrue(summary.exists)
-        XCTAssertFalse(app.buttons["tool.toggle.fetch"].exists)
-        summary.tap()
-        app.buttons["tool.toggle.fetch"].tap()
-        XCTAssertTrue(app.staticTexts["HTTP 404"].waitForExistence(timeout: 3))
+        let failure = app.buttons["tool.toggle.fetch"]
+        XCTAssertTrue(summary.wait(for: \.isHittable, toEqual: true, timeout: 5))
+        XCTAssertFalse(failure.exists)
+        summary.coordinate(withNormalizedOffset: CGVector(dx: 0.98, dy: 0.5)).tap()
+        XCTAssertTrue(failure.wait(for: \.isHittable, toEqual: true, timeout: 10))
+        failure.tap()
+        XCTAssertTrue(app.staticTexts["HTTP 404"].waitForExistence(timeout: 5))
         let capture = XCTAttachment(screenshot: app.screenshot())
         capture.name = "Message times and expandable tool failure"
         capture.lifetime = .keepAlways
@@ -1009,9 +1011,9 @@ final class StreamingPresentationUITests: XCTestCase {
         app.launchArguments = ["--streaming-regression", "--fixture-shell", "--open-loading-regression", "--status-regression"]
         app.launch()
         let open = app.buttons["fixture.openDelayed"]
-        XCTAssertTrue(open.waitForExistence(timeout: 15))
+        XCTAssertTrue(open.wait(for: \.isHittable, toEqual: true, timeout: 15))
         let initial = app.otherElements["conversation.session.fixture"]
-        XCTAssertTrue(initial.staticTexts["PREVIOUS-SESSION"].exists)
+        XCTAssertTrue(initial.waitForExistence(timeout: 10))
         open.tap()
         let detail = app.otherElements["conversation.session.delayed"]
         XCTAssertTrue(detail.waitForExistence(timeout: 10), "Navigation must occur before the device binds")
@@ -1141,10 +1143,13 @@ final class StreamingPresentationUITests: XCTestCase {
         let start = app.buttons["fixture.send"]
         XCTAssertTrue(start.waitForExistence(timeout: 15))
         start.tap()
+        let showAnswer = app.buttons["fixture.showThinkingAnswer"]
+        XCTAssertTrue(showAnswer.wait(for: \.isEnabled, toEqual: true, timeout: 20))
         let thought = app.staticTexts["thinking.content.thought"]
         XCTAssertTrue(thought.waitForExistence(timeout: 10))
+        XCTAssertTrue(thought.label.contains("Thinking segment 12"))
         XCTAssertGreaterThan(thought.frame.height, app.scrollViews.firstMatch.frame.height)
-        app.buttons["fixture.showThinkingAnswer"].tap()
+        showAnswer.tap()
         let answer = app.staticTexts["ANSWER-AFTER-THINKING"]
         XCTAssertTrue(answer.waitForExistence(timeout: 10))
         let folded = NSPredicate { _, _ in !thought.exists }

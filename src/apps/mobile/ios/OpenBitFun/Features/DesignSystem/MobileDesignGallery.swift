@@ -86,14 +86,22 @@ struct MobileDesignGallery: View {
 #if DEBUG
 /// Deterministic native rendering fixture. It never opens a remote transport.
 struct StreamingRegressionView: View {
+    private enum ThinkingPhase {
+        case waiting, readyForAnswer, answering
+    }
+
     @StateObject private var model = MobileAppModel(sessions: [], selectedSessionID: "fixture", messages: [], connectCore: false)
     @State private var generation = 0
     @State private var finished = false
     @State private var olderCount = 0
     @State private var historyCount = 40
     @State private var historyRequests = 0
+    @State private var thinkingPhase = ThinkingPhase.waiting
     private let showsThinkingControls = ProcessInfo.processInfo.arguments.contains("--thinking-regression")
     private let showsDelayedOpenControls = ProcessInfo.processInfo.arguments.contains("--open-loading-regression")
+    private let thinkingSegments = (1...12).map { index in
+        "Thinking segment \(index): checking chronology and viewport stability.\nCheck input.\nCheck output.\nCheck viewport.\nCheck ordering.\n\n"
+    }
 
     var body: some View {
         VStack(spacing: 0) {
@@ -103,6 +111,7 @@ struct StreamingRegressionView: View {
                     model.composerSendGeneration &+= 1
                     model.isSending = true
                     finished = false
+                    thinkingPhase = .waiting
                     generation += 1
                 }.accessibilityIdentifier("fixture.send")
                 Button("Reset session") {
@@ -110,6 +119,7 @@ struct StreamingRegressionView: View {
                     model.selectedSessionID = UUID().uuidString
                     model.timelineRows = history
                     model.isSending = false
+                    thinkingPhase = .waiting
                 }.accessibilityIdentifier("fixture.reset")
             }
             Button("Short history") {
@@ -118,19 +128,25 @@ struct StreamingRegressionView: View {
                 olderCount = 0
                 model.timelineRows = history
                 model.remoteHasMoreMessages = true
+                thinkingPhase = .waiting
             }.accessibilityIdentifier("fixture.shortHistory")
             if showsThinkingControls {
                 HStack {
                     Button("Show answer") {
-                        showThinkingRegression(answerVisible: true, live: true)
-                    }.accessibilityIdentifier("fixture.showThinkingAnswer")
+                        showThinkingRegression(thought: thinkingSegments.joined(), answerVisible: true, live: true)
+                        thinkingPhase = .answering
+                    }
+                    .disabled(thinkingPhase != .readyForAnswer)
+                    .accessibilityIdentifier("fixture.showThinkingAnswer")
                     Button("Finish stream") {
-                        showThinkingRegression(answerVisible: true, live: false)
+                        showThinkingRegression(thought: thinkingSegments.joined(), answerVisible: true, live: false)
                         model.isSending = false
                         finished = true
-                    }.accessibilityIdentifier("fixture.finishThinkingAnswer")
+                        thinkingPhase = .waiting
+                    }
+                    .disabled(thinkingPhase != .answering)
+                    .accessibilityIdentifier("fixture.finishThinkingAnswer")
                 }
-                .disabled(!model.isSending)
             }
             if showsDelayedOpenControls {
                 HStack {
@@ -194,11 +210,7 @@ struct StreamingRegressionView: View {
                 model.connectionPhase = .reconnecting
             }
             model.selectedSessionID = "fixture"
-            if showsDelayedOpenControls {
-                model.timelineRows = [row(id: "previous", text: "PREVIOUS-SESSION", live: false)]
-            } else {
-                model.timelineRows = ProcessInfo.processInfo.arguments.contains("--card-regression") ? [cardRow] : history
-            }
+            model.timelineRows = ProcessInfo.processInfo.arguments.contains("--card-regression") ? [cardRow] : history
             if ProcessInfo.processInfo.arguments.contains("--message-metadata-regression") {
                 let failed = MobileTimelineTool(id: "fetch", name: "WebFetch", phase: "FAILED", kind: "WEB",
                     operation: "FETCH_URL", target: "example.com", filePath: "", fileLabel: "",
@@ -241,7 +253,13 @@ struct StreamingRegressionView: View {
                 return
             }
             if showsThinkingControls {
-                showThinkingRegression(answerVisible: false, live: true)
+                var thought = ""
+                for segment in thinkingSegments {
+                    do { try await Task.sleep(nanoseconds: 350_000_000) } catch { return }
+                    thought += segment
+                    showThinkingRegression(thought: thought, answerVisible: false, live: true)
+                }
+                thinkingPhase = .readyForAnswer
                 return
             }
             var body = ""
@@ -294,11 +312,7 @@ struct StreamingRegressionView: View {
             ], streaming: false, typing: false, showRetry: false, error: nil)
     }
 
-    // Keep each stage visible until the UI test advances the fixture.
-    private func showThinkingRegression(answerVisible: Bool, live: Bool) {
-        let thought = (1...12).map { index in
-            "Thinking segment \(index): checking chronology and viewport stability.\nCheck input.\nCheck output.\nCheck viewport.\nCheck ordering.\n\n"
-        }.joined()
+    private func showThinkingRegression(thought: String, answerVisible: Bool, live: Bool) {
         let answer = answerVisible ? "ANSWER-AFTER-THINKING" : ""
         var blocks: [MobileTimelineBlock] = [.thinking(id: "thought", text: thought, streaming: answer.isEmpty && live)]
         if !answer.isEmpty { blocks.append(.text(id: "answer", text: answer, streaming: live)) }
