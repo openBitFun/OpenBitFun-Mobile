@@ -56,15 +56,53 @@ jobs:
             src/apps/mobile/android/app/build/test-results/
           if-no-files-found: ignore
   ios:
-    runs-on: macos-latest
+    runs-on: macos-26
+    env:
+      DEVELOPER_DIR: /Applications/Xcode_26.5.app/Contents/Developer
     steps:
       - uses: actions/checkout@v5
+      - name: Create iPhone simulator
+        run: |
+          xcodebuild -version
+          xcrun simctl list runtimes
+          simulator_id=$(xcrun simctl create 'OpenBitFun CI' \
+            com.apple.CoreSimulator.SimDeviceType.iPhone-17-Pro-Max \
+            com.apple.CoreSimulator.SimRuntime.iOS-26-5)
+          echo "IOS_SIMULATOR_DESTINATION=platform=iOS Simulator,id=$simulator_id" >> "$GITHUB_ENV"
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
       - uses: actions/setup-java@v5
         with:
           distribution: temurin
           java-version: '21'
       - uses: gradle/actions/setup-gradle@v4
-      - run: ./gradlew compileKotlinIosSimulatorArm64 --no-daemon
+      - name: Build shared iOS XCFramework
+        run: ./gradlew compileKotlinIosSimulatorArm64 :core-feature:assembleOpenBitFunMobileCoreDebugXCFramework --no-daemon
         working-directory: src/apps/mobile/shared
       - run: ./Testing/run-pure-swift-tests.sh
         working-directory: src/apps/mobile/ios
+      - name: Build iOS app and UI tests
+        working-directory: src/apps/mobile/ios
+        run: |
+          xcodebuild -project OpenBitFun.xcodeproj -scheme OpenBitFun -configuration Debug \
+            -destination "$IOS_SIMULATOR_DESTINATION" \
+            -derivedDataPath "$RUNNER_TEMP/OpenBitFunDerivedData" \
+            build-for-testing
+      - name: Run StreamingPresentationUITests
+        working-directory: src/apps/mobile/ios
+        run: |
+          xcodebuild -project OpenBitFun.xcodeproj -scheme OpenBitFun -configuration Debug \
+            -destination "$IOS_SIMULATOR_DESTINATION" \
+            -derivedDataPath "$RUNNER_TEMP/OpenBitFunDerivedData" \
+            -resultBundlePath "$RUNNER_TEMP/StreamingPresentationUITests.xcresult" \
+            -parallel-testing-enabled NO -testLanguage zh-Hans -testRegion CN \
+            -only-testing:OpenBitFunUITests/StreamingPresentationUITests \
+            test-without-building
+      - name: Upload iOS UI test results on failure
+        if: failure()
+        uses: actions/upload-artifact@v6
+        with:
+          name: ios-streaming-ui-test-results
+          path: ${{ runner.temp }}/StreamingPresentationUITests.xcresult
+          if-no-files-found: ignore
