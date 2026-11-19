@@ -134,7 +134,7 @@ export class LocalGenUIRuntimeBridge {
     return this.mount;
   }
 
-  /** Raw string from the `genuiNative.post` proxy. Treated as untrusted. */
+  /** Raw string from the main document message port. Treated as untrusted. */
   receive(raw: string): void {
     let message: LocalRuntimeInbound;
     try {
