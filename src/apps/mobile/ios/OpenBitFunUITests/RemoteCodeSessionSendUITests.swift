@@ -1150,7 +1150,8 @@ final class StreamingPresentationUITests: XCTestCase {
         let folded = NSPredicate { _, _ in !thought.exists }
         expectation(for: folded, evaluatedWith: nil)
         waitForExpectations(timeout: 5)
-        XCTAssertTrue(answer.isHittable)
+        XCTAssertTrue(answer.wait(for: \.isHittable, toEqual: true, timeout: 5),
+                      "The answer should scroll into view after the thinking block folds")
         XCTAssertTrue(app.staticTexts["Stream finished"].waitForExistence(timeout: 10))
         XCTAssertTrue(answer.isHittable)
         let capture = XCTAttachment(screenshot: app.screenshot())
