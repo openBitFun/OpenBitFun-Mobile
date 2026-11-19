@@ -1,6 +1,62 @@
 {
   "string": [
     {
+      "name": "miniapp_shortcutHint",
+      "value": "滑动浏览 · 长按封面拖到桌面"
+    },
+    {
+      "name": "miniapp_dropShortcut",
+      "value": "拖到这里添加桌面图标"
+    },
+    {
+      "name": "miniapp_releaseShortcut",
+      "value": "松开以添加桌面图标"
+    },
+    {
+      "name": "miniapp_pinned",
+      "value": "已添加桌面图标"
+    },
+    {
+      "name": "miniapp_alreadyPinned",
+      "value": "该图标已在桌面"
+    },
+    {
+      "name": "miniapp_pinLimit",
+      "value": "桌面快捷方式数量已达上限"
+    },
+    {
+      "name": "miniapp_pinFailed",
+      "value": "系统未能添加桌面图标（%1$s）"
+    },
+    {
+      "name": "miniapp_actions",
+      "value": "小应用操作"
+    },
+    {
+      "name": "miniapp_pinIcon",
+      "value": "添加桌面图标"
+    },
+    {
+      "name": "settings_genui_look",
+      "value": "小应用风格"
+    },
+    {
+      "name": "settings_genui_classic",
+      "value": "原生"
+    },
+    {
+      "name": "settings_genui_aurora",
+      "value": "极光"
+    },
+    {
+      "name": "settings_genui_blueprint",
+      "value": "蓝图"
+    },
+    {
+      "name": "settings_genui_celadon",
+      "value": "青瓷"
+    },
+    {
       "name": "session_newTitle",
       "value": "新会话"
     },

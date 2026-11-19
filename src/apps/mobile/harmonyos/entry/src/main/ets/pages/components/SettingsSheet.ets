@@ -17,8 +17,11 @@ import { WindowInsetsBinding } from '../../services/WindowSystemBarService';
 import { RemoteDefaultModels, RemoteModelCatalog, RemotePermissionMode } from '../../model/RemoteModels';
 import { RemotePermissionSection } from './RemotePermissionSection';
 
+import { GenUIAppearance, GENUI_LOOKS } from '../state/GenUIAppearance';
+
 @ComponentV2
 export struct SettingsSheet {
+  @Local appearance: GenUIAppearance = GenUIAppearance.connect();
   @Param directoryState: DeviceDirectoryState = new DeviceDirectoryState();
   @Param sheetState: SettingsSheetState = new SettingsSheetState();
   @Param accountUsername: string = '';
@@ -269,6 +272,24 @@ export struct SettingsSheet {
         },
         $r('sys.symbol.textformat')
       )
+      Divider().strokeWidth(0.5).color(LINE).margin({ left: 16, right: 16 })
+      Row({ space: 12 }) {
+        Text(RemoteI18n.t('settings.genui.look'))
+          .fontSize(MobileDesignTypography.bodyMedium.size).fontColor(INK).layoutWeight(1)
+        Select(GENUI_LOOKS.map((look: string): SelectOption => {
+          return { value: RemoteI18n.t('settings.genui.' + look) };
+        }))
+          .selected(GENUI_LOOKS.indexOf(this.appearance.current()))
+          .value(RemoteI18n.t('settings.genui.' + this.appearance.current()))
+          .accessibilityText(RemoteI18n.t('settings.genui.look') + ' ' +
+            RemoteI18n.t('settings.genui.' + this.appearance.current()))
+          .onSelect((index: number) => {
+            if (index >= 0 && index < GENUI_LOOKS.length) this.appearance.look = GENUI_LOOKS[index];
+          })
+      }
+      .width('100%')
+      .constraintSize({ minHeight: MobileDesignGeometry.settingsRowHeight })
+      .padding({ left: MobileDesignGeometry.settingsRowPadding, right: MobileDesignGeometry.settingsRowPadding })
     }
     .width('100%')
     .backgroundColor(CARD)

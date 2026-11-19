@@ -21,7 +21,9 @@ test('swiping is bounded, a tap does not advance and a resize stays inside the l
   assert.equal(P.columns(w),w<840?1:2);
  }
 });
-const {MiniAppState}=load('pages/state/MiniAppState');
+const {MiniAppState}=load('pages/state/MiniAppState', {
+ './MiniAppDragState':load('pages/state/MiniAppDragState')
+});
 const {MiniAppViewModel}=load('pages/viewmodel/MiniAppViewModel',{
  '../state/MiniAppState':{MiniAppState},
  '../../services/MiniAppDocument':{MiniAppDocument:{build:x=>x}},
@@ -37,4 +39,30 @@ test('opening and returning from an offline app preserves gallery mode/focus and
  await vm.open();assert.equal(vm.state.galleryMode,'list');assert.equal(vm.state.galleryAppId,'one');
  const pending=vm.select('two');vm.close();resolve('<html>late</html>');await pending;
  assert.equal(vm.state.visible,false);assert.equal(vm.state.document,'');
+});
+
+test('dropping on the measured hint or below it is accepted across window sizes', () => {
+  const { MiniAppDragState } = load('pages/state/MiniAppDragState');
+  const drag = new MiniAppDragState();
+  for (const width of [360, 840]) {
+    drag.windowX = 16;
+    drag.windowY = 28;
+    drag.windowWidth = width;
+    drag.windowHeight = 660;
+    drag.setTargetTop(undefined);
+    drag.move(16 + width / 2, 575);
+    assert.equal(drag.overEdge, false);
+    drag.setTargetTop(567);
+    assert.equal(drag.overEdge, true, 'layout includes a finger already resting on the hint');
+    drag.move(16 + width, 688);
+    assert.equal(drag.overEdge, true);
+    drag.move(16 + width, 689);
+    assert.equal(drag.overEdge, false);
+    drag.move(15, 575);
+    assert.equal(drag.overEdge, false);
+    drag.move(16, 566);
+    assert.equal(drag.overEdge, false);
+    drag.move(16, 567);
+    assert.equal(drag.overEdge, true);
+  }
 });

@@ -247,7 +247,8 @@ function Scoreboard({ view, emit, disabled, isStreaming }: GenUIComponentProps) 
     </div>
     <div className="sb-teams">{[0, 1].map(slot => {
       const id = state.order[slot];
-      return <div key={slot} className={`sb-team${flash === slot ? ' sb-flash' : ''}`} data-sb-slot={slot} data-sb-participant={ID[id]}>
+      const lead = state.scores[id] > state.scores[id === 0 ? 1 : 0];
+      return <div key={slot} className={`sb-team${flash === slot ? ' sb-flash' : ''}`} data-sb-slot={slot} data-sb-participant={ID[id]} data-sb-lead={lead ? '' : undefined}>
         <span data-sb-name>{state.names[id]}</span>
         <strong data-sb-score>{state.scores[id]}</strong>
         <span className="sb-adds">{config.increments.map(points => <button key={points} className="pk-btn" type="button" data-sb-add data-sb-points={points} aria-label={k('addPoints', { name: state.names[id], points })} disabled={off || setupPending || state.phase !== 'playing'} onClick={() => add(id, slot, points)}>+{points}</button>)}</span>

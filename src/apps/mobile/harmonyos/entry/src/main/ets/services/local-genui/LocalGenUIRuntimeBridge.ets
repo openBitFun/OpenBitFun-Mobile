@@ -16,8 +16,7 @@ import {
   LocalRuntimeInsetsMessage,
   LocalRuntimeMergeMessage,
   LocalRuntimeThemeMessage,
-  runtimeIdentity
-} from './LocalGenUIRuntimeProtocol';
+  runtimeIdentity, LocalRuntimeImageSearchResultMessage } from './LocalGenUIRuntimeProtocol';
 
 export interface LocalRuntimeMount {
   identity: LocalGenUIIdentity;
@@ -69,6 +68,7 @@ export class LocalGenUIRuntimeBridge {
   private ready: boolean = false;
   private mount?: LocalRuntimeMount;
   private manifest?: LocalGenUIManifest;
+  private look: string = 'aurora';
   private scheme: string = 'light';
   private locale: string = 'zh-CN';
   private seq: number = 0;
@@ -199,12 +199,13 @@ export class LocalGenUIRuntimeBridge {
     this.post(json);
   }
 
-  setAppearance(scheme: string, locale: string): void {
-    const changed = scheme !== this.scheme;
+  setAppearance(scheme: string, locale: string, look: string = 'aurora'): void {
+    const changed = scheme !== this.scheme || look !== this.look;
+    this.look = look;
     this.scheme = scheme;
     this.locale = locale;
     if (changed && this.booted) {
-      const theme: LocalRuntimeThemeMessage = { type: 'theme', scheme };
+      const theme: LocalRuntimeThemeMessage = { type: 'theme', scheme, look };
       this.post(JSON.stringify(theme));
     }
   }
@@ -272,6 +273,14 @@ export class LocalGenUIRuntimeBridge {
     if (!mount || mount.mode !== 'live' || mount.streaming) return;
     const message: LocalCollaborationAvailability = { type: 'collaboration_availability', appId: mount.identity.appId,
       sourceRevision: mount.sourceRevision, available, reason };
+    this.post(JSON.stringify(message));
+  }
+
+  /** Photos found for a runtime image search; dropped once another app is mounted. */
+  sendImageSearchResult(appId: string, requestId: string, images: string[]): void {
+    const mount = this.mount;
+    if (!mount || mount.mode !== 'live' || mount.identity.appId !== appId) return;
+    const message: LocalRuntimeImageSearchResultMessage = { type: 'image_search_result', appId, requestId, images };
     this.post(JSON.stringify(message));
   }
 
@@ -361,6 +370,7 @@ export class LocalGenUIRuntimeBridge {
       stateRevision: mount.stateRevision,
       state: JSON.parse(mount.stateJson.length > 0 ? mount.stateJson : '{}') as Object,
       scheme: this.scheme,
+      look: this.look,
       locale: this.locale
     };
     if (mount.base !== undefined && mount.base.length > 0) {

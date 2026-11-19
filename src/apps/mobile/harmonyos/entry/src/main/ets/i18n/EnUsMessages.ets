@@ -156,6 +156,11 @@ export const EN_US_MESSAGES: [string, string][] = [
   ['generalChat.emptyResponse', 'The model returned no text.'],
   ['generalChat.requestFailed', 'Model request failed (HTTP {0}).'],
 
+  ['settings.genui.look', 'Mini app style'],
+  ['settings.genui.classic', 'Classic'],
+  ['settings.genui.aurora', 'Aurora'],
+  ['settings.genui.blueprint', 'Blueprint'],
+  ['settings.genui.celadon', 'Celadon'],
   ['settings.general.section', 'General'],
   ['settings.account.section', 'Account'],
   ['settings.account.currentIdentity', 'Current identity'],

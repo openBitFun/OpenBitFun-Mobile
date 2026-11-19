@@ -42,6 +42,7 @@ export interface LocalRuntimeInitMessage {
   stateRevision: number;
   state: Object;
   scheme: string;
+  look?: string;
   locale: string;
 }
 
@@ -72,6 +73,7 @@ export interface LocalRuntimeStateMessage {
 export interface LocalRuntimeThemeMessage {
   type: string;
   scheme: string;
+  look?: string;
 }
 
 /** Owner request: apply an OpenUI edit patch to its base program. */
@@ -156,6 +158,15 @@ export interface LocalRuntimeInbound {
   gesture?: string;
   kind?: string;
   orientation?: string;
+  /** image_search */
+  query?: string;
+}
+
+export interface LocalRuntimeImageSearchResultMessage {
+  type: string;
+  appId: string;
+  requestId: string;
+  images: string[];
 }
 
 export interface LocalRuntimeCapabilityEventMessage {

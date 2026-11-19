@@ -18,6 +18,8 @@ export interface LocalGenUICapabilityHandlers {
   /** Calendar actions; return '' when accepted or a refusal reason. */
   calendar: (appId: string, action: string, params: Object) => Promise<string>;
   collaboration?: (message: LocalRuntimeInbound) => string;
+  /** Photo search for SearchImage and photo fields; return '' when accepted or a refusal reason. */
+  imageSearch?: (appId: string, requestId: string, query: string) => string;
 }
 
 interface LocalCapabilityPolicy {
@@ -36,6 +38,7 @@ const CALENDAR_ACTIONS: string[] = [
   'ListCalendarEvents'
 ];
 const CALENDAR: string = 'calendar.event';
+const IMAGE_SEARCH: string = 'image.search';
 
 export class LocalGenUIActionHost {
   private readonly handlers: LocalGenUICapabilityHandlers;
@@ -52,6 +55,7 @@ export class LocalGenUIActionHost {
     this.policies.set(DEVICE_HAPTIC, { maxPayloadChars: 16, perMinute: 120 });
     this.policies.set(CALENDAR, { maxPayloadChars: 16000, perMinute: 30 });
     this.policies.set('device.collaboration', { maxPayloadChars: 1024, perMinute: 30 });
+    this.policies.set(IMAGE_SEARCH, { maxPayloadChars: 800, perMinute: 60 });
   }
 
   /** Returns a short diagnostic when the message was refused. */
@@ -71,6 +75,14 @@ export class LocalGenUIActionHost {
       }
       await this.handlers.saveState(appId, mountedSourceRevision, message.baseStateRevision, stateJson);
       return '';
+    }
+    if (message.type === 'image_search') {
+      const requestId = message.requestId || '';
+      const query = message.query || '';
+      if (requestId.length === 0 || requestId.length > 64) return 'invalid image search request';
+      if (!this.handlers.imageSearch) return 'image search is unavailable';
+      const refused = this.admit(appId, IMAGE_SEARCH, query.length);
+      return refused || this.handlers.imageSearch(appId, requestId, query);
     }
     if (message.type === 'collaboration') {
       if (message.sourceRevision !== mountedSourceRevision) return 'collaboration for another source revision';

@@ -1,8 +1,10 @@
 import { webview } from '@kit.ArkWeb';
 import { image } from '@kit.ImageKit';
+import { GenUIAppearance } from '../state/GenUIAppearance';
 import BuildProfile from 'BuildProfile';
 import { LocalGenUIRuntimeBridge } from '../../services/local-genui/LocalGenUIRuntimeBridge';
 import { LOCAL_GENUI_ICON3D_ROOT } from '../../services/local-genui/LocalGenUIIcon3DStore';
+import { LOCAL_GENUI_PHOTO_ROOT } from '../../services/local-genui/LocalGenUIImageSearch';
 import { LOCAL_GENUI_COLLABORATION_ROOT } from '../../services/local-genui/LocalGenUICollaborationAssets';
 import { RemoteLogger } from '../../services/RemoteLogger';
 
@@ -22,6 +24,7 @@ class LocalGenUINativeChannel {
 @ComponentV2
 export struct LocalGenUIWebSurface {
   @Param @Require bridge: LocalGenUIRuntimeBridge;
+  @Local appearance: GenUIAppearance = GenUIAppearance.connect();
   @Param scheme: string = 'light';
   @Param locale: string = 'zh-CN';
   private controller: webview.WebviewController = new webview.WebviewController();
@@ -37,7 +40,7 @@ export struct LocalGenUIWebSurface {
       // Debug builds only: lets native acceptance evidence inspect the real DOM.
       webview.WebviewController.setWebDebuggingAccess(true);
     }
-    this.bridge.setAppearance(this.scheme, this.locale);
+    this.bridge.setAppearance(this.scheme, this.locale, this.appearance.current());
   }
 
   aboutToDisappear(): void {
@@ -45,9 +48,9 @@ export struct LocalGenUIWebSurface {
     this.bridge.detach();
   }
 
-  @Monitor('scheme', 'locale')
+  @Monitor('scheme', 'locale', 'appearance.look')
   onAppearanceChange(): void {
-    this.bridge.setAppearance(this.scheme, this.locale);
+    this.bridge.setAppearance(this.scheme, this.locale, this.appearance.current());
   }
 
   private send(json: string): void {
@@ -107,7 +110,8 @@ export struct LocalGenUIWebSurface {
         // asynchronous: the picture may need one download before the cache has it.
         const url = event.request.getRequestUrl();
         const collaborationImage = url.startsWith(LOCAL_GENUI_COLLABORATION_ROOT);
-        if (!url.startsWith(LOCAL_GENUI_ICON3D_ROOT) && !collaborationImage) {
+        const photo = url.startsWith(LOCAL_GENUI_PHOTO_ROOT);
+        if (!url.startsWith(LOCAL_GENUI_ICON3D_ROOT) && !collaborationImage && !photo) {
           return null;
         }
         RemoteLogger.info('local genui host image request');
@@ -121,7 +125,7 @@ export struct LocalGenUIWebSurface {
           RemoteLogger.info(`local genui host image ${bytes ? `served ${bytes.byteLength} bytes` : 'not found'}`);
           if (bytes) {
             response.setResponseData(bytes);
-            response.setResponseMimeType(collaborationImage ? 'image/jpeg' : 'image/png');
+            response.setResponseMimeType(collaborationImage || photo ? 'image/jpeg' : 'image/png');
             response.setResponseCode(200);
             response.setReasonMessage('OK');
           } else {

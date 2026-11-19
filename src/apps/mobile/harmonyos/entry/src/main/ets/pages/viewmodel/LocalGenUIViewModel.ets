@@ -24,6 +24,7 @@ import { LocalGenUIThumbnailStore } from '../../services/local-genui/LocalGenUIT
 import { LocalGenUIDesktopCardStore } from '../../services/local-genui/LocalGenUIDesktopCardStore';
 import { LocalGenUIOrientation } from '../../services/local-genui/LocalGenUIOrientation';
 import { LocalGenUIIcon3DStore } from '../../services/local-genui/LocalGenUIIcon3DStore';
+import { LOCAL_GENUI_PHOTO_ROOT, LocalGenUIImageSearch } from '../../services/local-genui/LocalGenUIImageSearch';
 import { LocalGenUIDeviceCapabilityHost } from '../../services/local-genui/LocalGenUIDeviceCapabilityHost';
 import { LocalGenUIRuntimeBridge } from '../../services/local-genui/LocalGenUIRuntimeBridge';
 import { HarmonyCalendarService } from '../../services/local-genui/HarmonyCalendarService';
@@ -112,21 +113,6 @@ export class LocalGenUIViewModel implements LocalGenUIControllerListener, LocalG
     },
     removeFromGallery: (appId: string): void => { void this.withController((c) => c.removeFromGallery(appId)); },
     openGalleryApp: (appId: string): void => { void this.openGalleryApp(appId); },
-    prepareDesktopCard: (appId: string): void => {
-      void this.withController((c) => c.prepareDesktopCard(appId));
-    },
-    desktopCardAdded: (appId: string, formId: string, error: string): void => {
-      if (error.length > 0 || formId.length === 0) {
-        RemoteLogger.warn(`local genui desktop card not added: ${error}`);
-        this.notice(RemoteI18n.t('localGenui.addToDesktopFailed'));
-        return;
-      }
-      RemoteLogger.info('local genui desktop card add callback received');
-      void this.withController(async (c) => {
-        await c.desktopCardAdded(appId, formId);
-        this.notice(RemoteI18n.t('localGenui.addedToDesktop'));
-      });
-    },
     appOnScreen: (onScreen: boolean): void => this.setAppOnScreen(onScreen),
     cameraSurface: (surfaceId: string): void => this.attachCameraSurface(surfaceId),
     cameraSurfaceGone: (): void => this.detachCameraSurface(),
@@ -149,19 +135,8 @@ export class LocalGenUIViewModel implements LocalGenUIControllerListener, LocalG
     this.orientation = new LocalGenUIOrientation(context);
   }
 
-  /** The add-to-desktop want names this app's card host. */
-  private syncBundleName(): void {
-    if (this.state.bundleName.length > 0) return;
-    try {
-      this.state.bundleName = this.context().applicationInfo.name;
-    } catch (err) {
-      RemoteLogger.warn(`local genui bundle name unavailable: ${err instanceof Error ? err.message : String(err)}`);
-    }
-  }
-
   /** Read-only local data for the sidebar section and the gallery. */
   async load(): Promise<void> {
-    this.syncBundleName();
     await this.withController(async (c) => {
       await c.refreshSessions();
       await c.refreshGallery();
@@ -169,7 +144,6 @@ export class LocalGenUIViewModel implements LocalGenUIControllerListener, LocalG
   }
 
   async open(): Promise<void> {
-    this.syncBundleName();
     this.state.visible = true;
     this.state.standalone = false;
     this.state.error = '';
@@ -530,8 +504,10 @@ export class LocalGenUIViewModel implements LocalGenUIControllerListener, LocalG
       const thumbnails = new LocalGenUIThumbnailStore(context.filesDir);
       const desktopCards = new LocalGenUIDesktopCardStore(context.filesDir);
       const icons = new LocalGenUIIcon3DStore(context.filesDir);
+      const photos = new LocalGenUIImageSearch(context.filesDir);
       const assets = new LocalGenUICollaborationAssets(context.filesDir);
       this.bridge.setPictureSource(async (url: string): Promise<ArrayBuffer | undefined> => {
+        if (url.startsWith(LOCAL_GENUI_PHOTO_ROOT)) return photos.picture(url);
         if (!url.startsWith(LOCAL_GENUI_COLLABORATION_ROOT)) return icons.picture(url);
         const mount = this.bridge.currentMount();
         if (!mount) return undefined;
@@ -562,7 +538,7 @@ export class LocalGenUIViewModel implements LocalGenUIControllerListener, LocalG
       const calendar = new HarmonyCalendarService((): Context => context);
       this.devices = devices;
       this.syncDeviceVisibility();
-      this.controller = new LocalGenUISessionController(repository, provider, contract, this.bridge, this, this, models, thumbnails, devices, desktopCards, calendar, collaboration);
+      this.controller = new LocalGenUISessionController(repository, provider, contract, this.bridge, this, this, models, thumbnails, devices, desktopCards, calendar, collaboration, photos);
       await this.controller.refreshModels();
       RemoteLogger.info(`local genui ready renderer=${contract.manifest.rendererRevision} models=${models.list().length}`);
     } finally {

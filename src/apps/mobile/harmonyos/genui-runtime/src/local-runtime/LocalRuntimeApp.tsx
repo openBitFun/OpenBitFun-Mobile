@@ -38,8 +38,9 @@ export interface LocalRuntimeBridge {
   subscribe(listener: (message: LocalHostMessage) => void): () => void;
 }
 
-/** Asynchronous capabilities are not local phase 1 capabilities. */
+/** Checker mounts and unmounted pages have no asynchronous capabilities. */
 const unsupportedProvider = {};
+const IMAGE_SEARCH_TIMEOUT_MS = 20000;
 
 export default function LocalRuntimeApp({ bridge, build }: { bridge: LocalRuntimeBridge; build: LocalRuntimeBuild }) {
   const [snapshot, setSnapshot] = useState<LocalRuntimeSnapshot>(initialSnapshot);
@@ -106,7 +107,35 @@ export default function LocalRuntimeApp({ bridge, build }: { bridge: LocalRuntim
     };
   }, [bridge, snapshot.mode, snapshot.identity, snapshot.streaming, snapshot.sourceRevision, collaborationAvailability]);
 
+  // Photo search runs on the host (same sources as the desktop provider);
+  // only live pages get it, and answers for another app are ignored.
+  const imageRequests = useRef(new Map<string, (images: string[]) => void>());
+  const imageSerial = useRef(0);
+  const liveAppId = snapshot.mode === 'live' ? snapshot.identity?.appId : undefined;
+  const asyncProvider = useMemo(() => liveAppId ? {
+    capabilities: { 'image.search': { kind: 'image-search' as const, target: 'any' as const } },
+    call: (name: string, args: Record<string, unknown>) => {
+      if (name !== 'image.search') return Promise.reject(new Error(`GenUI capability ${name} is unavailable`));
+      const query = String(args.query ?? '').trim();
+      if (!query) return Promise.resolve({ images: [] });
+      return new Promise<{ images: string[] }>(resolve => {
+        const requestId = `image-${++imageSerial.current}`;
+        const timer = window.setTimeout(() => { imageRequests.current.delete(requestId); resolve({ images: [] }); }, IMAGE_SEARCH_TIMEOUT_MS);
+        imageRequests.current.set(requestId, images => { window.clearTimeout(timer); resolve({ images }); });
+        bridge.post({ type: 'image_search', appId: liveAppId, requestId, query: query.slice(0, 200) });
+      });
+    },
+  } : unsupportedProvider, [bridge, liveAppId]);
+
   useEffect(() => bridge.subscribe(message => {
+    if (message.type === 'image_search_result') {
+      if (message.appId !== snapshotRef.current.identity?.appId) return;
+      const resolve = imageRequests.current.get(message.requestId);
+      if (!resolve) return;
+      imageRequests.current.delete(message.requestId);
+      resolve(Array.isArray(message.images) ? message.images.filter(src => typeof src === 'string') : []);
+      return;
+    }
     if (message.type === 'init') {
       collaborationRequests.current.clear();
       setCollaborationAvailability({ available: false, reason: 'checking' });
@@ -214,6 +243,7 @@ export default function LocalRuntimeApp({ bridge, build }: { bridge: LocalRuntim
     <GenUIDeviceCapabilitiesContext.Provider value={deviceCapabilities}>
     <GenUIApplication
       key={`${definition.id}:${snapshot.sourceRevision}`}
+      look={snapshot.look}
       product={genUIProduct}
       definition={definition}
       initialState={initialState}
@@ -222,7 +252,7 @@ export default function LocalRuntimeApp({ bridge, build }: { bridge: LocalRuntim
       persistState={snapshot.mode === 'live'}
       onStateChange={onStateChange}
       onAction={onAction}
-      asyncProvider={unsupportedProvider}
+      asyncProvider={asyncProvider}
       asyncTarget="unsupported"
       onTargetEvent={onTargetEvent}
       onVerification={report => { reportRef.current = report; }}

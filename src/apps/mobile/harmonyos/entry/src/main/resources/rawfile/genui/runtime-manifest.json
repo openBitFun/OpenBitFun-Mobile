@@ -19,8 +19,8 @@
     "designSpec"
   ],
   "toolName": "GenerativeUI",
-  "catalogHash": "6eb64054194ee299c9ee011e9e0c5011be2aee7fd60ff43ed9dca283279aa208",
-  "promptHash": "dc709398f3ad05f6749ba1ce5f21f8c79cce4fd1c7b9543e636a03d6603c1eb7",
+  "catalogHash": "42b37acc6e678dbf9e8769a68f925a1eb3e1ae5fc2d218302ec7aa9c0d1c84b9",
+  "promptHash": "078844a51f0194853d186e34bf62e203aaff6aa2ffc1278a6a0baa08659ff0a2",
   "toolSchemaHash": "adde0eec7669746b2d9afe9b39a45a18af0b2e8a109fde5219de0a4ed66716e3",
-  "rendererRevision": "openbitfun.harmony.v1@4+6eb64054194e"
+  "rendererRevision": "openbitfun.harmony.v1@4+42b37acc6e67"
 }

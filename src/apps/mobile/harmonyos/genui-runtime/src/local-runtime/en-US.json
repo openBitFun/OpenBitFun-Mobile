@@ -148,6 +148,21 @@
         "unavailable": "Cross-device input is unavailable in this environment.",
         "image": "Image received from another device",
         "localOnly": "Images stay in this app and are not automatically sent to the model."
+      },
+      "showcase": {
+        "days": "days",
+        "hours": "hrs",
+        "minutes": "min",
+        "seconds": "sec",
+        "arrived": "It's here",
+        "streak": "{{count}}-day streak",
+        "less": "Less",
+        "more": "More",
+        "previousMonth": "Previous month",
+        "nextMonth": "Next month",
+        "today": "Today",
+        "noPlans": "Nothing planned",
+        "done": "Done"
       }
     }
   },

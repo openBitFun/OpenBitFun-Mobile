@@ -1,6 +1,62 @@
 {
   "string": [
     {
+      "name": "miniapp_shortcutHint",
+      "value": "Swipe to browse · Hold a cover to pin"
+    },
+    {
+      "name": "miniapp_dropShortcut",
+      "value": "Drag here to add a home screen icon"
+    },
+    {
+      "name": "miniapp_releaseShortcut",
+      "value": "Release to add a home screen icon"
+    },
+    {
+      "name": "miniapp_pinned",
+      "value": "Home screen icon added"
+    },
+    {
+      "name": "miniapp_alreadyPinned",
+      "value": "Icon already on the home screen"
+    },
+    {
+      "name": "miniapp_pinLimit",
+      "value": "Home screen shortcut limit reached"
+    },
+    {
+      "name": "miniapp_pinFailed",
+      "value": "Could not add home screen icon (%1$s)"
+    },
+    {
+      "name": "miniapp_actions",
+      "value": "Mini app actions"
+    },
+    {
+      "name": "miniapp_pinIcon",
+      "value": "Add home screen icon"
+    },
+    {
+      "name": "settings_genui_look",
+      "value": "Mini app style"
+    },
+    {
+      "name": "settings_genui_classic",
+      "value": "Classic"
+    },
+    {
+      "name": "settings_genui_aurora",
+      "value": "Aurora"
+    },
+    {
+      "name": "settings_genui_blueprint",
+      "value": "Blueprint"
+    },
+    {
+      "name": "settings_genui_celadon",
+      "value": "Celadon"
+    },
+    {
       "name": "session_newTitle",
       "value": "New Session"
     },

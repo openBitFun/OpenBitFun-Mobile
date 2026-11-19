@@ -156,6 +156,11 @@ export const ZH_CN_MESSAGES: [string, string][] = [
   ['generalChat.emptyResponse', '模型没有返回文字内容。'],
   ['generalChat.requestFailed', '模型请求失败（HTTP {0}）。'],
 
+  ['settings.genui.look', '小应用风格'],
+  ['settings.genui.classic', '原生'],
+  ['settings.genui.aurora', '极光'],
+  ['settings.genui.blueprint', '蓝图'],
+  ['settings.genui.celadon', '青瓷'],
   ['settings.general.section', '通用'],
   ['settings.account.section', '账号'],
   ['settings.account.currentIdentity', '当前身份'],

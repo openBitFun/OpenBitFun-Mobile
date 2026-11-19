@@ -158,12 +158,12 @@ test('a staged add is claimed once, by the next card, within its window', () => 
 test('card host binds from the staged add when the launcher drops want parameters', () => {
   const ability = fs.readFileSync(path.join(main, 'ets/genuiform/LocalGenUIFormAbility.ets'), 'utf8');
   assert.match(ability, /claimPendingAdd\(\)/);
-  const controller = fs.readFileSync(path.join(main, 'ets/services/local-genui/LocalGenUISessionController.ets'), 'utf8');
-  const prepare = controller.slice(controller.indexOf('async prepareDesktopCard('));
-  assert.ok(prepare.indexOf('stagePendingAdd') < prepare.indexOf('await this'), 'staged before any await');
+});
+
+test('mini app menus omit the desktop card export', () => {
   for (const file of ['LocalGenUISurface.ets', 'MiniAppGallery.ets']) {
     const source = fs.readFileSync(path.join(main, 'ets/pages/components', file), 'utf8');
-    assert.match(source, /formBindingData: this\.\w+\.desktopCardInitialData\(/, `${file} seeds the card with its app id`);
+    assert.doesNotMatch(source, /AddFormMenuItem|localGenui\.addToDesktop|prepareDesktopCard/);
   }
 });
 

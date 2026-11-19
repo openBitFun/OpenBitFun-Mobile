@@ -1,3 +1,4 @@
+import { MiniAppDragOverlay } from './MiniAppDragOverlay';
 import { SessionDetailsOverlay } from './SessionDetailsOverlay';
 import { AdaptiveSheetContent } from './AdaptiveSheetContent';
 import { RemoteCompactHomePolicy } from '../policy/RemoteCompactHomePolicy';
@@ -164,6 +165,9 @@ export struct AppRootPresentation {
         connect: () => { this.ConnectContent(); },
         onCloseSidebar: this.actions.onCloseSidebar
       })
+      if (this.miniAppState.visible) {
+        MiniAppDragOverlay({ drag: this.miniAppState.drag })
+      }
       SessionDetailsOverlay({ state: this.remoteSurfaceState.sessionDetails, placement: this.sessionDetailsPlacement })
       if (this.filePreviewPlacement() === FilePreviewPlacement.CompactFullPage) {
         this.FilePreviewPane()
@@ -218,11 +222,7 @@ export struct AppRootPresentation {
           actions: this.miniAppActions,
           generatedApps: this.localGenUIState.gallery,
           onOpenGenerated: (appId: string) => this.localGenUIActions.openGalleryApp(appId),
-          onRemoveGenerated: (appId: string) => this.localGenUIActions.removeFromGallery(appId),
-          generatedState: this.localGenUIState,
-          onPrepareDesktopCard: (appId: string) => this.localGenUIActions.prepareDesktopCard(appId),
-          onDesktopCardAdded: (appId: string, formId: string, error: string) =>
-            this.localGenUIActions.desktopCardAdded(appId, formId, error)
+          onRemoveGenerated: (appId: string) => this.localGenUIActions.removeFromGallery(appId)
         })
       }
       if (this.localGenUIState.visible) {
