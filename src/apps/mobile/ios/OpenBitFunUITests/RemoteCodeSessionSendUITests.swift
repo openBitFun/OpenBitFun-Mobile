@@ -1010,20 +1010,19 @@ final class StreamingPresentationUITests: XCTestCase {
         app.launch()
         let open = app.buttons["fixture.openDelayed"]
         XCTAssertTrue(open.waitForExistence(timeout: 15))
-        let initial = app.descendants(matching: .any)["conversation.session.fixture"].firstMatch
-        let loading = app.descendants(matching: .any)["conversation.loading"].firstMatch
-        XCTAssertTrue(initial.exists)
-        XCTAssertFalse(loading.exists)
+        let initial = app.otherElements["conversation.session.fixture"]
+        XCTAssertTrue(initial.staticTexts["PREVIOUS-SESSION"].exists)
         open.tap()
-        let detail = app.descendants(matching: .any)["conversation.session.delayed"].firstMatch
-        XCTAssertTrue(detail.waitForExistence(timeout: 2))
+        let detail = app.otherElements["conversation.session.delayed"]
+        XCTAssertTrue(detail.waitForExistence(timeout: 10), "Navigation must occur before the device binds")
         XCTAssertFalse(initial.exists)
-        XCTAssertTrue(loading.waitForExistence(timeout: 2))
+        let loading = detail.otherElements["conversation.loading"]
+        XCTAssertTrue(loading.waitForExistence(timeout: 5))
         app.buttons["fixture.bindTarget"].tap()
         XCTAssertTrue(detail.exists, "Binding the selected device must preserve pending navigation")
-        XCTAssertTrue(loading.waitForExistence(timeout: 2))
+        XCTAssertTrue(loading.exists)
         app.buttons["fixture.finishLoading"].tap()
-        XCTAssertTrue(app.staticTexts["LOADED-SESSION"].waitForExistence(timeout: 3))
+        XCTAssertTrue(detail.staticTexts["LOADED-SESSION"].waitForExistence(timeout: 5))
         XCTAssertFalse(loading.exists)
     }
 

@@ -93,6 +93,7 @@ struct StreamingRegressionView: View {
     @State private var historyCount = 40
     @State private var historyRequests = 0
     private let showsThinkingControls = ProcessInfo.processInfo.arguments.contains("--thinking-regression")
+    private let showsDelayedOpenControls = ProcessInfo.processInfo.arguments.contains("--open-loading-regression")
 
     var body: some View {
         VStack(spacing: 0) {
@@ -131,7 +132,7 @@ struct StreamingRegressionView: View {
                 }
                 .disabled(!model.isSending)
             }
-            if ProcessInfo.processInfo.arguments.contains("--open-loading-regression") {
+            if showsDelayedOpenControls {
                 HStack {
                     Button("Open delayed session") {
                         model.remoteExpectedDeviceKey = "account:fixture-device"
@@ -149,6 +150,8 @@ struct StreamingRegressionView: View {
                         model.finishRemoteConversationOpenIfReady(timelineSessionID: "delayed")
                     }.accessibilityIdentifier("fixture.finishLoading")
                 }
+                .buttonStyle(.bordered)
+                .font(.footnote)
             }
             if ProcessInfo.processInfo.arguments.contains("--history-pagination-regression") {
                 Text("History requests: \(historyRequests)").accessibilityIdentifier("fixture.historyRequests")
@@ -191,7 +194,11 @@ struct StreamingRegressionView: View {
                 model.connectionPhase = .reconnecting
             }
             model.selectedSessionID = "fixture"
-            model.timelineRows = ProcessInfo.processInfo.arguments.contains("--card-regression") ? [cardRow] : history
+            if showsDelayedOpenControls {
+                model.timelineRows = [row(id: "previous", text: "PREVIOUS-SESSION", live: false)]
+            } else {
+                model.timelineRows = ProcessInfo.processInfo.arguments.contains("--card-regression") ? [cardRow] : history
+            }
             if ProcessInfo.processInfo.arguments.contains("--message-metadata-regression") {
                 let failed = MobileTimelineTool(id: "fetch", name: "WebFetch", phase: "FAILED", kind: "WEB",
                     operation: "FETCH_URL", target: "example.com", filePath: "", fileLabel: "",
