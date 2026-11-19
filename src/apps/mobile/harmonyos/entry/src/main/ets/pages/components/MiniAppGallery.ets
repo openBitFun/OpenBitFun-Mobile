@@ -32,7 +32,7 @@ export struct MiniAppGallery {
   private originX: number = 0;
   private originY: number = 0;
 
-  private pinning: boolean = false;
+  @Local pinning: boolean = false;
 
   build() {
     Stack({ alignContent: Alignment.TopStart }) {
@@ -71,10 +71,8 @@ export struct MiniAppGallery {
               .borderRadius(4).backgroundColor(index === this.currentIndex() ? INK : SUBTLE)
               .opacity(index === this.currentIndex() ? 1 : 0.4)
           }, (app: MiniAppGalleryItem): string => app.id)
-        }.justifyContent(FlexAlign.Center).padding({ top: 20, bottom: 12 })
+        }.justifyContent(FlexAlign.Center).padding({ top: 20, bottom: this.bottomInset + 16 })
           .opacity(this.state.drag.active ? 0 : 1).accessibilityLevel('no')
-        Text(RemoteI18n.t('miniapp.shortcutHint')).fontSize(MobileDesignTypography.labelSmall.size)
-          .fontColor(SUBTLE).margin({ bottom: this.bottomInset + 16 }).opacity(this.state.drag.active ? 0 : 1)
       }
     }.width('100%').height('100%')
 

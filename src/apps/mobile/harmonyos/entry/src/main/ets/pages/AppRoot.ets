@@ -23,10 +23,16 @@ struct AppRoot {
     if (!hostContext) {
       throw new Error('App root host context is unavailable.');
     }
-    this.showStartupBrand = StartupRevealPreference.claim(hostContext);
     this.hostAdapter.attach(hostContext, this.getUIContext());
-    const firstLaunch = this.showStartupBrand;
-    const coldStartCandidate = ColdStartPresentationState.claimProcess() && !firstLaunch;
+    // A cold shortcut is delivered synchronously on subscription. A warm one can
+    // arrive while a reveal is running or while account restoration is pending.
+    this.runtime.subscribeToDesktopLaunch(() => {
+      this.coldStartConsumed = true;
+      this.showStartupBrand = false;
+      this.showColdStart = false;
+    });
+    this.showStartupBrand = !this.coldStartConsumed && StartupRevealPreference.claim(hostContext);
+    const coldStartCandidate = !this.coldStartConsumed && ColdStartPresentationState.claimProcess() && !this.showStartupBrand;
     await this.runtime.aboutToAppear((signedIn: boolean): void => {
       if (!this.coldStartConsumed) {
         this.coldStartConsumed = true;

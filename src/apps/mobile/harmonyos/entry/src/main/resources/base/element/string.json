@@ -10,7 +10,7 @@
     },
     {
       "name": "miniapp_releaseShortcut",
-      "value": "松开以添加桌面图标"
+      "value": "松手后确认添加"
     },
     {
       "name": "miniapp_pinned",
@@ -34,7 +34,7 @@
     },
     {
       "name": "miniapp_pinIcon",
-      "value": "添加桌面图标"
+      "value": "添加到桌面"
     },
     {
       "name": "settings_genui_look",
