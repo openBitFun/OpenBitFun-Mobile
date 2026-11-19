@@ -1142,18 +1142,20 @@ final class StreamingPresentationUITests: XCTestCase {
         let start = app.buttons["fixture.send"]
         XCTAssertTrue(start.waitForExistence(timeout: 15))
         start.tap()
-        let thought = app.staticTexts.containing(NSPredicate(format: "label CONTAINS %@", "Thinking segment 12")).firstMatch
+        let thought = app.staticTexts["thinking.content.thought"]
         XCTAssertTrue(thought.waitForExistence(timeout: 10))
         XCTAssertGreaterThan(thought.frame.height, app.scrollViews.firstMatch.frame.height)
-        let answer = app.staticTexts.containing(NSPredicate(format: "label CONTAINS %@", "ANSWER-AFTER-THINKING")).firstMatch
+        app.buttons["fixture.showThinkingAnswer"].tap()
+        let answer = app.staticTexts["ANSWER-AFTER-THINKING"]
         XCTAssertTrue(answer.waitForExistence(timeout: 10))
         let folded = NSPredicate { _, _ in !thought.exists }
         expectation(for: folded, evaluatedWith: nil)
         waitForExpectations(timeout: 5)
         XCTAssertTrue(answer.wait(for: \.isHittable, toEqual: true, timeout: 5),
                       "The answer should scroll into view after the thinking block folds")
+        app.buttons["fixture.finishThinkingAnswer"].tap()
         XCTAssertTrue(app.staticTexts["Stream finished"].waitForExistence(timeout: 10))
-        XCTAssertTrue(answer.isHittable)
+        XCTAssertTrue(answer.wait(for: \.isHittable, toEqual: true, timeout: 5))
         let capture = XCTAttachment(screenshot: app.screenshot())
         capture.lifetime = .keepAlways
         add(capture)

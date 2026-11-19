@@ -618,6 +618,7 @@ private struct ThinkingBlock: View {
                     .foregroundStyle(OpenBitFunTheme.muted)
                     .lineSpacing(MobileDesignTypography.bodyLarge.lineSpacing)
                     .textSelection(.enabled)
+                    .accessibilityIdentifier("thinking.content.\(partID)")
             }
         }
         // Match Harmony: preserve manual toggles during one thinking phase,

@@ -92,6 +92,7 @@ struct StreamingRegressionView: View {
     @State private var olderCount = 0
     @State private var historyCount = 40
     @State private var historyRequests = 0
+    private let showsThinkingControls = ProcessInfo.processInfo.arguments.contains("--thinking-regression")
 
     var body: some View {
         VStack(spacing: 0) {
@@ -117,6 +118,19 @@ struct StreamingRegressionView: View {
                 model.timelineRows = history
                 model.remoteHasMoreMessages = true
             }.accessibilityIdentifier("fixture.shortHistory")
+            if showsThinkingControls {
+                HStack {
+                    Button("Show answer") {
+                        showThinkingRegression(answerVisible: true, live: true)
+                    }.accessibilityIdentifier("fixture.showThinkingAnswer")
+                    Button("Finish stream") {
+                        showThinkingRegression(answerVisible: true, live: false)
+                        model.isSending = false
+                        finished = true
+                    }.accessibilityIdentifier("fixture.finishThinkingAnswer")
+                }
+                .disabled(!model.isSending)
+            }
             if ProcessInfo.processInfo.arguments.contains("--open-loading-regression") {
                 HStack {
                     Button("Open delayed session") {
@@ -219,19 +233,8 @@ struct StreamingRegressionView: View {
                 finished = true
                 return
             }
-            if ProcessInfo.processInfo.arguments.contains("--thinking-regression") {
-                var thought = ""
-                for index in 1...12 {
-                    thought += "Thinking segment \(index): checking chronology and viewport stability.\nCheck input.\nCheck output.\nCheck viewport.\nCheck ordering.\n\n"
-                    model.timelineRows = history + [thinkingRow(thought: thought, answer: "", live: true)]
-                    do { try await Task.sleep(nanoseconds: 350_000_000) } catch { return }
-                }
-                do { try await Task.sleep(nanoseconds: 3_000_000_000) } catch { return }
-                model.timelineRows = history + [thinkingRow(thought: thought, answer: "ANSWER-AFTER-THINKING", live: true)]
-                do { try await Task.sleep(nanoseconds: 2_000_000_000) } catch { return }
-                model.timelineRows = history + [thinkingRow(thought: thought, answer: "ANSWER-AFTER-THINKING", live: false)]
-                model.isSending = false
-                finished = true
+            if showsThinkingControls {
+                showThinkingRegression(answerVisible: false, live: true)
                 return
             }
             var body = ""
@@ -284,12 +287,18 @@ struct StreamingRegressionView: View {
             ], streaming: false, typing: false, showRetry: false, error: nil)
     }
 
-    private func thinkingRow(thought: String, answer: String, live: Bool) -> MobileConversationRow {
+    // Keep each stage visible until the UI test advances the fixture.
+    private func showThinkingRegression(answerVisible: Bool, live: Bool) {
+        let thought = (1...12).map { index in
+            "Thinking segment \(index): checking chronology and viewport stability.\nCheck input.\nCheck output.\nCheck viewport.\nCheck ordering.\n\n"
+        }.joined()
+        let answer = answerVisible ? "ANSWER-AFTER-THINKING" : ""
         var blocks: [MobileTimelineBlock] = [.thinking(id: "thought", text: thought, streaming: answer.isEmpty && live)]
         if !answer.isEmpty { blocks.append(.text(id: "answer", text: answer, streaming: live)) }
-        return MobileConversationRow(id: live ? "thinking-live" : "thinking-final", kind: "ASSISTANT", text: answer,
+        let row = MobileConversationRow(id: live ? "thinking-live" : "thinking-final", kind: "ASSISTANT", text: answer,
             thinking: thought, images: [], tools: [], blocks: blocks, streaming: live, typing: false,
             showRetry: false, error: nil, live: live)
+        model.timelineRows = history + [row]
     }
 
     private var history: [MobileConversationRow] {
