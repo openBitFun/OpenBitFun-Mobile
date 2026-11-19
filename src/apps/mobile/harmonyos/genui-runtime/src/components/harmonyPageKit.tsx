@@ -1,4 +1,6 @@
-import { Children, useEffect, useLayoutEffect, useMemo, useRef, useState, type CSSProperties, type ReactNode, type Ref } from 'react';
+import { AnimatedCoverContext } from './harmonyLooks';
+import { useReducedMotion } from '../local-runtime/internal/useReducedMotion';
+import { Children, useContext, useEffect, useLayoutEffect, useMemo, useRef, useState, type CSSProperties, type ReactNode, type Ref } from 'react';
 import type { GenUIComponentProps, GenUIImplementations } from '../genUILibrary';
 import { i18nService, useI18n } from '../local-runtime/i18n';
 import { fluentEmoji3dUrl } from './vendor/fluentEmoji3d';
@@ -60,9 +62,47 @@ function Tags({ tags }: { tags: Tag[] }) {
 }
 
 /** A number with its unit at the unit's size; words stay words. */
+/** Motion is decoration: still pages for checkers and reduced-motion readers. */
+function stillPage(): boolean {
+  return typeof window === 'undefined' || Boolean(document.querySelector('[data-local-genui-mode="checker"]'))
+    || Boolean(window.matchMedia?.('(prefers-reduced-motion: reduce)').matches);
+}
+
+/**
+ * A number that rolls from its previous value to a new one. The first render
+ * shows the real value, so readers, probes and tests never see a midway number.
+ */
+function useCountUp(target: number | undefined): number | undefined {
+  const [shown, setShown] = useState<number | undefined>(target);
+  const last = useRef(target ?? 0);
+  useEffect(() => {
+    if (target === undefined) { setShown(undefined); return undefined; }
+    const from = last.current;
+    last.current = target;
+    if (from === target || stillPage()) { setShown(target); return undefined; }
+    const started = performance.now();
+    const duration = Math.min(1200, 500 + Math.abs(target - from) * 4);
+    let frame = 0;
+    const tick = (now: number) => {
+      const t = Math.min(1, (now - started) / duration);
+      const eased = 1 - Math.pow(1 - t, 3);
+      setShown(from + (target - from) * eased);
+      if (t < 1) frame = requestAnimationFrame(tick);
+    };
+    frame = requestAnimationFrame(tick);
+    return () => cancelAnimationFrame(frame);
+  }, [target]);
+  return shown;
+}
+
 function StatValue({ value, unit, tone, id }: { value: unknown; unit?: unknown; tone?: Tone; id?: string }) {
   const isNumber = typeof value === 'number' || (typeof value === 'string' && /^[+\-−]?\d[\d.,:/]*%?$/.test(value.trim()));
-  const shown = typeof value === 'number' ? numberText(value) : text(value);
+  const target = typeof value === 'number' && Number.isFinite(value) ? value : undefined;
+  const rolling = useCountUp(target);
+  const decimals = target === undefined ? 0 : (String(target).split('.')[1] ?? '').length;
+  const shown = target !== undefined && rolling !== undefined
+    ? numberText(Number(rolling.toFixed(Math.min(2, decimals))) + 0)
+    : typeof value === 'number' ? numberText(value) : text(value);
   return <span className={`pk-stat-value${isNumber ? '' : ' pk-stat-word'}`} id={id} data-tone={tone}>
     {shown}{unit ? <small data-pk-unit>{text(unit)}</small> : null}
   </span>;
@@ -200,6 +240,8 @@ function usePictureWash(ref: React.RefObject<HTMLElement | null>, wash: CoverWas
 }
 
 function Cover({ view }: GenUIComponentProps) {
+  const animatedCover = useContext(AnimatedCoverContext);
+  const reducedMotion = useReducedMotion();
   const compact = view.props.variant === 'compact';
   const picture = text(view.props.picture).trim();
   const eyebrow = text(view.props.eyebrow);
@@ -211,7 +253,7 @@ function Cover({ view }: GenUIComponentProps) {
   const purpose = view.props.purpose === 'tool' || view.props.purpose === 'content' ? text(view.props.purpose) : toolPage ? 'tool' : 'content';
   const tags = visibleCoverTags(list<CoverTag>(view.props.tags), purpose, text(view.props.tagsDisplay) || 'auto');
   // As in the reference, a compact cover keeps its subject picture.
-  const lead = picture ? <Picture emoji={picture} large animated className="pk-cover-pic" /> : null;
+  const lead = picture ? <Picture emoji={picture} large animated={animatedCover && !reducedMotion} className="pk-cover-pic" /> : null;
   const wash = coverWash(view.props.presentation);
   usePictureWash(ref, wash);
   const copy = <>
@@ -220,7 +262,7 @@ function Cover({ view }: GenUIComponentProps) {
     {meta ? <p className="pk-cover-meta">{meta}</p> : null}
     <Tags tags={tags} />
   </>;
-  return <header ref={ref} className="pk-cover" data-plain="" data-hm-bleed-top="plain" data-variant={compact ? 'compact' : undefined}
+  return <header ref={ref} className="pk-cover" data-plain="" data-hm-bleed-top="plain" data-variant={compact ? 'compact' : view.props.variant === 'immersive' ? 'immersive' : undefined}
     data-pk-wash-mode={wash?.mode} data-pk-wash-source={wash?.colorSource}
     style={wash ? { '--pk-wash-strength': `${wash.intensity * 100}%`, '--pk-wash-h': `${wash.height}px` } as CSSProperties : undefined}
     data-align={view.props.align === 'center' ? 'center' : undefined}
@@ -283,7 +325,21 @@ type Step = { time?: string; title: string; sub?: string };
 function Timeline({ view }: GenUIComponentProps) {
   const steps = list<Step>(view.props.steps);
   const plain = steps.every(step => !step.time);
-  return <div className="pk-timeline" data-plain={plain ? '' : undefined}>{steps.map((step, index) => <div key={index} className="pk-step">
+  const ref = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    const root = ref.current;
+    if (!root) return undefined;
+    const pending = Array.from(root.querySelectorAll<HTMLElement>('.pk-step:not([data-seen])'));
+    if (stillPage() || typeof IntersectionObserver === 'undefined') { pending.forEach(step => step.setAttribute('data-seen', '')); return undefined; }
+    const observer = new IntersectionObserver(entries => entries.forEach(entry => {
+      if (!entry.isIntersecting) return;
+      entry.target.setAttribute('data-seen', '');
+      observer.unobserve(entry.target);
+    }), { threshold: 0.35 });
+    pending.forEach(step => observer.observe(step));
+    return () => observer.disconnect();
+  }, [steps.length]);
+  return <div ref={ref} className="pk-timeline" data-plain={plain ? '' : undefined}>{steps.map((step, index) => <div key={index} className="pk-step">
     {plain ? null : <span className="pk-step-time">{text(step.time)}</span>}
     <div className="pk-step-body"><span className="pk-step-title">{text(step.title)}</span>{step.sub ? <span className="pk-step-sub">{text(step.sub)}</span> : null}</div>
     <span aria-hidden="true" />
@@ -297,15 +353,31 @@ function Checklist({ view, emit, disabled, isStreaming }: GenUIComponentProps) {
   const bound = Array.isArray(view.props.value) ? (view.props.value as unknown[]).map(text) : undefined;
   const [local, setLocal] = useState<string[]>([]);
   const checked = bound ?? local;
+  const { t } = useI18n('flow-chat');
+  const [burst, setBurst] = useState('');
+  useEffect(() => {
+    if (!burst) return undefined;
+    const timer = window.setTimeout(() => setBurst(''), 700);
+    return () => window.clearTimeout(timer);
+  }, [burst]);
   const toggle = (id: string) => {
-    const next = checked.includes(id) ? checked.filter(item => item !== id) : [...checked, id];
+    const adding = !checked.includes(id);
+    const next = adding ? [...checked, id] : checked.filter(item => item !== id);
     setLocal(next);
+    if (adding && !stillPage()) setBurst(id);
     emit('change', next);
   };
-  return <div className="pk-check">{items.map(item => <label key={item.id} data-pk-check={item.id}>
+  const done = items.filter(item => checked.includes(item.id)).length;
+  return <div className="pk-check" data-complete={items.length > 0 && done === items.length ? '' : undefined}>
+    {items.length > 1 ? <div className="pk-check-head" aria-hidden="true">
+      <span>{t('toolCards.generativeUI.showcase.done')}</span><b>{done}/{items.length}</b>
+      <i style={{ '--pk-v': `${Math.round(done / items.length * 1000) / 10}%` } as CSSProperties} />
+    </div> : null}
+    {items.map(item => <label key={item.id} data-pk-check={item.id} data-burst={burst === item.id ? '' : undefined}>
     <input type="checkbox" checked={checked.includes(item.id)} disabled={disabled || Boolean(isStreaming)} onChange={() => toggle(item.id)} />
     <span>{text(item.text)}{item.sub ? <small>{text(item.sub)}</small> : null}</span>
-  </label>)}</div>;
+  </label>)}
+  </div>;
 }
 
 const NOTE_ICON: Record<Tone, string> = { danger: 'exclamationmark_triangle', warning: 'exclamationmark_circle', success: 'checkmark_circle' };

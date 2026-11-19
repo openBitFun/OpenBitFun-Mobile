@@ -57,7 +57,7 @@ test('the standalone Harmony GenUI bundle boots and renders at phone and foldabl
         manifest,
         identity,
         mode: 'live',
-        source: 'root = Page([Button("Add meeting", @CreateCalendarEvent({title: "Meeting", startTime: "2026-11-18T15:00:00+08:00", endTime: "2026-11-18T16:00:00+08:00"}))], "Test planner")',
+        source: 'root = Page([Cover("Test planner", "Daily log", "Seven blocks"), HeroStat("Focus", 90, "min"), Button("Add meeting", @CreateCalendarEvent({title: "Meeting", startTime: "2026-11-18T15:00:00+08:00", endTime: "2026-11-18T16:00:00+08:00"}))], "Test planner")',
         streaming: false,
         sourceRevision: 3,
         stateRevision: 0,
@@ -67,7 +67,17 @@ test('the standalone Harmony GenUI bundle boots and renders at phone and foldabl
       });
       await page.waitForFunction(expected => document.documentElement.dataset.colorScheme === expected &&
         document.body.innerText.includes('Add meeting'), { timeout: 5000 }, scheme);
-      assert.ok(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth));
+      const cover = await page.waitForSelector('.pk-cover');
+      assert.equal(await page.$eval('[data-gen-ui-look]', node => node.dataset.genUiLook), 'aurora');
+      for (const look of ['blueprint', 'celadon', 'classic', 'unknown']) {
+        await page.evaluate(message => window.__genuiHost.receive(JSON.stringify(message)), { type: 'theme', scheme, look });
+        const expected = look === 'unknown' ? 'aurora' : look;
+        await page.waitForFunction(value => document.querySelector('[data-gen-ui-look]')?.dataset.genUiLook === value, {}, expected);
+        assert.ok(await cover.evaluate(node => node.isConnected), 'Changing style preserves the mounted cover');
+        assert.equal(await page.$eval('.pk-hero-stat .pk-stat-value', node => node.textContent).then(text => text.includes('90')), true);
+        assert.equal(await page.$$eval('[data-gen-ui-look-style]', nodes => nodes.length), look === 'classic' ? 0 : 1);
+        assert.ok(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth));
+      }
     }
     assert.deepEqual(errors, []);
   } finally {

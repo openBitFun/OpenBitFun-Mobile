@@ -1,3 +1,5 @@
+import { BUILTIN_LAUNCH_PARAM } from '../services/MiniAppShortcut';
+import { BUILTIN_MINIAPP_IDS } from '../services/BuiltinMiniAppHost';
 import { AbilityConstant, Configuration, ConfigurationConstant, UIAbility, Want } from '@kit.AbilityKit';
 import { hilog } from '@kit.PerformanceAnalysisKit';
 import { display, window } from '@kit.ArkUI';
@@ -80,6 +82,11 @@ export default class EntryAbility extends UIAbility {
   /** A tap on a generated app's home-screen card opens that app. */
   private deliverCardLaunch(want: Want): void {
     const appId = LocalGenUIDesktopCards.launchAppId(want.parameters as Record<string, Object> | undefined);
+    const builtin = want.parameters?.[BUILTIN_LAUNCH_PARAM];
+    if (typeof builtin === 'string' && BUILTIN_MINIAPP_IDS.includes(builtin)) {
+      LocalGenUILaunchInbox.deliver(builtin);
+      return;
+    }
     if (appId.length > 0) {
       hilog.info(DOMAIN, TAG, '%{public}s', 'Opening a generated app from its desktop card');
       LocalGenUILaunchInbox.deliver(appId);

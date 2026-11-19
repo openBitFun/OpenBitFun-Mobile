@@ -2,6 +2,7 @@ import { harmonyCrossDeviceComponents } from '../components/harmonyCrossDeviceIm
 import { harmonyComponents } from '../components/harmonyComponents';
 import { harmonyPageKitComponents } from '../components/harmonyPageKit';
 import { harmonyScoreboardComponents } from '../components/harmonyScoreboard';
+import { harmonyShowcaseComponents } from '../components/harmonyShowcase';
 import { oiComponents } from '../components/oiComponents';
 import { openUILibrary } from '../components/openuiLibrary';
 import { HARMONY_GENUI_REVISION } from '../components/vendor/harmony-genui/harmonyGenuiStyles.generated';
@@ -22,6 +23,7 @@ const harmonyRendererSources: Record<string, GenUIRendererSource> = {
   }),
   ...sourcesFor(harmonyCrossDeviceComponents, { kind: 'harmony-adapter', source: 'harmonyCrossDeviceImage.tsx' }),
   ...sourcesFor(harmonyComponents, { kind: 'harmony-adapter', source: 'harmonyComponents.tsx' }),
+  ...sourcesFor(harmonyShowcaseComponents, { kind: 'harmony-adapter', source: 'harmonyShowcase.tsx' }),
   ...sourcesFor(harmonyScoreboardComponents, {
     kind: 'harmony-adapter',
     source: 'task_genui/harmony-genui apps/agent/src/scoreboard_block.py + scoreboard.js (managed scoreboard)',
@@ -59,7 +61,7 @@ export const openUIAdapter: GenUIImplementations = {
 };
 
 export const harmonyGenUIAdapter: GenUIImplementations = {
-  components: { ...oiComponents, ...harmonyComponents, ...harmonyPageKitComponents, ...harmonyScoreboardComponents, ...harmonyCrossDeviceComponents },
+  components: { ...oiComponents, ...harmonyComponents, ...harmonyPageKitComponents, ...harmonyScoreboardComponents, ...harmonyShowcaseComponents, ...harmonyCrossDeviceComponents },
   rendererSources: harmonyRendererSources,
   functions,
 };

@@ -1,5 +1,4 @@
-import { AddFormMenuItem, KeyboardAvoidMode } from '@kit.ArkUI';
-import { BusinessError } from '@kit.BasicServicesKit';
+import { KeyboardAvoidMode } from '@kit.ArkUI';
 import { resourceManager } from '@kit.LocalizationKit';
 import { MobileDesignTypography } from '../../generated/MobileDesignTokens';
 import { RemoteI18n } from '../../i18n/RemoteI18n';
@@ -308,9 +307,7 @@ export struct LocalGenUISurface {
         .backgroundColor(FLOATING_PANEL_BG).backgroundBlurStyle(BlurStyle.Thin)
         .shadow({ radius: 12, color: SHADOW_SUBTLE, offsetY: 2 })
         .accessibilityText(RemoteI18n.t('localGenui.appActions'))
-        .bindMenu(this.AppActionsMenu(), {
-          onAppear: () => this.actions.prepareDesktopCard(this.state.appId)
-        })
+        .bindMenu(this.AppActionsMenu())
       } else {
         Blank().width(LocalGenUISurface.CONTROL_SIZE)
       }
@@ -323,7 +320,6 @@ export struct LocalGenUISurface {
     .hitTestBehavior(HitTestMode.Transparent)
   }
 
-  /** "Add to desktop" places a home-screen card that opens this app. */
   @Builder
   AppActionsMenu() {
     Menu() {
@@ -337,15 +333,6 @@ export struct LocalGenUISurface {
       } else {
         MenuItem({ content: RemoteI18n.t('localGenui.addToGallery') })
           .onClick(() => this.actions.addToGallery(this.state.appId))
-      }
-      if (this.state.canAddToDesktop(this.state.appId)) {
-        AddFormMenuItem(this.state.desktopCardWant(this.state.appId), APP_BODY_ID, {
-          formBindingData: this.state.desktopCardInitialData(this.state.appId, this.state.appTitle),
-          style: { options: { content: RemoteI18n.t('localGenui.addToDesktop') } },
-          callback: (error: BusinessError, formId: string) => {
-            this.actions.desktopCardAdded(this.state.appId, formId ?? '', error && error.code ? `${error.code}` : '');
-          }
-        })
       }
     }
   }

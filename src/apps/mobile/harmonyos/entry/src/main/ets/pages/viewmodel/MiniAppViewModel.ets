@@ -46,6 +46,12 @@ export class MiniAppViewModel {
     }
   }
 
+  async openShortcut(id: string): Promise<void> {
+    const next = this.generation + 1;
+    await this.open();
+    if (next === this.generation) await this.select(id);
+  }
+
   async select(id: string): Promise<void> {
     const app = this.state.apps.find((entry) => entry.id === id);
     if (!this.state.visible || !app) return;

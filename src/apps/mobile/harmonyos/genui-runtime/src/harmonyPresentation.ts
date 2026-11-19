@@ -15,6 +15,8 @@ export function harmonyPresentation(app: GenUIAppDefinition | GenUIAppEnvelope) 
   ];
   const theme = themes.find(([, pattern]) => pattern.test(text))?.[0] ?? 'blue';
   const font = /journal|diary|personal|\u624b\u8d26|\u65e5\u8bb0/.test(text) ? 'handwritten' : /book|reading|history|paper|calligraphy|\u4e66|\u9605\u8bfb|\u5386\u53f2/.test(text) ? 'serif' : /code|technical|developer|tech|\u4ee3\u7801|\u6280\u672f/.test(text) ? 'tech' : 'sans';
-  const scheme = /dark|cinema|film|movie|astronomy|night|music player|game|\u7535\u5f71|\u5f71\u9662|\u591c\u7a7a|\u64ad\u653e\u5668|\u6e38\u620f|\u6df1\u8272/.test(text) ? 'dark' : 'light';
-  return { theme, font, scheme } as const;
+  const scheme: 'dark' | 'light' = /dark|cinema|film|movie|astronomy|night|music player|game|\u7535\u5f71|\u5f71\u9662|\u591c\u7a7a|\u64ad\u653e\u5668|\u6e38\u620f|\u6df1\u8272/.test(text) ? 'dark' : 'light';
+  // An explicit Page mood is the program's own choice; night pins the dark page.
+  const declared = /\bmood\s*:\s*"(calm|vivid|night)"/.exec(source)?.[1] as 'calm' | 'vivid' | 'night' | undefined;
+  return { theme, font, scheme: declared === 'night' ? 'dark' as const : scheme, mood: declared } as const;
 }

@@ -41,13 +41,14 @@ export type LocalHostMessage =
   | { type: 'calendar_receipts'; appId: string; sourceRevision: number; params: Record<string, unknown>[] }
   | { type: 'calendar_result'; appId: string; sourceRevision: number; requestId: string; ok: boolean }
   /** `base` makes `source` an edit patch (OpenUI edit mode) applied on top of it. */
-  | { type: 'init'; manifest: LocalRuntimeManifest; identity: LocalRuntimeIdentity; mode: LocalRuntimeMode; source: string; base?: string; streaming: boolean; sourceRevision: number; stateRevision: number; state: GenUIAppState; scheme: 'light' | 'dark'; locale?: string }
+  | { type: 'init'; manifest: LocalRuntimeManifest; identity: LocalRuntimeIdentity; mode: LocalRuntimeMode; source: string; base?: string; streaming: boolean; sourceRevision: number; stateRevision: number; state: GenUIAppState; scheme: 'light' | 'dark'; look?: string; locale?: string }
   /** Owner request: the program an edit patch produces on its base. */
   | { type: 'merge'; requestId: string; base: string; patch: string }
   | { type: 'source_reset'; appId: string; text: string; streaming: boolean; sourceRevision: number }
   | { type: 'source_delta'; appId: string; seq: number; text: string }
   | { type: 'state'; appId: string; sourceRevision: number; stateRevision: number; state: GenUIAppState; conflict?: boolean }
-  | { type: 'theme'; scheme: 'light' | 'dark' }
+  | { type: 'theme'; scheme: 'light' | 'dark'; look?: string }
+  | { type: 'image_search_result'; appId: string; requestId: string; images: string[] }
   /** Space the native host keeps over the page: system bars, cutouts and its floating controls (vp). */
   | { type: 'insets'; top: number; left: number; right: number; bottom: number }
   | { type: 'probe'; requestId: string }
@@ -81,6 +82,8 @@ export interface LocalProbeReport {
 
 export type LocalRuntimeMessage =
   | { type: 'collaboration'; appId: string; sourceRevision: number; requestId: string; op: 'start' | 'cancel'; kind?: string }
+  /** Photo search; the host answers with host-served photo addresses. */
+  | { type: 'image_search'; appId: string; requestId: string; query: string }
   /** The receive hook is installed; the host may now send `init`. */
   | { type: 'boot'; rendererRevision: string }
   | { type: 'ready'; rendererRevision: string; catalogHash: string; contractOk: boolean; reason?: string }
@@ -135,6 +138,7 @@ export interface LocalRuntimeSnapshot {
   state: GenUIAppState;
   /** Local edits not yet acknowledged by the owner. */
   pending?: GenUIAppState;
+  look?: string;
   scheme: 'light' | 'dark';
   locale?: string;
   nextSeq: number;
@@ -172,6 +176,7 @@ export function reduceHostMessage(snapshot: LocalRuntimeSnapshot, message: Local
         stateRevision: message.stateRevision,
         state: message.state ?? {},
         scheme: message.scheme,
+        look: message.look,
         locale: message.locale,
       };
       return { snapshot: next, outbound: [{ type: 'ready', rendererRevision: build.rendererRevision, catalogHash: build.catalogHash, contractOk: !manifestError, reason }] };
@@ -202,7 +207,7 @@ export function reduceHostMessage(snapshot: LocalRuntimeSnapshot, message: Local
       return { snapshot: { ...accepted, pending: undefined }, outbound: [] };
     }
     case 'theme':
-      return { snapshot: { ...snapshot, scheme: message.scheme }, outbound: [] };
+      return { snapshot: { ...snapshot, scheme: message.scheme, look: message.look ?? snapshot.look }, outbound: [] };
     case 'merge':
       return { snapshot, outbound: [mergeReply(message.requestId, message.base, message.patch)] };
     case 'calendar_receipts':

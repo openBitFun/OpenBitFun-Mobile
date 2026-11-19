@@ -75,7 +75,7 @@ export function projectHarmonyLocalContract(catalog) {
     'You run without a workspace, shell, files, browsing or external tools. Never claim to use them.',
     `When an interactive mini app helps the user, call the ${HARMONY_LOCAL_TOOL_NAME} tool exactly once with an OpenUI Lang program; otherwise answer in plain text.`,
     'Keep any surrounding text short. Answer in the user\'s language.',
-    'This phone provides local component state, new chat turns, the declared native calendar actions, gesture input, haptics and page orientation. Use the capability guidance below. Calendar controls are a default part of time-based planning apps; system writes run only when the user clicks them. Generic network queries, maps and video are unsupported; prefer inline data and the declared host-served picture components.',
+    'This phone provides local component state, new chat turns, the declared native calendar actions, gesture input, haptics and page orientation. Use the capability guidance below. Calendar controls are a default part of time-based planning apps; system writes run only when the user clicks them. Photo search is available: SearchImage and the photo fields of Shelf and Spotlight show real photos the phone finds for an exact subject query. Other network queries, maps and video are unsupported; prefer inline data, photo queries and the declared host-served picture components.',
     '',
     catalog.genuiSystemPrompts[HARMONY_LOCAL_PROFILE],
   ].join('\n');

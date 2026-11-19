@@ -2,7 +2,6 @@ import { MobileDesignGeometry, MobileDesignTypography } from '../../generated/Mo
 import { MiniAppActions, emptyMiniAppActions } from '../../model/MiniAppModels';
 import { RemoteI18n } from '../../i18n/RemoteI18n';
 import { MiniAppState } from '../state/MiniAppState';
-import { LocalGenUIState } from '../state/LocalGenUIState';
 import { LocalGenUIGalleryEntry } from '../../services/local-genui/LocalGenUIModels';
 import { MiniAppGallery } from './MiniAppGallery';
 import { TemplateIcon } from './TemplateIcon';
@@ -19,11 +18,6 @@ export struct MiniAppSurface {
   @Param generatedApps: LocalGenUIGalleryEntry[] = [];
   @Event onOpenGenerated: (appId: string) => void = (_appId: string) => {};
   @Event onRemoveGenerated: (appId: string) => void = (_appId: string) => {};
-  /** Local GenUI projection; supplies the add-to-desktop want. */
-  @Param generatedState: LocalGenUIState = new LocalGenUIState();
-  @Event onPrepareDesktopCard: (appId: string) => void = (_appId: string) => {};
-  @Event onDesktopCardAdded: (appId: string, formId: string, error: string) => void =
-    (_appId: string, _formId: string, _error: string) => {};
   @Local insets: WindowInsetsBinding = new WindowInsetsBinding();
 
   aboutToAppear(): void {
@@ -67,11 +61,8 @@ export struct MiniAppSurface {
               bottomInset: this.insets.bottom,
               onSelect: this.actions.select,
               generatedApps: this.generatedApps,
-              generatedState: this.generatedState,
               onOpenGenerated: this.onOpenGenerated,
-              onRemoveGenerated: this.onRemoveGenerated,
-              onPrepareDesktopCard: this.onPrepareDesktopCard,
-              onDesktopCardAdded: this.onDesktopCardAdded
+              onRemoveGenerated: this.onRemoveGenerated
             })
               .layoutWeight(1)
           }

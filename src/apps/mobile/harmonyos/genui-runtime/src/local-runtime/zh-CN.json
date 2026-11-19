@@ -148,6 +148,21 @@
         "unavailable": "当前环境无法发起跨设备取材。",
         "image": "从其他设备接收的图片",
         "localOnly": "图片仅保存在当前小应用，不会自动发送给模型。"
+      },
+      "showcase": {
+        "days": "天",
+        "hours": "时",
+        "minutes": "分",
+        "seconds": "秒",
+        "arrived": "就是现在",
+        "streak": "连续 {{count}} 天",
+        "less": "少",
+        "more": "多",
+        "previousMonth": "上个月",
+        "nextMonth": "下个月",
+        "today": "今天",
+        "noPlans": "这天没有安排",
+        "done": "已完成"
       }
     }
   },

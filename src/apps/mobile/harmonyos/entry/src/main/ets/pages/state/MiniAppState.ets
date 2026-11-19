@@ -1,7 +1,9 @@
+import { MiniAppDragState } from './MiniAppDragState';
 import { MiniAppSummary } from '../../model/MiniAppModels';
 
 @ObservedV2
 export class MiniAppState {
+  readonly drag: MiniAppDragState = new MiniAppDragState();
   @Trace galleryMode: string = 'cards';
   @Trace galleryAppId: string = '';
   @Trace visible: boolean = false;

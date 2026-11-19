@@ -36,6 +36,7 @@ import { LocalGenUIDeviceCapabilityHost } from './LocalGenUIDeviceCapabilityHost
 import { HarmonyCalendarAction, HarmonyCalendarService } from './HarmonyCalendarService';
 import { LocalProviderFrame } from './LocalProviderSseParser';
 import { LocalGenUIModelStore, LocalGenUIModelUpdate } from './LocalGenUIModelStore';
+import { LocalGenUIImageSearch } from './LocalGenUIImageSearch';
 import { LocalGenUIModelCatalog, LocalGenUIModelChoice, LocalGenUIModelProfile } from './LocalGenUIModelCatalog';
 
 /** Projection of one app for the presentation layer. */
@@ -139,6 +140,7 @@ export class LocalGenUISessionController {
   private mountedAppId: string = '';
   /** Automatic repair queued by the finished turn; runs after it releases the slot. */
   private pendingRepair?: LocalGenUIPendingRepair;
+  private readonly imageSearch?: LocalGenUIImageSearch;
 
   constructor(
     repository: LocalGenUIRepository,
@@ -152,8 +154,10 @@ export class LocalGenUISessionController {
     devices: LocalGenUIDeviceCapabilityHost,
     desktopCards: LocalGenUIDesktopCardStore,
     calendar: HarmonyCalendarService,
-    collaboration: LocalGenUICollaborationHost
+    collaboration: LocalGenUICollaborationHost,
+    imageSearch?: LocalGenUIImageSearch
   ) {
+    this.imageSearch = imageSearch;
     this.devices = devices;
     this.calendar = calendar;
     this.collaboration = collaboration;
@@ -184,6 +188,12 @@ export class LocalGenUISessionController {
       unsubscribeGesture: (subscriptionId: string): void => this.devices.unsubscribeGesture(subscriptionId),
       haptic: (kind: string): void => this.devices.haptic(kind),
       collaboration: (message: LocalRuntimeInbound): string => this.collaboration.handle(message),
+      imageSearch: (appId: string, requestId: string, query: string): string => {
+        const search = this.imageSearch;
+        if (!search) return 'image search is unavailable';
+        void search.search(query).then((images: string[]): void => this.bridge.sendImageSearchResult(appId, requestId, images));
+        return '';
+      },
       calendar: async (appId: string, action: string, params: Object): Promise<string> => action === 'CreateCalendarEvent'
         ? this.calendarActions.create(appId, params, () => this.runCalendar(action, params))
         : this.runCalendar(action, params)
@@ -476,23 +486,6 @@ export class LocalGenUISessionController {
       available,
       updatedAt: new Date().toISOString()
     };
-  }
-
-  /** Called before the add menu is shown, so a new card has content at once. */
-  async prepareDesktopCard(appId: string): Promise<void> {
-    // First, before any await: the launcher may add the card right away.
-    this.desktopCards.stagePendingAdd(appId);
-    if (this.thumbnails.existing(appId).length === 0) {
-      await this.captureThumbnail(appId);
-    }
-    this.desktopCards.saveApp(await this.desktopCardApp(appId));
-  }
-
-  /** The launcher placed a card; bind it even if `onAddForm` lost the app id. */
-  async desktopCardAdded(appId: string, formId: string): Promise<void> {
-    this.desktopCards.bind(formId, appId);
-    this.desktopCards.saveApp(await this.desktopCardApp(appId));
-    await this.desktopCards.refresh(formId);
   }
 
   private async syncDesktopCards(appId: string): Promise<void> {
@@ -809,6 +802,16 @@ export class LocalGenUISessionController {
         message.sourceRevision === mount.sourceRevision &&
         (message.orientation === 'auto' || message.orientation === 'portrait' || message.orientation === 'landscape')) {
         this.listener.orientationChanged(message.orientation);
+      }
+      return;
+    }
+    // Photo search is read-only, so a page may ask while its source still streams.
+    if (message.type === 'image_search') {
+      if (!mount || mount.mode !== 'live') return;
+      const refusedSearch = await this.actions.handle(message, this.mountedAppId, mount.sourceRevision);
+      if (refusedSearch.length > 0) {
+        this.bridge.sendImageSearchResult(message.appId || '', message.requestId || '', []);
+        RemoteLogger.warn(`local genui refused image search: ${refusedSearch}`);
       }
       return;
     }

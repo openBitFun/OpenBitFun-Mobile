@@ -1,9 +1,6 @@
 import { LocalCollaborationRequest } from '../../services/local-genui/LocalGenUICollaborationHost';
 import { LocalCollaborationSnapshot } from '../../services/local-genui/LocalCollaborationSession';
 import { LocalGenUIGalleryEntry, LocalGenUISession } from '../../services/local-genui/LocalGenUIModels';
-import { Want } from '@kit.AbilityKit';
-import { formBindingData } from '@kit.FormKit';
-import { LocalGenUIDesktopCards } from '../../services/local-genui/LocalGenUIDesktopCards';
 import { LocalGenUIModelProfile } from '../../services/local-genui/LocalGenUIModelCatalog';
 import { ConversationCoreState } from './ConversationCoreState';
 import { ConversationIntent } from '../actions/ConversationIntent';
@@ -47,36 +44,11 @@ export class LocalGenUIState {
   @Trace cameraWanted: boolean = false;
   // Gallery
   @Trace gallery: LocalGenUIGalleryEntry[] = [];
-  /** Bundle of this app; empty until the context is known, which hides "Add to desktop". */
-  @Trace bundleName: string = '';
 
   currentModelName(): string {
     const model = this.models.find((item: LocalGenUIModelProfile) => item.id === this.currentModelId);
     if (!model) return '';
     return model.name.trim().length > 0 ? model.name.trim() : model.modelName;
-  }
-
-  canAddToDesktop(appId: string): boolean {
-    return this.bundleName.length > 0 && LocalGenUIDesktopCards.isAppId(appId);
-  }
-
-  /** Want of `AddFormMenuItem` for the app's home-screen card. */
-  desktopCardWant(appId: string): Want {
-    return LocalGenUIDesktopCards.addWant(this.bundleName, appId);
-  }
-
-  /**
-   * First content of the new card. It carries the app id itself, so the card
-   * opens its app even before the card host or the add callback binds it.
-   */
-  desktopCardInitialData(appId: string, title: string): formBindingData.FormBindingData {
-    const data: Record<string, Object> = {};
-    data['appId'] = appId;
-    data['state'] = title.length > 0 ? 'ready' : 'pending';
-    data['title'] = title;
-    data['initial'] = LocalGenUIDesktopCards.initial(title);
-    data['imageName'] = '';
-    return formBindingData.createFormBindingData(data);
   }
 
   inGallery(appId: string): boolean {
@@ -115,11 +87,6 @@ export interface LocalGenUIActions {
   addToGallery: (appId: string) => void;
   removeFromGallery: (appId: string) => void;
   openGalleryApp: (appId: string) => void;
-  // Desktop cards
-  /** The add menu is about to show: make sure the card has content to show. */
-  prepareDesktopCard: (appId: string) => void;
-  /** Result of `AddFormMenuItem`; `error` is empty on success. */
-  desktopCardAdded: (appId: string, formId: string, error: string) => void;
   // Device capabilities (presentation facts from the surface)
   appOnScreen: (onScreen: boolean) => void;
   cameraSurface: (surfaceId: string) => void;
@@ -151,8 +118,6 @@ export function emptyLocalGenUIActions(): LocalGenUIActions {
     addToGallery: (_appId: string) => {},
     removeFromGallery: (_appId: string) => {},
     openGalleryApp: (_appId: string) => {},
-    prepareDesktopCard: (_appId: string) => {},
-    desktopCardAdded: (_appId: string, _formId: string, _error: string) => {},
     appOnScreen: (_onScreen: boolean) => {},
     cameraSurface: (_surfaceId: string) => {},
     collaborationClose: (_token: number) => {},

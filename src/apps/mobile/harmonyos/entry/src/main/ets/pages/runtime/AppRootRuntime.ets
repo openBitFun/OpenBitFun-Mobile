@@ -1,3 +1,4 @@
+import { BUILTIN_MINIAPP_IDS } from '../../services/BuiltinMiniAppHost';
 import {
   RecentWorkspaceEntry,
   RemoteSession,
@@ -45,7 +46,11 @@ export class AppRootRuntime extends AppRootRuntimeComposition {
     // A generated app opened from its home-screen card is local: it does not
     // wait for account, device, or remote restoration below.
     LocalGenUILaunchInbox.subscribe((appId: string): void => {
-      void this.localGenUIViewModel.openGalleryApp(appId);
+      if (BUILTIN_MINIAPP_IDS.includes(appId)) {
+        void this.miniAppViewModel.openShortcut(appId);
+      } else {
+        void this.localGenUIViewModel.openGalleryApp(appId);
+      }
     });
     // Account login can be tapped while the rest of the cold-start work is
     // still running. Initialize its secure store first so the login path never
