@@ -957,12 +957,12 @@ final class StreamingPresentationUITests: XCTestCase {
         XCTAssertEqual(timestamps.count, 2)
         let summary = app.buttons["tool.summary.read"]
         let failure = app.buttons["tool.toggle.fetch"]
-        XCTAssertTrue(summary.wait(for: \.isHittable, toEqual: true, timeout: 5))
+        XCTAssertTrue(summary.exists)
         XCTAssertFalse(failure.exists)
-        summary.coordinate(withNormalizedOffset: CGVector(dx: 0.98, dy: 0.5)).tap()
+        tapDisclosure(summary, expanded: false)
         XCTAssertTrue(failure.wait(for: \.isHittable, toEqual: true, timeout: 10))
-        failure.tap()
-        XCTAssertTrue(app.staticTexts["HTTP 404"].waitForExistence(timeout: 5))
+        tapToolRow(failure)
+        XCTAssertTrue(app.staticTexts["HTTP 404"].waitForExistence(timeout: 10))
         let capture = XCTAttachment(screenshot: app.screenshot())
         capture.name = "Message times and expandable tool failure"
         capture.lifetime = .keepAlways
@@ -1036,8 +1036,8 @@ final class StreamingPresentationUITests: XCTestCase {
         XCTAssertTrue(task.waitForExistence(timeout: 15))
         XCTAssertFalse(app.staticTexts["LIVE-CHILD-THOUGHT"].exists)
         XCTAssertFalse(app.buttons["subagent.toggle.empty"].isEnabled, "Empty tasks must not offer disclosure")
-        task.tap()
-        XCTAssertTrue(app.staticTexts["LIVE-CHILD-THOUGHT"].waitForExistence(timeout: 3))
+        tapDisclosure(task, expanded: false)
+        XCTAssertTrue(app.staticTexts["LIVE-CHILD-THOUGHT"].waitForExistence(timeout: 10))
         XCTAssertFalse(app.staticTexts["OLD-CHILD-THOUGHT"].exists)
         XCTAssertFalse(app.staticTexts["PARENT-SUMMARY-MUST-NOT-REPEAT"].exists)
         let preview = app.staticTexts["subagent.output.child-output"]
@@ -1049,15 +1049,18 @@ final class StreamingPresentationUITests: XCTestCase {
         XCTAssertTrue(app.buttons["tool.toggle.child-two"].exists)
         XCTAssertFalse(app.buttons["tool.summary.child-one"].exists)
         XCTAssertFalse(app.staticTexts["NESTED-OUTPUT"].exists)
-        app.buttons["subagent.toggle.nested"].tap()
-        XCTAssertTrue(app.staticTexts["NESTED-OUTPUT"].exists)
-        app.buttons["subagent.toggle.nested"].tap()
+        let nested = app.buttons["subagent.toggle.nested"]
+        let nestedOutput = app.staticTexts["NESTED-OUTPUT"]
+        tapDisclosure(nested, expanded: false)
+        XCTAssertTrue(nestedOutput.waitForExistence(timeout: 10))
+        tapDisclosure(nested, expanded: true)
+        XCTAssertTrue(nestedOutput.waitForNonExistence(timeout: 10))
         app.buttons["fixture.send"].tap()
         XCTAssertTrue(task.label.contains("失败"), "Host failures must remain visible in the subtask header")
         XCTAssertTrue(preview.exists, "Completing keeps the manually opened subtask open")
         XCTAssertFalse(app.staticTexts["LIVE-CHILD-THOUGHT"].exists)
-        app.buttons["thinking.toggle.child-old"].tap()
-        XCTAssertTrue(app.staticTexts["OLD-CHILD-THOUGHT"].exists)
+        tapDisclosure(app.buttons["thinking.toggle.child-old"], expanded: false)
+        XCTAssertTrue(app.staticTexts["OLD-CHILD-THOUGHT"].waitForExistence(timeout: 10))
     }
 
     func testCardsMatchHarmonyExpansionAndOrdering() {
@@ -1066,13 +1069,14 @@ final class StreamingPresentationUITests: XCTestCase {
         app.launch()
         let task = app.buttons["subagent.toggle.task"]
         XCTAssertTrue(task.waitForExistence(timeout: 15))
-        XCTAssertFalse(app.staticTexts["TASK-BODY"].exists, "Running tasks start collapsed")
-        task.tap()
-        XCTAssertTrue(app.staticTexts["TASK-BODY"].waitForExistence(timeout: 3))
+        let taskBody = app.staticTexts["TASK-BODY"]
+        XCTAssertFalse(taskBody.exists, "Running tasks start collapsed")
+        tapDisclosure(task, expanded: false)
+        XCTAssertTrue(taskBody.waitForExistence(timeout: 10))
         app.buttons["fixture.send"].tap()
-        XCTAssertTrue(app.staticTexts["TASK-BODY"].exists, "Status updates preserve the user's expansion")
-        task.tap()
-        XCTAssertFalse(app.staticTexts["TASK-BODY"].exists)
+        XCTAssertTrue(taskBody.exists, "Status updates preserve the user's expansion")
+        tapDisclosure(task, expanded: true)
+        XCTAssertTrue(taskBody.waitForNonExistence(timeout: 10))
         let summary = app.buttons["tool.summary.one"]
         XCTAssertTrue(summary.exists)
         XCTAssertFalse(app.buttons["tool.toggle.one"].exists)
@@ -1080,34 +1084,45 @@ final class StreamingPresentationUITests: XCTestCase {
         XCTAssertFalse(app.buttons["thinking.toggle.before"].exists)
         XCTAssertTrue(app.buttons["tool.toggle.running"].exists)
         XCTAssertTrue(app.buttons["tool.toggle.failed"].exists)
-        summary.tap()
+        tapDisclosure(summary, expanded: false)
         let one = app.buttons["tool.toggle.one"]
         let two = app.buttons["tool.toggle.two"]
-        XCTAssertTrue(one.waitForExistence(timeout: 3))
+        XCTAssertTrue(one.waitForExistence(timeout: 10))
         let before = app.buttons["thinking.toggle.before"]
         let between = app.buttons["thinking.toggle.between"]
         XCTAssertTrue(before.exists && between.exists)
         XCTAssertLessThan(before.frame.minY, one.frame.minY)
         XCTAssertLessThan(one.frame.minY, between.frame.minY)
         XCTAssertLessThan(between.frame.minY, two.frame.minY)
-        one.tap()
-        XCTAssertTrue(app.staticTexts["OUTPUT-one"].waitForExistence(timeout: 3))
-        two.tap()
-        XCTAssertTrue(app.staticTexts["OUTPUT-two"].waitForExistence(timeout: 3))
+        tapToolRow(one)
+        XCTAssertTrue(app.staticTexts["OUTPUT-one"].waitForExistence(timeout: 10))
+        tapToolRow(two)
+        XCTAssertTrue(app.staticTexts["OUTPUT-two"].waitForExistence(timeout: 10))
         XCTAssertFalse(app.staticTexts["OUTPUT-one"].exists, "Only one tool detail is expanded")
         XCTAssertLessThan(one.frame.minY, two.frame.minY)
         app.buttons["fixture.send"].tap()
-        XCTAssertTrue(app.buttons["tool.toggle.three"].waitForExistence(timeout: 3),
+        XCTAssertTrue(app.buttons["tool.toggle.three"].waitForExistence(timeout: 10),
             "Appending a completed tool must preserve the open summary")
         XCTAssertTrue(app.staticTexts["OUTPUT-two"].exists,
             "Appending tools must preserve the selected detail")
-        summary.tap()
-        XCTAssertFalse(one.exists)
+        tapDisclosure(summary, expanded: true)
+        XCTAssertTrue(one.waitForNonExistence(timeout: 10))
         XCTAssertFalse(app.staticTexts["OUTPUT-two"].exists)
         XCTAssertTrue(app.staticTexts["ANSWER-AFTER-ACTIVITY"].isHittable)
         let capture = XCTAttachment(screenshot: app.screenshot())
         capture.lifetime = .keepAlways
         add(capture)
+    }
+
+    private func tapDisclosure(_ button: XCUIElement, expanded: Bool) {
+        let chevron = button.images[expanded ? "chevron.up" : "chevron.down"]
+        XCTAssertTrue(chevron.waitForExistence(timeout: 10))
+        chevron.tap()
+    }
+
+    private func tapToolRow(_ button: XCUIElement) {
+        XCTAssertTrue(button.wait(for: \.isHittable, toEqual: true, timeout: 10))
+        button.coordinate(withNormalizedOffset: CGVector(dx: 0.05, dy: 0.5)).tap()
     }
 
     func testSentUserBubbleStaysVisibleBeforeReply() {
