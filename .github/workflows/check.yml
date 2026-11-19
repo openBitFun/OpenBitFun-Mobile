@@ -58,9 +58,17 @@ jobs:
   ios:
     runs-on: macos-26
     env:
-      IOS_SIMULATOR_DESTINATION: platform=iOS Simulator,name=iPhone 17 Pro Max,OS=latest
+      DEVELOPER_DIR: /Applications/Xcode_26.5.app/Contents/Developer
     steps:
       - uses: actions/checkout@v5
+      - name: Create iPhone simulator
+        run: |
+          xcodebuild -version
+          xcrun simctl list runtimes
+          simulator_id=$(xcrun simctl create 'OpenBitFun CI' \
+            com.apple.CoreSimulator.SimDeviceType.iPhone-17-Pro-Max \
+            com.apple.CoreSimulator.SimRuntime.iOS-26-5)
+          echo "IOS_SIMULATOR_DESTINATION=platform=iOS Simulator,id=$simulator_id" >> "$GITHUB_ENV"
       - uses: actions/setup-node@v4
         with:
           node-version: '22'
