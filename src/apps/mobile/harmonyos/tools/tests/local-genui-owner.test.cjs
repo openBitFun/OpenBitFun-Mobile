@@ -131,7 +131,7 @@ test('unknown libraries and schema versions stay retained but not runnable', asy
 });
 
 const { nextLocalRepair } = loadLocalGenUI('LocalGenUIRepairPolicy', { './LocalGenUIModels': models });
-test('automatic repair is bounded, deduplicated and skips infrastructure gaps', async () => {
+test('automatic repair changes strategy across repeated diagnostics and skips infrastructure gaps', async () => {
   const port = new MemoryPort();
   const { owner, record } = await newApp(port);
   const failed = verification({ 'actual-render': 'failed', 'declared-interactions': 'unverified' });
@@ -142,12 +142,14 @@ test('automatic repair is bounded, deduplicated and skips infrastructure gaps', 
   assert.match(first.prompt, /root = Col\(\[@Period\(\)\]\)/);
   assert.equal(await owner.recordRepairAttempt(record.appId, first.errorKey), true);
   const stored = await port.loadApp(record.appId);
-  assert.equal(nextLocalRepair(stored, failed, 'x'), undefined, 'same diagnostics are not retried');
+  assert.equal(nextLocalRepair(stored, failed, 'x').attempt, 2, 'same diagnostics get a strategy change while budget remains');
   const other = verification({ 'actual-render': 'failed' });
   other.checks[0].detail = 'Unknown component Foo';
   assert.equal(nextLocalRepair(stored, other, 'x').attempt, 2);
   await owner.recordRepairAttempt(record.appId, 'k2');
-  assert.equal(nextLocalRepair(await port.loadApp(record.appId), verification({ 'actual-render': 'failed' }), 'x'), undefined, 'budget of two');
+  assert.equal(nextLocalRepair(await port.loadApp(record.appId), verification({ 'actual-render': 'failed' }), 'x').attempt, 3);
+  await owner.recordRepairAttempt(record.appId, 'k3');
+  assert.equal(nextLocalRepair(await port.loadApp(record.appId), verification({ 'actual-render': 'failed' }), 'x'), undefined, 'budget of three');
   assert.equal(nextLocalRepair(record, verification({ 'actual-render': 'unverified' }), 'x'), undefined, 'probe timeouts are not source defects');
 });
 

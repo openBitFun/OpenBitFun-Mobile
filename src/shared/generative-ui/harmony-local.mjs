@@ -1,4 +1,5 @@
 import { createHash } from 'node:crypto';
+import { HARMONY_LOCAL_GAME_PROMPT } from './harmony-game-example.mjs';
 
 /**
  * Harmony Local GenUI contract projection.
@@ -78,6 +79,8 @@ export function projectHarmonyLocalContract(catalog) {
     'This phone provides local component state, new chat turns, the declared native calendar actions, gesture input, haptics and page orientation. Use the capability guidance below. Calendar controls are a default part of time-based planning apps; system writes run only when the user clicks them. Photo search is available: SearchImage and the photo fields of Shelf and Spotlight show real photos the phone finds for an exact subject query. Other network queries, maps and video are unsupported; prefer inline data, photo queries and the declared host-served picture components.',
     '',
     catalog.genuiSystemPrompts[HARMONY_LOCAL_PROFILE],
+    '',
+    HARMONY_LOCAL_GAME_PROMPT,
   ].join('\n');
 
   const catalogText = stableJson(localCatalog);

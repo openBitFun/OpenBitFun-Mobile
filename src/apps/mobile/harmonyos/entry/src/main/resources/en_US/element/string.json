@@ -3365,6 +3365,10 @@
       "value": "Could not be created"
     },
     {
+      "name": "localGenui_status_recovering",
+      "value": "Repairing automatically"
+    },
+    {
       "name": "localGenui_status_state_migration_required",
       "value": "The new version does not fit your saved data, so the previous version is kept"
     },
