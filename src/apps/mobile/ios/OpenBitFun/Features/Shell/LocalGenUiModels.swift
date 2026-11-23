@@ -103,6 +103,7 @@ struct LocalGenUiModelSheet: View {
             } label: {
                 Image(systemName: "xmark").font(.system(size: 18, weight: .medium))
                     .frame(width: MobileDesignGeometry.controlTouchSize, height: MobileDesignGeometry.controlTouchSize)
+                    .contentShape(Rectangle())
             }
             .buttonStyle(.plain)
             .accessibilityLabel(model.localized("关闭"))
@@ -206,7 +207,7 @@ private struct LocalGenUiModelFields: View {
                     if wasFocused { Task { @MainActor in keyFocused = true } }
                 } label: {
                     Image(systemName: draft.showTypedKey ? "eye" : "eye.slash")
-                        .font(.system(size: 18)).frame(width: 32, height: 32)
+                        .font(.system(size: 18)).frame(width: 32, height: 32).contentShape(Rectangle())
                 }
                 .buttonStyle(.plain)
                 .accessibilityLabel(model.localized(draft.showTypedKey ? "隐藏密钥" : "显示密钥"))

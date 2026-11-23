@@ -116,6 +116,7 @@ struct RemoteFilePreviewSheet: View {
                         .font(.system(size: 18, weight: .medium))
                         .foregroundStyle(OpenBitFunTheme.ink)
                         .frame(width: 44, height: 44)
+                        .contentShape(Rectangle())
                 }
                 .buttonStyle(.plain)
                 .accessibilityLabel(Text(model.localized("返回")))
@@ -139,6 +140,7 @@ struct RemoteFilePreviewSheet: View {
                         .font(.system(size: 18, weight: .medium))
                         .foregroundStyle(OpenBitFunTheme.ink)
                         .frame(width: 44, height: 44)
+                        .contentShape(Rectangle())
                 }
                 .buttonStyle(.plain)
                 .disabled(model.filePreviewLoading || model.connectionPhase == .disconnected)
@@ -154,6 +156,7 @@ struct RemoteFilePreviewSheet: View {
                         .font(.system(size: 18, weight: .medium))
                         .foregroundStyle(OpenBitFunTheme.ink)
                         .frame(width: 44, height: 44)
+                        .contentShape(Rectangle())
                 }
                 .buttonStyle(.plain)
                 .disabled([.preparing, .downloading, .saving].contains(model.downloadPhase))

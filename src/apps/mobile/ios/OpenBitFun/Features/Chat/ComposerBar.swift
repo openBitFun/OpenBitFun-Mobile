@@ -549,6 +549,7 @@ struct ComposerBar: View {
                                 width: MobileDesignGeometry.selectionCloseSize,
                                 height: MobileDesignGeometry.selectionCloseSize
                             )
+                            .contentShape(Rectangle())
                     }
                     .buttonStyle(.plain)
                     .accessibilityLabel(Text(model.localized("关闭")))

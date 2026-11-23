@@ -201,6 +201,7 @@ struct SidebarView: View {
                         .background(OpenBitFunTheme.sidebarRaised)
                         .overlay(Circle().stroke(OpenBitFunTheme.sidebarLine, lineWidth: 1))
                         .clipShape(Circle())
+                        .contentShape(Rectangle())
                 }
                 .buttonStyle(.plain)
                 .accessibilityLabel(Text(model.localized("收起侧栏")))
@@ -216,6 +217,7 @@ struct SidebarView: View {
                     .background(OpenBitFunTheme.sidebarRaised)
                     .overlay(Circle().stroke(OpenBitFunTheme.sidebarLine, lineWidth: 0.5))
                     .clipShape(Circle())
+                    .contentShape(Rectangle())
                     .shadow(color: MobileDesignColors.shadowFaint, radius: 9, y: 3)
             }
             .buttonStyle(.plain)
@@ -247,6 +249,7 @@ struct SidebarView: View {
                         .background(OpenBitFunTheme.sidebarRaised)
                         .overlay(Circle().stroke(OpenBitFunTheme.sidebarLine, lineWidth: 1))
                         .clipShape(Circle())
+                        .contentShape(Rectangle())
                 }
                 .buttonStyle(.plain)
                 .accessibilityLabel(Text(model.localized("收起侧栏")))
@@ -285,13 +288,17 @@ struct SidebarView: View {
                 Spacer()
                 if model.accountUser != nil {
                     Button { model.refreshRemoteDevices() } label: {
-                        if model.accountRefreshing {
-                            ProgressView().controlSize(.small)
-                        } else {
-                            Image(systemName: "arrow.clockwise")
-                                .font(.system(size: 14, weight: .medium))
-                                .foregroundStyle(OpenBitFunTheme.sidebarMuted)
+                        Group {
+                            if model.accountRefreshing {
+                                ProgressView().controlSize(.small)
+                            } else {
+                                Image(systemName: "arrow.clockwise")
+                                    .font(.system(size: 14, weight: .medium))
+                                    .foregroundStyle(OpenBitFunTheme.sidebarMuted)
+                            }
                         }
+                        .frame(width: 40, height: 38)
+                        .contentShape(Rectangle())
                     }
                     .buttonStyle(.plain)
                     .accessibilityLabel(Text(model.localized("刷新设备")))
@@ -341,6 +348,7 @@ struct SidebarView: View {
                             .font(.system(size: 18, weight: .regular))
                             .foregroundStyle(selectedDirectoryEntry.online ? OpenBitFunTheme.sidebarInk : OpenBitFunTheme.sidebarSubtle)
                             .frame(width: 34, height: 34)
+                            .contentShape(Rectangle())
                     }
                     .buttonStyle(.plain)
                     .disabled(!selectedDirectoryEntry.online)
@@ -668,6 +676,7 @@ struct SidebarView: View {
                         .font(.system(size: 16, weight: .medium))
                         .foregroundStyle(OpenBitFunTheme.sidebarMuted)
                         .frame(width: 40, height: 40)
+                        .contentShape(Rectangle())
                 }
                 .buttonStyle(.plain)
                 .disabled(model.busy)
@@ -836,6 +845,7 @@ struct SidebarView: View {
                 .font(.system(size: 17, weight: .regular))
                 .foregroundStyle(OpenBitFunTheme.sidebarInk)
                 .frame(width: 30, height: 40)
+                .contentShape(Rectangle())
         })
     }
 
@@ -987,6 +997,7 @@ private struct SidebarWorkspaceRow: View {
                     .rotationEffect(.degrees(expanded ? 90 : 0))
                     .opacity(0.62)
                     .frame(width: 24, height: 46)
+                    .contentShape(Rectangle())
                 }
                 .buttonStyle(.plain)
                 .accessibilityLabel(
@@ -1019,6 +1030,7 @@ private struct SidebarWorkspaceRow: View {
                                 .font(.system(size: 17, weight: .regular))
                                 .foregroundStyle(OpenBitFunTheme.sidebarInk)
                                 .frame(width: 30, height: 40)
+                            .contentShape(Rectangle())
                         }
                     }
                 }
@@ -1107,6 +1119,7 @@ private struct SidebarWorkspaceRow: View {
                             Image(systemName: "ellipsis")
                                 .font(.system(size: 13, weight: .medium)).foregroundStyle(OpenBitFunTheme.sidebarMuted)
                                 .frame(width: 36, height: 40)
+                            .contentShape(Rectangle())
                         }
                         .buttonStyle(.plain)
                         .accessibilityLabel(MobileLocalization.text("会话操作"))
@@ -1174,6 +1187,7 @@ private struct SidebarWorkspacePickerSheet: View {
                         .frame(width: 40, height: 40)
                         .background(OpenBitFunTheme.soft)
                         .clipShape(Circle())
+                        .contentShape(Rectangle())
                 }
                 .buttonStyle(.plain)
                 .accessibilityLabel(Text(MobileLocalization.text("关闭")))

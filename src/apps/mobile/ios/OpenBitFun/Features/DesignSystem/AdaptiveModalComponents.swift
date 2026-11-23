@@ -31,6 +31,7 @@ struct OpenBitFunModalHeader: View {
                         width: MobileDesignGeometry.controlTouchSize,
                         height: MobileDesignGeometry.controlTouchSize
                     )
+                    .contentShape(Rectangle())
             }
             .buttonStyle(.plain)
             .accessibilityLabel(MobileLocalization.text("关闭"))
@@ -61,6 +62,7 @@ struct OpenBitFunSelectionHeader: View {
                         width: MobileDesignGeometry.selectionCloseSize,
                         height: MobileDesignGeometry.selectionCloseSize
                     )
+                    .contentShape(Rectangle())
             }
             .buttonStyle(.plain)
             .accessibilityLabel(MobileLocalization.text("关闭"))
@@ -370,6 +372,7 @@ struct ConnectionSheetHeader: View {
                     }
                 }
                 .frame(width: MobileDesignGeometry.controlTouchSize, height: MobileDesignGeometry.controlTouchSize)
+                .contentShape(Rectangle())
             }
             .buttonStyle(.plain)
             .accessibilityLabel(MobileLocalization.text("关闭"))

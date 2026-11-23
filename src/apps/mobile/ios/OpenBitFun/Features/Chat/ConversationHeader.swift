@@ -51,6 +51,7 @@ struct ConversationHeader: View {
                             )
                     }
                     .buttonStyle(.plain)
+                    .contentShape(Rectangle())
                     .accessibilityLabel(MobileLocalization.text(sidebarActionLabel))
                 } else {
                     OpenBitFunTheme.transparent

@@ -30,6 +30,7 @@ struct SidebarToolsFooter: View {
                     .font(.system(size: 20))
                     .frame(width: 48, height: 48)
                     .background(OpenBitFunTheme.sidebarRaised, in: Circle())
+                    .contentShape(Rectangle())
             }
             .buttonStyle(.plain)
             .foregroundStyle(OpenBitFunTheme.sidebarInk)

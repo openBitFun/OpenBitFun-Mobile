@@ -129,6 +129,7 @@ struct RemoteConnectedHomeView: View {
                                height: MobileDesignGeometry.controlTouchSize)
                 }
                 .buttonStyle(.plain)
+                .contentShape(Rectangle())
                 .accessibilityLabel(model.localized("打开侧栏"))
                 .padding(.leading, 8)
                 .padding(.top, 8)
