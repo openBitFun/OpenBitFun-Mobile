@@ -2,7 +2,7 @@
 // Keep this example in the mobile prompt so the phone model has a concrete
 // game-loop pattern with touch controls, restart behavior and a canvas.
 const arcadeHtml = String.raw`<style>
-body{padding:12px;display:flex;flex-direction:column;gap:10px;align-items:center;background:#0b0b1a;color:#e6e6ff;font-family:ui-monospace,Menlo,monospace}
+html,body{touch-action:none;overscroll-behavior:none}body{padding:12px;display:flex;flex-direction:column;gap:10px;align-items:center;background:#0b0b1a;color:#e6e6ff;font-family:ui-monospace,Menlo,monospace}
 .top{display:flex;justify-content:space-between;width:100%;max-width:400px;font-size:13px;letter-spacing:.06em}
 canvas{width:100%;max-width:400px;aspect-ratio:4/5;border-radius:10px;background:#05050f;box-shadow:0 0 0 1px #2a2a55,0 0 24px #3b1d6e66;touch-action:none;outline:none}
 .pad{display:flex;gap:8px;width:100%;max-width:400px}
@@ -11,13 +11,13 @@ canvas{width:100%;max-width:400px;aspect-ratio:4/5;border-radius:10px;background
 #start{background:#ff2bd6;border-color:#ff2bd6;color:#0b0b1a}
 p{margin:0;font-size:12px;opacity:.7}
 </style>
-<div class="top"><span id="score">SCORE 0</span><span id="wave">WAVE 1</span><span id="lives">♥♥♥</span></div>
+<div data-openbitfun-game class="top"><span id="score">SCORE 0</span><span id="wave">WAVE 1</span><span id="lives">♥♥♥</span></div>
 <canvas id="c" width="400" height="500" tabindex="0"></canvas>
-<div class="pad"><button id="left" aria-label="Move left">◀</button><button id="fire">FIRE</button><button id="right" aria-label="Move right">▶</button></div>
+<div class="pad"><button id="left" data-game-control="left" aria-label="Move left">◀</button><button id="fire" data-game-control="fire">FIRE</button><button id="right" data-game-control="right" aria-label="Move right">▶</button></div>
 <div class="pad"><button id="start">START GAME</button></div>
 <p>Arrow keys move, space fires. On a phone, use the buttons.</p>
 <script>
-const c=document.getElementById('c'),g=c.getContext('2d'),W=400,H=500,S=id=>document.getElementById(id),keys={};
+const c=document.getElementById('c'),g=c.getContext('2d'),W=400,H=500,S=id=>document.getElementById(id),keys={},pointerActions=new Map(),actionPointers=new Map();
 let ship,shots,bombs,aliens,dir,speed,score=0,lives=3,wave=1,running=false,over=false,last=0,cool=0;
 const stars=Array.from({length:60},()=>[Math.random()*W,Math.random()*H,Math.random()*1.5+.3]);
 const colors=['#ff2bd6','#ffb000','#2bf0ff','#7dff5a'];
@@ -52,7 +52,10 @@ if(!running){g.fillStyle='rgba(5,5,15,.75)';g.fillRect(0,H/2-50,W,100);g.textAli
 function loop(t){const dt=Math.min(.05,(t-last)/1000||0);last=t;if(running)step(dt);draw();requestAnimationFrame(loop)}
 addEventListener('keydown',e=>{if(['ArrowLeft','ArrowRight',' '].includes(e.key)){keys[e.key]=true;e.preventDefault()}});
 addEventListener('keyup',e=>{keys[e.key]=false});
-for(const id of ['left','right','fire']){const b=S(id);b.addEventListener('pointerdown',e=>{keys[id]=true;b.setPointerCapture(e.pointerId)});b.addEventListener('pointerup',()=>{keys[id]=false});b.addEventListener('pointercancel',()=>{keys[id]=false})}
+function press(id,event){event.preventDefault();pointerActions.set(event.pointerId,id);actionPointers.set(id,(actionPointers.get(id)||0)+1);keys[id]=true;try{event.currentTarget.setPointerCapture(event.pointerId)}catch{}}
+function release(event){const id=pointerActions.get(event.pointerId);if(!id)return;pointerActions.delete(event.pointerId);const count=(actionPointers.get(id)||1)-1;if(count>0){actionPointers.set(id,count)}else{actionPointers.delete(id);keys[id]=false}}
+for(const id of ['left','right','fire']){const b=S(id);b.addEventListener('pointerdown',event=>press(id,event),{passive:false});b.addEventListener('pointerup',release);b.addEventListener('pointercancel',release);b.addEventListener('lostpointercapture',release)}
+addEventListener('blur',()=>{pointerActions.clear();actionPointers.clear();for(const id of ['left','right','fire'])keys[id]=false});
 S('start').onclick=()=>{reset();running=true;S('start').textContent='RESTART';c.focus()};
 reset();requestAnimationFrame(loop);
 </script>`;
@@ -66,6 +69,7 @@ const arcadeSource = [
 export const HARMONY_LOCAL_GAME_PROMPT = [
   'Playable game generation for Harmony phones:',
   '- When the user asks for a video game, arcade game, shooter, platformer, real-time battle, or another game with movement and a loop, use HtmlView with a complete inline HTML/CSS/JavaScript implementation. The HTML must include a visible start or restart control and touch or pointer controls that work on a phone.',
+  '- Mark the game root with data-openbitfun-game and each held-action control with data-game-control. Set touch-action:none on the game root, canvas and controls. For simultaneous actions such as moving and attacking, keep a Set or Map keyed by pointerId and release only that pointer on pointerup, pointercancel or lostpointercapture. Call preventDefault on pointerdown and use pointer capture inside try/catch. Do not use one activeButton variable, touches[0], or click handlers for held controls. Clear all held actions on window blur.',
   '- A game may show its own score, waves, lives and status inside HtmlView. Use Scoreboard only for a scorekeeping tool where the user wants to manually record two sides and no game loop is requested.',
   '- Keep the game offline. Do not load remote scripts, images or network resources. Prefer canvas or inline SVG, request landscape when the playfield benefits from width, and keep the complete HTML in one escaped HtmlView string.',
   '- This reference is adapted from the Harmony GenUI gallery example titled "A retro arcade game". Follow its structure and replace the theme, labels, sprites and rules to match the user request.',

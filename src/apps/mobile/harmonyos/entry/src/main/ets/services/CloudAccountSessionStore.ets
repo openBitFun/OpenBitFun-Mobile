@@ -1,6 +1,5 @@
 import { GitHubAccountProfile, readCachedGitHubProfile } from './GitHubAccountProfile';
 import { BusinessError } from '@kit.BasicServicesKit';
-import { BusinessError } from '@kit.BasicServicesKit';
 import { huks } from '@kit.UniversalKeystoreKit';
 import { preferences } from '@kit.ArkData';
 import { Encoding } from './Encoding';
