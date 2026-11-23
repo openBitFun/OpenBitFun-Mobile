@@ -36,6 +36,7 @@ struct RemoteCreateSessionView: View {
                                 .frame(width: 44, height: 44)
                                 .background(OpenBitFunTheme.card)
                                 .clipShape(Circle())
+                                .contentShape(Rectangle())
                         }
                         .buttonStyle(.plain)
                         .accessibilityLabel(model.localized("返回"))
@@ -1033,8 +1034,8 @@ private struct NativeRuntimeFileBrowser: View {
                 VStack(alignment: .leading, spacing: 8) {
                     Text(files.directory).font(.caption).foregroundStyle(OpenBitFunTheme.muted).lineLimit(2)
                     HStack {
-                        Button { model.browseRuntimeFiles((files.directory as NSString).deletingLastPathComponent.isEmpty ? "/" : (files.directory as NSString).deletingLastPathComponent) } label: { Image(systemName: "arrow.up").frame(width: 44, height: 44) }.accessibilityLabel(model.localized("Parent folder")).disabled(files.directory == "/")
-                        Button { model.browseRuntimeFiles(files.directory) } label: { Image(systemName: "arrow.clockwise").frame(width: 44, height: 44) }.accessibilityLabel(model.localized("刷新"))
+                        Button { model.browseRuntimeFiles((files.directory as NSString).deletingLastPathComponent.isEmpty ? "/" : (files.directory as NSString).deletingLastPathComponent) } label: { Image(systemName: "arrow.up").frame(width: 44, height: 44).contentShape(Rectangle()) }.accessibilityLabel(model.localized("Parent folder")).disabled(files.directory == "/")
+                        Button { model.browseRuntimeFiles(files.directory) } label: { Image(systemName: "arrow.clockwise").frame(width: 44, height: 44).contentShape(Rectangle()) }.accessibilityLabel(model.localized("刷新"))
                         Menu {
                             Button(model.localized("Name: A–Z")) { model.sortRuntimeFiles(.nameAsc) }
                             Button(model.localized("Name: Z–A")) { model.sortRuntimeFiles(.nameDesc) }
@@ -1047,7 +1048,7 @@ private struct NativeRuntimeFileBrowser: View {
                             Button(model.localized("新建文件")) { begin(.file) }
                             Button(model.localized("创建文件夹")) { begin(.directory) }
                             Button(model.localized("Upload file")) { begin(.upload) }
-                        } label: { Image(systemName: "plus").frame(width: 44, height: 44) }.accessibilityIdentifier("file.browser.create")
+                        } label: { Image(systemName: "plus").frame(width: 44, height: 44).contentShape(Rectangle()) }.accessibilityIdentifier("file.browser.create")
                     }
 
                 }.padding(.horizontal, 16).disabled(busy)
@@ -1070,7 +1071,7 @@ private struct NativeRuntimeFileBrowser: View {
                                     if !entry.directory { Button(model.localized("下载")) { model.downloadWorkspaceFile(path: entry.path, label: entry.name) } }
                                     Button(model.localized("重命名")) { begin(.rename, path: entry.path, name: entry.name) }
                                     Button(model.localized("删除"), role: .destructive) { begin(.delete, path: entry.path, name: entry.name) }
-                                } label: { Image(systemName: "ellipsis").frame(width: 44, height: 44) }
+                                } label: { Image(systemName: "ellipsis").frame(width: 44, height: 44).contentShape(Rectangle()) }
                                     .accessibilityIdentifier("file.browser.actions.\(entry.path)")
                             }.disabled(busy)
                             Divider()

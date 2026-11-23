@@ -224,7 +224,7 @@ export class ChatSessionController {
     let active: ChatMessage | undefined = undefined;
     this.completedTurnId = '';
     this.subagents.decorate(transcript).forEach((message: ChatMessage) => {
-      if (message.role === 'assistant' && (message.status === 'active' || message.status === 'running')) active = message;
+      if (message.role === 'assistant' && ChatSessionController.isActiveTurnStatus(message.status)) active = message;
       else {
         persisted.push(message);
         if (message.role === 'assistant') {
@@ -245,5 +245,11 @@ export class ChatSessionController {
       historyLoading: this.historyLoading, historyFailed: this.historyFailed,
       promptSuggestion: active ? '' : suggestion
     });
+  }
+
+  private static isActiveTurnStatus(status: string): boolean {
+    return ['active', 'inprogress', 'starting', 'running', 'streaming', 'thinking',
+      'tool_calling', 'pending_confirmation', 'capability_required', 'finishing']
+      .indexOf((status || '').toLowerCase()) >= 0;
   }
 }

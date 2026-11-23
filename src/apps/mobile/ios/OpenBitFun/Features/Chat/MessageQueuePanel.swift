@@ -89,7 +89,7 @@ struct MessageQueuePanel: View {
                     if item.status != "queued" { Text(model.localized("等待执行端处理")).font(MobileDesignTypography.bodySmall.font).foregroundStyle(OpenBitFunTheme.muted) }
                 }.font(MobileDesignTypography.bodyMedium.font).frame(maxWidth: .infinity, minHeight: 48, alignment: .leading)
                 Button { model.promoteQueuedMessage(item.id) } label: {
-                    Image(systemName: "arrow.turn.down.right").frame(width: 44, height: 48)
+                    Image(systemName: "arrow.turn.down.right").frame(width: 44, height: 48).contentShape(Rectangle())
                 }.disabled(queue.busy || queue.failure != nil || !["queued", "blocked"].contains(item.status))
                     .accessibilityLabel(model.localized("立即发送"))
                 Menu {
@@ -99,7 +99,7 @@ struct MessageQueuePanel: View {
                     Button(model.localized("下移")) { if let index { model.moveQueuedMessage(item.id, before: ids.dropFirst(index + 2).first) } }.disabled(!enabled || index == ids.count - 1)
                     Button(model.localized("从队列移除"), role: .destructive) { model.cancelQueuedMessage(item.id) }
                         .disabled(queue.busy || queue.failure != nil || !["queued", "blocked"].contains(item.status))
-                } label: { Image(systemName: "ellipsis").frame(width: 44, height: 48) }
+                } label: { Image(systemName: "ellipsis").frame(width: 44, height: 48).contentShape(Rectangle()) }
                     .accessibilityLabel(model.localized("消息操作"))
             }.buttonStyle(.plain).foregroundStyle(OpenBitFunTheme.ink)
         }

@@ -354,4 +354,4 @@ private fun toolPhase(tool: RemoteToolStatusResponse): ToolPhase = when {
     else -> ToolPhase.WAITING
 }
 
-private val NON_TEXT_ITEM_TYPES = setOf("thinking", "tool", "subagent", "agent")
+private val NON_TEXT_ITEM_TYPES = setOf("thinking", "tool", "subagent", "agent", "user-steering")

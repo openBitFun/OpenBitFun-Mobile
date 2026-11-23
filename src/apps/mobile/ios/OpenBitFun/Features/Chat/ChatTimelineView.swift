@@ -131,6 +131,7 @@ struct ChatTimelineView: View {
                             .clipShape(Circle())
                             .overlay(Circle().stroke(OpenBitFunTheme.line, lineWidth: 1))
                             .shadow(color: OpenBitFunTheme.shadowMedium, radius: 8, y: 3)
+                            .contentShape(Rectangle())
                     }
                     .buttonStyle(.plain)
                     .padding(18)
@@ -1124,6 +1125,7 @@ private struct FileReferenceCard: View {
                 }
                 .font(.system(size: 18, weight: .medium))
                 .foregroundStyle(OpenBitFunTheme.muted).frame(width: 40, height: 40)
+                .contentShape(Rectangle())
             }
             .buttonStyle(.plain)
             .accessibilityLabel(model.localizedFormat("下载 %@", reference.label))
@@ -1165,6 +1167,7 @@ private struct FullScreenTimelineImage: View {
             Button { dismiss() } label: {
                 Image(systemName: "xmark").font(.system(size: 15, weight: .semibold)).foregroundStyle(OpenBitFunTheme.contentOnAction)
                     .frame(width: 44, height: 44).background(OpenBitFunTheme.mediaControlBackground).clipShape(Circle())
+                    .contentShape(Rectangle())
             }
             .buttonStyle(.plain).padding(20)
         }

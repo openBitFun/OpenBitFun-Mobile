@@ -209,7 +209,10 @@ public class ChatSessionController internal constructor(
     }
 
     private fun isRunningTurn(turn: ChatMessage?): Boolean =
-        turn != null && turn.id.isNotEmpty() && turn.status.lowercase() == "active"
+        turn != null && turn.id.isNotEmpty() && turn.status.lowercase() in setOf(
+            "active", "inprogress", "starting", "running", "streaming", "thinking",
+            "tool_calling", "pending_confirmation", "capability_required", "finishing",
+        )
 
     private fun nowMs(): Long = Clock.System.now().toEpochMilliseconds()
 

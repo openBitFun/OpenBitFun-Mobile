@@ -42,6 +42,7 @@ struct SessionActionSurface: View {
                         .font(.system(size: 16, weight: .regular))
                         .foregroundStyle(OpenBitFunTheme.muted)
                         .frame(width: 40, height: 40)
+                        .contentShape(Rectangle())
                 }
                 .buttonStyle(.plain)
                 .accessibilityLabel(model.localized("关闭"))
@@ -212,6 +213,7 @@ struct SessionDetailsView: View {
                         .frame(width: 44, height: 44)
                         .background(OpenBitFunTheme.soft)
                         .clipShape(Circle())
+                        .contentShape(Rectangle())
                 }
                 .buttonStyle(.plain)
                 .accessibilityLabel(model.localized("关闭"))

@@ -24,7 +24,9 @@ export class ChatTimelineProjector {
     // one visual row and share one stable turn key, so retaining both would
     // violate the uniqueness contract required by Repeat.virtualScroll().
     const timelineMessages = shouldRenderActiveTurn ? persistedMessages.filter((message: ChatMessage) => {
-      return !ChatTimelineProjector.isMatchingAssistantTurn(activeTurn, message);
+      if (!ChatTimelineProjector.isMatchingAssistantTurn(activeTurn, message)) return true;
+      return !(ChatTimelineProjector.isStreamingStatus((activeTurn.status || '').toLowerCase()) ||
+        ChatTimelineProjector.hasDisplayableAssistantFinal(message));
     }) : persistedMessages;
     const pendingItems = ChatTimelineProjector.pendingMessagesNotPersisted(pendingMessages, timelineMessages);
     const anchorIndex = ChatTimelineProjector.anchorIndex(pendingItems, activeTurnAnchorId);
@@ -91,15 +93,23 @@ export class ChatTimelineProjector {
 
   private static activeTurnItem(activeTurn: ChatMessage): ChatTimelineItem {
     const turnKey = ChatTimelineProjector.activeTurnKey(activeTurn);
+    const status = (activeTurn.status || '').toLowerCase();
     const item: ChatTimelineItem = {
       id: `active-${turnKey}`,
       type: 'assistant_live_turn',
       message: activeTurn,
-      isStreaming: (activeTurn.status || '').toLowerCase() === 'active',
-      isFinalizing: (activeTurn.status || '').toLowerCase() === 'completed',
+      isStreaming: ChatTimelineProjector.isStreamingStatus(status),
+      isFinalizing: status === 'completed',
       showRetryAction: false
     };
     return item;
+  }
+
+  private static isStreamingStatus(status: string): boolean {
+    return [
+      'active', 'inprogress', 'starting', 'running', 'streaming', 'thinking',
+      'tool_calling', 'pending_confirmation', 'capability_required', 'finishing'
+    ].indexOf(status) >= 0;
   }
 
   private static markLatestFailedMessageRetryable(items: ChatTimelineItem[]): void {

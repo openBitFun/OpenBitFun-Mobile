@@ -61,6 +61,32 @@ class ConversationPresentationTest {
     }
 
     @Test
+    fun aStreamingStatusKeepsTheLiveRowAndTypingIndicatorActive() {
+        val row = timeline(
+            activeTurn = message("turn-streaming", "assistant", "").copy(status = "streaming"),
+        ).conversationRows().single()
+
+        assertTrue(row.live)
+        assertTrue(row.streaming)
+        assertTrue(row.typing)
+    }
+
+    @Test
+    fun anActiveTurnReplacesItsPersistedAssistantStub() {
+        val rows = timeline(
+            persisted = listOf(
+                message("user-1", "user", "Please check"),
+                message("turn-1_assistant", "assistant", "", thinking = "Still checking")
+                    .copy(turnId = "turn-1"),
+            ),
+            activeTurn = message("active-turn-1", "assistant", "", thinking = "Still checking")
+                .copy(status = "streaming", turnId = "turn-1"),
+        ).conversationRows()
+
+        assertEquals(listOf("message-user-1", "active-turn-1"), rows.map { it.id })
+    }
+
+    @Test
     fun aMessageStillInFlightIsShownOnceUntilItsTwinArrives() {
         val optimistic = timeline(optimistic = listOf(message("local-1", "user", "ship it")))
         assertEquals(

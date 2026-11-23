@@ -112,6 +112,7 @@ struct AccountLoginView: View {
                     .font(.system(size: 19, weight: .medium))
                     .foregroundStyle(OpenBitFunTheme.ink)
                     .frame(width: 44, height: 44)
+                .contentShape(Rectangle())
             }
             .buttonStyle(.plain)
             .accessibilityLabel(model.localized("返回"))

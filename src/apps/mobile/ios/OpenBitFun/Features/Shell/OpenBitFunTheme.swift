@@ -58,6 +58,7 @@ struct CircleControl: View {
                 .overlay(Circle().stroke(OpenBitFunTheme.line, lineWidth: 1))
                 .clipShape(Circle())
                 .shadow(color: OpenBitFunTheme.shadowMedium, radius: 8, y: 3)
+                .contentShape(Rectangle())
         }
         .buttonStyle(.plain)
         .accessibilityLabel(systemName)

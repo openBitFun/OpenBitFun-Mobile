@@ -63,8 +63,16 @@ public object ChatTimelineProjector {
         val timelineMessages = realMessages(messages)
         val pendingItems = pendingMessagesNotPersisted(pendingMessages, timelineMessages)
         val renderActiveTurn = activeTurn?.takeIf { shouldRenderActiveTurn(timelineMessages, it) }
+        val renderedMessages = if (renderActiveTurn != null) {
+            timelineMessages.filterNot { message ->
+                isMatchingAssistantTurn(renderActiveTurn, message) &&
+                    (MessageStatusSemantics.isStreaming(renderActiveTurn.status) || hasDisplayableAssistantFinal(message))
+            }
+        } else {
+            timelineMessages
+        }
         val anchorIndex = anchorIndex(pendingItems, activeTurnAnchorId)
-        val items = timelineMessages.map { message ->
+        val items = renderedMessages.map { message ->
             ChatTimelineItem(
                 id = "message-${message.id}",
                 type = messageItemType(message),
@@ -164,6 +172,14 @@ public object ChatTimelineProjector {
         if (!activeTurn.turnId.isNullOrEmpty() && message.id == "${activeTurn.turnId}_assistant") {
             return true
         }
+        return !activeTurn.turnId.isNullOrEmpty() && !message.turnId.isNullOrEmpty() &&
+            activeTurn.turnId == message.turnId
+    }
+
+    private fun isMatchingAssistantTurn(activeTurn: ChatMessage, message: ChatMessage): Boolean {
+        if (message.role != "assistant") return false
+        if (message.id == activeTurn.id) return true
+        if (!activeTurn.turnId.isNullOrEmpty() && message.id == "${activeTurn.turnId}_assistant") return true
         return !activeTurn.turnId.isNullOrEmpty() && !message.turnId.isNullOrEmpty() &&
             activeTurn.turnId == message.turnId
     }
