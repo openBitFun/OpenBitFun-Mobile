@@ -14,8 +14,10 @@ import com.openbitfun.mobile.core.feature.account.AccountUiState
 import com.openbitfun.mobile.core.feature.account.create
 import com.openbitfun.mobile.core.feature.connection.ConnectionPhase
 import com.openbitfun.mobile.core.feature.session.RemoteSessionIntent
+import com.openbitfun.mobile.core.feature.session.DeviceModelDefaultsUiState
 import com.openbitfun.mobile.core.feature.session.RemoteSessionStore
 import com.openbitfun.mobile.core.feature.session.RemoteSessionUiState
+import com.openbitfun.mobile.core.feature.session.CommandPaletteUiState
 import com.openbitfun.mobile.core.feature.session.WorkspaceSessionDirectoryUiState
 import com.openbitfun.mobile.core.feature.workspace.RemoteWorkspaceIntent
 import com.openbitfun.mobile.core.feature.workspace.RemoteWorkspaceStore
@@ -49,6 +51,10 @@ internal class AccountViewModel(application: Application) : AndroidViewModel(app
     val state: StateFlow<AccountUiState> = store.state
     private val _remoteState = MutableStateFlow<RemoteSessionUiState>(RemoteSessionUiState.Idle)
     val remoteState: StateFlow<RemoteSessionUiState> = _remoteState.asStateFlow()
+    private val _commandPalette = MutableStateFlow(CommandPaletteUiState.empty())
+    val commandPalette: StateFlow<CommandPaletteUiState> = _commandPalette.asStateFlow()
+    private val _deviceModels = MutableStateFlow(DeviceModelDefaultsUiState())
+    val deviceModels: StateFlow<DeviceModelDefaultsUiState> = _deviceModels.asStateFlow()
     private val _connectionPhase = MutableStateFlow(ConnectionPhase.IDLE)
     val connectionPhase: StateFlow<ConnectionPhase> = _connectionPhase.asStateFlow()
     private val _workspaceState = MutableStateFlow<RemoteWorkspaceUiState>(RemoteWorkspaceUiState.Idle)
@@ -60,6 +66,7 @@ internal class AccountViewModel(application: Application) : AndroidViewModel(app
     private var remoteStore: RemoteSessionStore? = null
     private var workspaceStore: RemoteWorkspaceStore? = null
     private var remoteJob: Job? = null
+    private var deviceModelsJob: Job? = null
     private var connectionJob: Job? = null
     private var directoryJob: Job? = null
     private var workspaceJob: Job? = null
@@ -71,9 +78,13 @@ internal class AccountViewModel(application: Application) : AndroidViewModel(app
     init {
         viewModelScope.launch {
             store.state.collect { current ->
-                val target = (current as? AccountUiState.Ready)?.selectedDeviceId
-                if (target != releasedTarget) releasedTarget = null
-                if (target != activeTarget && target != releasedTarget) bindTarget(target)
+                val ready = current as? AccountUiState.Ready
+                val selected = ready?.selectedDeviceId
+                if (selected != releasedTarget) releasedTarget = null
+                val target = selected.takeIf { id ->
+                    id != releasedTarget && ready?.devices?.any { it.id == id && it.controllable } == true
+                }
+                if (target != activeTarget) bindTarget(target)
             }
         }
         store.dispatch(AccountIntent.Restore)
@@ -94,6 +105,11 @@ internal class AccountViewModel(application: Application) : AndroidViewModel(app
         remoteStore?.dispatch(intent)
     }
 
+    fun dispatchDeviceModels(deviceId: String, intent: RemoteSessionIntent) {
+        val selected = (state.value as? AccountUiState.Ready)?.selectedDeviceId
+        if (deviceId == selected && deviceId == activeTarget) remoteStore?.dispatch(intent)
+    }
+
     fun dispatchWorkspace(intent: RemoteWorkspaceIntent) {
         workspaceStore?.dispatch(intent)
     }
@@ -111,14 +127,18 @@ internal class AccountViewModel(application: Application) : AndroidViewModel(app
      * a way back.
      */
     fun selectDevice(deviceId: String) {
+        val ready = state.value as? AccountUiState.Ready ?: return
+        val device = ready.devices.firstOrNull { it.id == deviceId && it.controllable } ?: return
         if (deviceId == activeTarget || deviceId == releasedTarget) {
             releasedTarget = null
             bindTarget(deviceId)
         } else {
             // Clear the outgoing projection before publishing the new selection.
             // The account collector binds the new target's shared stores.
-            val ready = state.value as? AccountUiState.Ready ?: return
-            if (ready.devices.none { it.id == deviceId && it.online }) return
+            if (!device.online) return
+            remoteStore?.dispatch(RemoteSessionIntent.CloseDeviceModelDefaults)
+            deviceModelsJob?.cancel()
+            _deviceModels.value = DeviceModelDefaultsUiState()
             remoteJob?.cancel()
             workspaceJob?.cancel()
             connectionJob?.cancel()
@@ -138,6 +158,7 @@ internal class AccountViewModel(application: Application) : AndroidViewModel(app
 
     private fun bindTarget(target: String?) {
         remoteJob?.cancel()
+        deviceModelsJob?.cancel()
         connectionJob?.cancel()
         workspaceJob?.cancel()
         directoryJob?.cancel()
@@ -146,6 +167,8 @@ internal class AccountViewModel(application: Application) : AndroidViewModel(app
         remoteStore = null
         workspaceStore = null
         _remoteState.value = RemoteSessionUiState.Idle
+        _commandPalette.value = CommandPaletteUiState.empty()
+        _deviceModels.value = DeviceModelDefaultsUiState()
         _connectionPhase.value = ConnectionPhase.IDLE
         _workspaceState.value = RemoteWorkspaceUiState.Idle
         _workspaceDirectory.value = WorkspaceSessionDirectoryUiState(emptyList())
@@ -158,8 +181,12 @@ internal class AccountViewModel(application: Application) : AndroidViewModel(app
                 _remoteState.value = it
                 completionNotifier.observe(it, target)
             } }
+            viewModelScope.launch { created.commandPalette.collect { _commandPalette.value = it } }
             connectionJob = viewModelScope.launch {
                 created.connectionPhase.collect { _connectionPhase.value = it }
+            }
+            deviceModelsJob = viewModelScope.launch {
+                created.deviceModelDefaults.collect { _deviceModels.value = it }
             }
             directoryJob = viewModelScope.launch {
                 created.workspaceDirectory.collect { _workspaceDirectory.value = it }

@@ -6,6 +6,7 @@ import { WorkspaceToolsState, WorkspaceToolsIntent } from '../state/WorkspaceToo
 import { MobileDesignGeometry, MobileDesignTypography } from '../../generated/MobileDesignTokens';
 import { SavedRuntimeConnection, RecentWorkspaceEntry, RemoteSession } from '../../model/RemoteModels';
 import { RemoteI18n } from '../../i18n/RemoteI18n';
+import { isDeviceControllable } from '../../services/CloudAccountClient';
 import {
   DeviceDirectoryEntry,
   DeviceDirectoryState,
@@ -224,7 +225,8 @@ export struct SidebarWorkspaceSection {
     .alignItems(VerticalAlign.Center)
     .backgroundColor(this.isSelected(entry) ? SIDEBAR_SELECTION : TRANSPARENT)
     .borderRadius(10)
-    .accessibilityText(`${entry.displayName}, ${this.isActiveDevice(entry.deviceId) ? ConnectionStatusPresenter.label(this.connectionState) :
+    .accessibilityText(`${entry.displayName}, ${!isDeviceControllable(entry.compatible) ? RemoteI18n.t('remote.settings.deviceIncompatible') :
+      this.isActiveDevice(entry.deviceId) ? ConnectionStatusPresenter.label(this.connectionState) :
       RemoteI18n.t(entry.online ? 'sidebar.deviceOnline' : 'sidebar.deviceOffline')}`)
     .gesture(LongPressGesture({ repeat: false }).onAction(() => {
       this.inspectedDeviceId = entry.deviceId;
@@ -270,11 +272,12 @@ export struct SidebarWorkspaceSection {
   }
 
   private canRetryDevice(entry: DeviceDirectoryEntry): boolean {
-    return this.isActiveDevice(entry.deviceId) &&
+    return isDeviceControllable(entry.compatible) && this.isActiveDevice(entry.deviceId) &&
       (this.connectionState === 'failed' || this.connectionState === 'disconnected');
   }
 
   private deviceHealthColor(entry: DeviceDirectoryEntry): ResourceColor {
+    if (!isDeviceControllable(entry.compatible)) return STATUS_DANGER;
     if (!this.isActiveDevice(entry.deviceId)) return entry.online ? STATUS_SUCCESS : SIDEBAR_SUBTLE;
     if (this.connectionState === 'connected') return STATUS_SUCCESS;
     if (this.connectionState === 'failed' || this.connectionState === 'disconnected') return STATUS_DANGER;
@@ -653,7 +656,7 @@ export struct SidebarWorkspaceSection {
   }
 
   private canUseDevice(entry: DeviceDirectoryEntry): boolean {
-    return entry.online || (this.isActiveDevice(entry.deviceId) && this.isConnected());
+    return isDeviceControllable(entry.compatible) && (entry.online || (this.isActiveDevice(entry.deviceId) && this.isConnected()));
   }
 
 

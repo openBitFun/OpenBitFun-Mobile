@@ -1,3 +1,4 @@
+import { localImageUrl } from './localImageUrl';
 import { useEffect, useRef, useState } from 'react';
 import { useI18n } from '../local-runtime/i18n';
 import type { GenUIComponentProps, GenUIImplementations } from '../genUILibrary';
@@ -45,12 +46,16 @@ function CrossDeviceImage({ view, emit, disabled, isStreaming }: GenUIComponentP
     if (!terminal) cancel.current = cancelRequest;
   };
   const status = !port ? 'unavailable' : result?.status ?? (port.available ? 'ready' : 'unavailable');
+  const reason = result?.reason;
+  const statusLabel = reason === 'networkUnavailable' || reason === 'networkPermission' ? reason :
+    port?.mode === 'invite' && status === 'ready' ? 'inviteReady' :
+    port?.mode === 'invite' && status === 'pending' ? 'invitePending' : status;
   return <section ref={elementRef} className="gen-ui-cross-device" data-cross-device-kind={kind} data-status={status}>
     <button className="pk-btn pk-btn-primary" type="button" disabled={!allowed || status === 'pending'} onClick={start}>
       {typeof view.props.label === 'string' && view.props.label ? view.props.label : key(kind)}
     </button>
-    <p role="status" aria-live="polite">{key(status)}</p>
-    {port && isCollaborationImage(value) && <img src={value} alt={key('image')} onError={() => { if (!cancel.current) setResult({ status: 'failed', reason: 'missingImage' }); }} />}
+    <p role="status" aria-live="polite">{key(statusLabel)}</p>
+    {port && isCollaborationImage(value) && <img src={localImageUrl(value)} alt={key('image')} onError={() => { if (!cancel.current) setResult({ status: 'failed', reason: 'missingImage' }); }} />}
     <small>{key('localOnly')}</small>
   </section>;
 }

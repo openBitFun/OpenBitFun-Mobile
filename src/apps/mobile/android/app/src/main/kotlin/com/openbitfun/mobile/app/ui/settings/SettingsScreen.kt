@@ -20,15 +20,19 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.saveable.rememberSaveable
+import androidx.compose.runtime.saveable.rememberSaveableStateHolder
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -45,14 +49,21 @@ import com.openbitfun.mobile.app.R
 import com.openbitfun.mobile.app.ui.account.AccountSettingsDevicesSection
 import com.openbitfun.mobile.app.ui.account.AccountSettingsIdentityCard
 import com.openbitfun.mobile.app.ui.account.AccountSettingsSignOutRow
+import com.openbitfun.mobile.app.ui.common.AdaptiveModalSurface
+import com.openbitfun.mobile.app.ui.genui.activity
 import com.openbitfun.mobile.core.feature.account.AccountUiState
 import com.openbitfun.mobile.core.feature.connection.ConnectionPhase
 import com.openbitfun.mobile.core.feature.connection.RemoteControlSummary
+import com.openbitfun.mobile.core.feature.layout.SettingsPlacement
+import com.openbitfun.mobile.core.feature.session.DeviceModelDefaultsUiState
+import com.openbitfun.mobile.core.feature.session.DeviceModelOperation
+import com.openbitfun.mobile.core.feature.session.DeviceModelRole
 import com.openbitfun.mobile.core.feature.session.RemoteSessionIntent
 import com.openbitfun.mobile.core.feature.session.RemoteSessionUiState
 import com.openbitfun.mobile.app.platform.AppLocale
 import com.openbitfun.mobile.app.platform.AppLocaleController
 import com.openbitfun.mobile.app.ui.theme.generated.MobileDesignGeometry
+import com.openbitfun.mobile.app.ui.theme.generated.MobileDesignTypography
 
 internal const val SETTINGS_TEST_TAG: String = "settings"
 internal const val SETTINGS_PROFILE_TEST_TAG: String = "settings-profile"
@@ -77,7 +88,8 @@ internal const val SETTINGS_CLOSE_TEST_TAG: String = "settings-close"
  */
 @Composable
 internal fun SettingsScreen(
-    modifier: Modifier,
+    visible: Boolean,
+    placement: SettingsPlacement,
     account: AccountUiState.Ready?,
     summary: RemoteControlSummary,
     remoteState: RemoteSessionUiState,
@@ -88,11 +100,19 @@ internal fun SettingsScreen(
     onDisconnect: () -> Unit,
     onReconnect: () -> Unit,
     onSessionIntent: (RemoteSessionIntent) -> Unit,
+    deviceModels: DeviceModelDefaultsUiState,
+    onDeviceModelsIntent: (String, RemoteSessionIntent) -> Unit,
     onClose: () -> Unit,
 ) {
+    if (!visible) return
+    val settingsContent = rememberSaveableStateHolder()
     var showLanguagePicker by rememberSaveable { mutableStateOf(false) }
+    var modelDeviceId by rememberSaveable { mutableStateOf<String?>(null) }
+    var modelRole by rememberSaveable { mutableStateOf<DeviceModelRole?>(null) }
+    var modelSettingsUnsupported by rememberSaveable(account?.selectedDeviceId) { mutableStateOf(false) }
     val connected = summary.phase == ConnectionPhase.CONNECTED
     val readyRemote = remoteState as? RemoteSessionUiState.Ready
+    val modelDevice = account?.devices?.firstOrNull { it.id == modelDeviceId && it.id == account.selectedDeviceId }
 
     // What `aboutToAppear` does in the source: the mode is the desktop's, so it
     // may have been changed from the desktop or from another phone since the
@@ -105,140 +125,178 @@ internal fun SettingsScreen(
     }
     val context = LocalContext.current
     val selectedLocale = AppLocaleController.current(LocalConfiguration.current)
-
-    BackHandler(enabled = showLanguagePicker) {
-        showLanguagePicker = false
+    val dispatchDeviceModels by rememberUpdatedState(onDeviceModelsIntent)
+    DisposableEffect(modelDevice?.id, context) {
+        val id = modelDevice?.id
+        if (id != null) dispatchDeviceModels(id, RemoteSessionIntent.OpenDeviceModelDefaults)
+        onDispose {
+            if (id != null && context.activity()?.isChangingConfigurations != true) {
+                dispatchDeviceModels(id, RemoteSessionIntent.CloseDeviceModelDefaults)
+            }
+        }
     }
 
-    Box(modifier = modifier.fillMaxSize().testTag(SETTINGS_TEST_TAG)) {
-        Column(
-            modifier = Modifier
-                .fillMaxSize()
-                .verticalScroll(rememberScrollState())
-                // The title starts below the close button rather than beside it,
-                // which is the source's `top: 64` over a floating `CloseButton()`:
-                // a 28sp heading and a 44dp circle on one line read as a top bar,
-                // and this page is not one — nothing here goes back anywhere.
-                .padding(start = 16.dp, end = 16.dp, top = 64.dp, bottom = 34.dp),
-        ) {
-            Text(
-                stringResource(R.string.settings_title),
-                fontSize = 28.sp,
-                lineHeight = 34.sp,
-                fontWeight = FontWeight.Bold,
-                color = MaterialTheme.colorScheme.onSurface,
-                modifier = Modifier.fillMaxWidth().padding(bottom = 30.dp),
-            )
-
-            AccountSettingsIdentityCard(
-                account = account,
-                onSignIn = onSignIn,
-                modifier = Modifier.testTag(SETTINGS_PROFILE_TEST_TAG),
-            )
-
-            GeneralSectionTitle(stringResource(R.string.remote_settings_current_control))
-            CurrentControlCard(
-                summary = summary,
-                onDisconnect = onDisconnect,
-                onReconnect = onReconnect,
-                modifier = Modifier,
-            )
-
-            PermissionSection(
-                state = readyRemote,
-                connected = connected,
-                onIntent = onSessionIntent,
-                modifier = Modifier.padding(top = 24.dp),
-            )
-
-            GeneralSectionTitle(stringResource(R.string.settings_general_section))
-            SettingsCard(
-                modifier = Modifier,
-                radius = MobileDesignGeometry.SettingsCompactCardRadius,
-                bordered = false,
-            ) {
-                Column(modifier = Modifier.padding(vertical = 5.dp)) {
-                    LanguageSettingsRow(
-                        value = when (selectedLocale) {
-                            AppLocale.ENGLISH -> stringResource(R.string.settings_language_english)
-                            AppLocale.SIMPLIFIED_CHINESE -> stringResource(R.string.settings_language_chinese)
+    AdaptiveModalSurface(
+        visible = true,
+        placement = placement,
+        onDismissRequest = {
+            if (deviceModels.operation != DeviceModelOperation.SAVING) onClose()
+        },
+        draggable = false,
+        content = { modifier ->
+            settingsContent.SaveableStateProvider("settings") {
+                if (modelDevice != null) {
+                    DeviceModelSettingsPage(
+                        state = deviceModels,
+                        desktopName = modelDevice.displayName,
+                        role = modelRole,
+                        onPickRole = { modelRole = it },
+                        onSelect = { role, id ->
+                            modelRole = null
+                            dispatchDeviceModels(modelDevice.id, RemoteSessionIntent.SelectDeviceModelDefault(role, id))
                         },
-                        onClick = { showLanguagePicker = true },
+                        onRetry = { dispatchDeviceModels(modelDevice.id, RemoteSessionIntent.RefreshDeviceModelDefaults) },
+                        onBack = {
+                            if (modelRole == null) modelDeviceId = null else modelRole = null
+                        },
+                        onClose = onClose,
+                        modifier = modifier,
                     )
-
+                    return@SaveableStateProvider
                 }
-            }
 
-            AccountSettingsDevicesSection(
-                account = account,
-                onRefresh = onRefreshDevices,
-                onSelect = onSelectDevice,
-                modifier = Modifier.padding(top = 24.dp),
-            )
-
-            GeneralSectionTitle(stringResource(R.string.settings_about_section))
-            SettingsCard(
-                modifier = Modifier,
-                radius = MobileDesignGeometry.SettingsCompactCardRadius,
-                bordered = false,
-            ) {
-                Column(modifier = Modifier.padding(vertical = 5.dp)) {
-                    StaticSettingsRow(
-                        title = stringResource(R.string.settings_about_product),
-                        value = stringResource(R.string.settings_about_product_value),
-                    )
-                    // Short of the card's width and centred, as the source's
-                    // 84%-wide rule is: a divider that reached the corners would
-                    // read as two cards rather than as two rows of one.
-                    HorizontalDivider(
-                        modifier = Modifier.fillMaxWidth(0.84f).align(Alignment.CenterHorizontally),
-                    )
-                    StaticSettingsRow(
-                        title = stringResource(R.string.settings_about_version),
-                        value = appVersionName(),
-                    )
-                }
-            }
-
-            if (account != null) {
-                AccountSettingsSignOutRow(onSignOut = onSignOut, modifier = Modifier.padding(top = 28.dp))
-            }
-        }
-
-        // The source's `CloseButton()`, floating over the page's top-right corner.
-        Surface(
-            onClick = onClose,
-            shape = androidx.compose.foundation.shape.CircleShape,
-            color = MaterialTheme.colorScheme.surface,
-            shadowElevation = 3.dp,
-            modifier = Modifier
-                .align(Alignment.TopEnd)
-                .padding(top = 22.dp, end = 18.dp)
-                .size(50.dp)
-                .testTag(SETTINGS_CLOSE_TEST_TAG),
-        ) {
-            Box(contentAlignment = Alignment.Center) {
-                Icon(
-                    painterResource(R.drawable.ic_symbol_xmark),
-                    contentDescription = stringResource(R.string.common_close),
-                    modifier = Modifier.size(21.dp),
-                )
-            }
-        }
-
-        if (showLanguagePicker) {
-            LanguagePickerOverlay(
-                selected = selectedLocale,
-                onDismiss = { showLanguagePicker = false },
-                onSelect = { locale ->
+                BackHandler(enabled = showLanguagePicker) {
                     showLanguagePicker = false
-                    AppLocaleController.set(context, locale)
-                },
-            )
+                }
+
+                Box(modifier.fillMaxSize().testTag(SETTINGS_TEST_TAG)) {
+                    Column(Modifier.fillMaxSize()) {
+                        SettingsPageHeader(onClose)
+                        Column(
+                            modifier = Modifier
+                                .widthIn(max = MobileDesignGeometry.SettingsContentMaxWidth)
+                                .fillMaxWidth().weight(1f)
+                                .align(Alignment.CenterHorizontally)
+                                .verticalScroll(rememberScrollState())
+                                .padding(horizontal = MobileDesignGeometry.SheetHorizontalPadding)
+                                .padding(top = 16.dp, bottom = 34.dp),
+                        ) {
+                        AccountSettingsIdentityCard(
+                            account = account,
+                            onSignIn = onSignIn,
+                            modifier = Modifier.testTag(SETTINGS_PROFILE_TEST_TAG),
+                        )
+
+                        GeneralSectionTitle(stringResource(R.string.remote_settings_current_control))
+                        CurrentControlCard(
+                            summary = summary,
+                            onDisconnect = onDisconnect,
+                            onReconnect = onReconnect,
+                            modifier = Modifier,
+                        )
+
+                        PermissionSection(
+                            state = readyRemote,
+                            connected = connected,
+                            onIntent = onSessionIntent,
+                            modifier = Modifier.padding(top = 24.dp),
+                        )
+
+                        GeneralSectionTitle(stringResource(R.string.settings_general_section))
+                        SettingsCard(
+                            modifier = Modifier,
+                            radius = MobileDesignGeometry.SettingsCompactCardRadius,
+                            bordered = false,
+                        ) {
+                            Column(modifier = Modifier.padding(vertical = 5.dp)) {
+                                LanguageSettingsRow(
+                                    value = when (selectedLocale) {
+                                        AppLocale.ENGLISH -> stringResource(R.string.settings_language_english)
+                                        AppLocale.SIMPLIFIED_CHINESE -> stringResource(R.string.settings_language_chinese)
+                                    },
+                                    onClick = { showLanguagePicker = true },
+                                )
+                                HorizontalDivider(Modifier.fillMaxWidth(0.84f).align(Alignment.CenterHorizontally))
+                                com.openbitfun.mobile.app.ui.genui.LocalGenUiLookSettings()
+
+                            }
+                        }
+
+                        AccountSettingsDevicesSection(
+                            account = account,
+                            onRefresh = onRefreshDevices,
+                            onSelect = onSelectDevice,
+                            modifier = Modifier.padding(top = 24.dp),
+                            connectedDeviceId = account?.selectedDeviceId.takeIf { connected },
+                            modelAvailability = deviceModels.availability,
+                            modelSettingsUnsupported = modelSettingsUnsupported,
+                            onModelSettingsUnsupported = { modelSettingsUnsupported = true },
+                            onOpenModelSettings = {
+                                modelRole = null
+                                modelDeviceId = it
+                            },
+                        )
+
+                        GeneralSectionTitle(stringResource(R.string.settings_about_section))
+                        SettingsCard(
+                            modifier = Modifier,
+                            radius = MobileDesignGeometry.SettingsCompactCardRadius,
+                            bordered = false,
+                        ) {
+                            Column(modifier = Modifier.padding(vertical = 5.dp)) {
+                                StaticSettingsRow(
+                                    title = stringResource(R.string.settings_about_product),
+                                    value = stringResource(R.string.settings_about_product_value),
+                                )
+                                // Short of the card's width and centred, as the source's
+                                // 84%-wide rule is: a divider that reached the corners would
+                                // read as two cards rather than as two rows of one.
+                                HorizontalDivider(
+                                    modifier = Modifier.fillMaxWidth(0.84f).align(Alignment.CenterHorizontally),
+                                )
+                                StaticSettingsRow(
+                                    title = stringResource(R.string.settings_about_version),
+                                    value = appVersionName(),
+                                )
+                            }
+                        }
+
+                        if (account != null) {
+                            AccountSettingsSignOutRow(onSignOut = onSignOut, modifier = Modifier.padding(top = 28.dp))
+                        }
+                        }
+                    }
+
+                    if (showLanguagePicker) {
+                        LanguagePickerOverlay(
+                            selected = selectedLocale,
+                            onDismiss = { showLanguagePicker = false },
+                            onSelect = { locale ->
+                                showLanguagePicker = false
+                                AppLocaleController.set(context, locale)
+                            },
+                        )
+                    }
+                }
+            }
+        },
+    )
+}
+
+@Composable
+private fun SettingsPageHeader(onClose: () -> Unit) {
+    Row(
+        Modifier.fillMaxWidth().height(MobileDesignGeometry.SheetHeaderHeight)
+            .padding(start = 16.dp, end = 8.dp),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        Text(stringResource(R.string.settings_title), Modifier.weight(1f),
+            style = MobileDesignTypography.ConversationHeaderTitle)
+        IconButton(onClick = onClose, modifier = Modifier.testTag(SETTINGS_CLOSE_TEST_TAG)) {
+            Icon(painterResource(R.drawable.ic_symbol_xmark), stringResource(R.string.common_close), Modifier.size(18.dp))
         }
-
-
     }
+    HorizontalDivider(thickness = .5.dp)
 }
 
 @Composable

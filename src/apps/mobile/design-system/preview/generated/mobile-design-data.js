@@ -94,6 +94,10 @@ export const mobileTokens = {
       "light": "#44000000",
       "dark": "#44000000"
     },
+    "genui_model_scrim": {
+      "light": "#33000000",
+      "dark": "#33000000"
+    },
     "shell_scrim": {
       "light": "#24000000",
       "dark": "#24000000"
@@ -344,12 +348,56 @@ export const mobileTokens = {
     "max_factor": 1
   },
   "geometry": {
+    "genui_model_field_height": 52,
+    "genui_model_action_height": 50,
+    "genui_model_field_padding": 14,
+    "genui_model_chip_radius": 14,
+    "genui_model_list_spacing": 10,
+    "genui_model_editor_spacing": 12,
+    "genui_model_panel_width": 480,
+    "genui_model_panel_height": 560,
+    "genui_history_row_height": 56,
+    "genui_history_row_radius": 10,
+    "genui_history_horizontal_inset": 12,
+    "genui_history_vertical_inset": 8,
+    "genui_history_label_spacing": 3,
+    "genui_history_action_inset": 20,
+    "genui_history_menu_height": 40,
+    "genui_history_menu_gap": 2,
+    "genui_app_control_size": 40,
+    "genui_app_control_top_inset": 8,
+    "genui_app_control_side_inset": 12,
+    "genui_app_status_height": 32,
+    "genui_app_status_max_width": 240,
+    "genui_app_status_horizontal_padding": 12,
+    "genui_camera_short_edge": 96,
+    "genui_camera_long_edge": 128,
+    "genui_camera_compact_short_edge": 60,
+    "genui_camera_compact_long_edge": 80,
+    "genui_camera_compact_height_threshold": 480,
+    "genui_camera_radius": 16,
+    "genui_camera_compact_radius": 12,
+    "genui_camera_side_inset": 12,
+    "genui_camera_bottom_inset": 16,
+    "genui_camera_label_inset": 6,
+    "genui_camera_compact_label_inset": 4,
+    "genui_camera_label_vertical_padding": 2,
+    "genui_camera_label_radius": 8,
     "conversation_header_height": 56,
     "conversation_header_compact_height": 56,
     "control_touch_size": 48,
     "navigation_back_icon_size": 18,
     "message_action_icon_size": 14,
     "message_action_touch_size": 32,
+    "message_app_preview_size": 76,
+    "message_app_preview_radius": 16,
+    "message_app_card_radius": 20,
+    "message_app_card_padding": 12,
+    "message_app_badge_size": 20,
+    "message_app_badge_inset": 5,
+    "message_app_open_radius": 16,
+    "message_app_open_horizontal_padding": 14,
+    "message_app_open_vertical_padding": 6,
     "content_gutter": 16,
     "connection_strip_height": 48,
     "timeline_top_padding": 22,
@@ -361,6 +409,7 @@ export const mobileTokens = {
     "message_bubble_vertical_padding": 11,
     "message_bubble_radius": 17,
     "composer_action_size": 48,
+    "composer_primary_surface_size": 32,
     "composer_input_height": 44,
     "composer_expanded_input_height": 58,
     "composer_collapsed_height": 56,
@@ -407,6 +456,12 @@ export const mobileTokens = {
     "settings_section_gap": 20,
     "settings_icon_size": 18,
     "settings_content_max_width": 560,
+    "settings_wide_panel_width": 480,
+    "settings_wide_panel_height": 560,
+    "settings_wide_panel_radius": 32,
+    "connect_wide_panel_radius": 30,
+    "connect_wide_panel_shadow_radius": 30,
+    "connect_wide_panel_shadow_offset_y": 12,
     "settings_prominent_card_radius": 20,
     "model_current_row_height": 64,
     "model_source_row_height": 62,
@@ -426,13 +481,22 @@ export const mobileTokens = {
     "welcome_button_gap": 11,
     "welcome_dock_radius": 30,
     "welcome_dock_bottom": 39,
-    "welcome_mark_size": 92,
-    "welcome_word_size": 34,
-    "welcome_stage_height": 220,
+    "welcome_mark_size": 156,
+    "welcome_wide_mark_size": 184,
+    "welcome_landscape_mark_size": 216,
+    "welcome_wide_action_width": 400,
+    "welcome_landscape_width": 1000,
+    "welcome_word_size": 30,
+    "welcome_long_word_size": 25,
+    "welcome_stage_height": 48,
     "welcome_header_word_size": 17,
     "recent_home_gutter": 24,
     "recent_home_mark_size": 160,
     "recent_home_title_size": 22,
+    "recent_home_phrase_stage_height": 28,
+    "recent_home_top_padding": 56,
+    "recent_home_hero_gap": 16,
+    "recent_home_hero_bottom": 48,
     "recent_home_max_width": 560,
     "recent_home_row_padding": 12,
     "sidebar_refresh_icon_size": 16,
@@ -455,7 +519,11 @@ export const mobileTokens = {
     "miniapp_card_radius": 24,
     "miniapp_list_cover_size": 140,
     "miniapp_list_radius": 20,
-    "miniapp_list_gap": 16
+    "miniapp_list_gap": 16,
+    "miniapp_drag_icon_size": 56,
+    "miniapp_drag_icon_radius": 14,
+    "miniapp_drag_glow_height": 72,
+    "miniapp_drag_target_extra_height": 86
   },
   "breakpoints": {
     "wide": 600,
@@ -466,12 +534,219 @@ export const mobileTokens = {
     "quick": 180,
     "structure": 220,
     "startup_brand": 6800,
-    "cold_start_home": 2400
+    "cold_start_home": 2400,
+    "miniapp_drag_contract": 300,
+    "miniapp_drag_hint_delay": 200,
+    "miniapp_drag_hint_fade": 150
   }
 };
 export const mobileComponents = {
   "version": 1,
   "components": {
+    "genui_creation_history": {
+      "purpose": "Resume local GenUI conversations and delete saved creations from their history rows.",
+      "anatomy": [
+        "title",
+        "updated_time",
+        "trailing_chevron",
+        "selected_checkmark",
+        "active_spinner",
+        "context_menu",
+        "new_session_action"
+      ],
+      "states": [
+        "empty",
+        "loading",
+        "selected",
+        "generating",
+        "context_menu_open",
+        "wide"
+      ],
+      "tokens": [
+        "genui_history_row_height",
+        "genui_history_row_radius",
+        "genui_history_horizontal_inset",
+        "genui_history_vertical_inset",
+        "genui_history_label_spacing",
+        "genui_history_action_inset",
+        "genui_history_menu_height",
+        "genui_history_menu_gap",
+        "card",
+        "shadow_medium",
+        "sheet_content_max_width",
+        "sheet_action_height"
+      ],
+      "platformNotes": "Sort saved sessions by the last persisted message. Render its local date and time when available. A new empty composer does not appear in history before its first submission. Mark the active row when returning to history and keep its loading indicator running while it generates. A long press or the native accessibility action opens the capsule delete menu below the row. Keep the creation action below the scroll list."
+    },
+    "genui_model_sheet": {
+      "purpose": "Configure, discover and select a model without discarding the active local GenUI draft.",
+      "anatomy": [
+        "sheet_header",
+        "close_action",
+        "model_profile_card",
+        "active_profile_badge",
+        "profile_editor",
+        "discovered_model_chips",
+        "primary_action"
+      ],
+      "states": [
+        "first_setup",
+        "choose_existing",
+        "list",
+        "add",
+        "edit",
+        "discovering",
+        "saving",
+        "failure"
+      ],
+      "tokens": [
+        "sheet_header_height",
+        "genui_model_scrim",
+        "genui_model_panel_width",
+        "genui_model_panel_height",
+        "genui_model_field_height",
+        "genui_model_action_height",
+        "genui_model_field_padding",
+        "genui_model_chip_radius",
+        "genui_model_list_spacing",
+        "genui_model_editor_spacing",
+        "settings_card_radius"
+      ],
+      "platformNotes": "Open a bottom sheet on compact windows and a centered scrollable panel on wide windows. Adapt the open panel when its window width changes while retaining the active page, entered values, and model discovery. Keep a newly typed key in memory for the active editor. Swap the list and editor in place. Start in the editor when setup has no saved profiles. Show the active badge next to the model identity and wrap discovery chips below the model field. Keep the composer draft through presentation and dismissal. A saved key can be reused at its original endpoint without placing the key in view state. Finish setup after the new binding is persisted."
+    },
+    "genui_transcript_follow": {
+      "purpose": "Keep the current reply visible while respecting the reader's transcript position.",
+      "anatomy": [
+        "transcript",
+        "active_reply",
+        "composer"
+      ],
+      "states": [
+        "following_latest",
+        "reading_earlier_messages"
+      ],
+      "tokens": [
+        "message_spacing",
+        "conversation_edge_fade_height"
+      ],
+      "platformNotes": "Follow the reply as it grows when the viewport is at the end. Scrolling to earlier messages gives the reader control, including when the active reply settles. Follow again when the reader returns to the end or a new draft is accepted. The local GenUI conversation uses the transcript gesture to return to the end."
+    },
+    "genui_composer": {
+      "purpose": "Write the next instruction and switch local models while editing.",
+      "anatomy": [
+        "full_width_editor",
+        "model_control",
+        "primary_action",
+        "anchored_model_list"
+      ],
+      "states": [
+        "resting",
+        "editing",
+        "multiline_draft",
+        "model_list_open",
+        "setup",
+        "generating"
+      ],
+      "tokens": [
+        "composer_input_height",
+        "composer_expanded_input_row_height",
+        "composer_expanded_action_row_height",
+        "composer_expanded_height",
+        "composer_expanded_radius",
+        "composer_action_size",
+        "composer_primary_surface_size",
+        "composer_model_selector_width",
+        "composer_model_selector_row_height",
+        "composer_model_selector_row_gap",
+        "card_overlay",
+        "body_large"
+      ],
+      "platformNotes": "Always show the model and primary action row below the full-width editor. Show a one-line preview at rest, with tail ellipsis for overflow. Focus or a newline expands the editor up to four visible lines while retaining the complete draft. Use the body-large line height for editable text. Anchor the model list above the model button and keep the native keyboard active while choosing a model. Put the selected profile first and reserve the last row for model management. Release the keyboard when management opens. Clear the submitted draft after acceptance while leaving an active editor focused in the conversation. Draw the active send or stop disc inside the 48-unit touch target."
+    },
+    "message_app_card": {
+      "purpose": "Open a generated mini app directly from the assistant reply that created it.",
+      "anatomy": [
+        "thumbnail_or_title_initial",
+        "mini_app_badge",
+        "title",
+        "status",
+        "open_action"
+      ],
+      "states": [
+        "thumbnail",
+        "fallback",
+        "light",
+        "dark"
+      ],
+      "tokens": [
+        "message_app_preview_size",
+        "message_app_preview_radius",
+        "message_app_card_radius",
+        "message_app_card_padding",
+        "message_app_badge_size",
+        "message_app_badge_inset",
+        "message_app_open_radius",
+        "message_app_open_horizontal_padding",
+        "message_app_open_vertical_padding",
+        "card",
+        "line",
+        "primary_action",
+        "title_small",
+        "label_small",
+        "label_medium"
+      ],
+      "platformNotes": "Show the runtime thumbnail cropped to a square, with the first character of the title as its fallback. The badge occupies the bottom trailing corner. The whole card opens the existing app; the depicted open action shares that target. The result belongs to the message that created the card, including a failed first generation."
+    },
+    "genui_review_status": {
+      "purpose": "Explain when a generated document needs review or cannot open.",
+      "anatomy": [
+        "back_control",
+        "centered_status_pill",
+        "optional_progress",
+        "app_actions"
+      ],
+      "states": [
+        "generating",
+        "repairing",
+        "recovering",
+        "first_generation_failed",
+        "previous_revision_retained",
+        "ready"
+      ],
+      "tokens": [
+        "floating_panel_bg",
+        "label_small",
+        "page_bg",
+        "shadow_subtle"
+      ],
+      "platformNotes": "Keep the back control reachable throughout. A failed first generation remains reachable from its transcript card and shows a centered native status on the page background. Hide the runtime and app actions in this state. A failed edit leaves the accepted document and its saved data available. A fresh verified revision becomes usable and has its own transcript result."
+    },
+    "genui_nearby_collaboration": {
+      "purpose": "Choose a nearby device to obtain a photo, scan, or gallery image for the current mini app.",
+      "anatomy": [
+        "device_list",
+        "selected_operation",
+        "verification_code",
+        "confirmation_actions",
+        "manual_code_action"
+      ],
+      "states": [
+        "searching",
+        "devices_available",
+        "verifying",
+        "awaiting_image",
+        "received",
+        "failed"
+      ],
+      "tokens": [
+        "page_bg",
+        "title_large",
+        "body_medium",
+        "muted",
+        "primary_action"
+      ],
+      "platformNotes": "The host presents nearby devices before the manual code. The requester chooses a device and both users confirm the matching code. The sender uses the system capture or photo picker and explicitly sends the selected image on the verified connection. Where the OS manages discovery and authorization, use its system panel. Stop advertising and searching when the foreground surface closes."
+    },
     "assistant_message_copy": {
       "purpose": "Expose message copy formats through a quiet icon action after a reply settles.",
       "anatomy": [
@@ -557,15 +832,53 @@ export const mobileComponents = {
         "selected",
         "online",
         "offline",
-        "loading"
+        "loading",
+        "incompatible"
       ],
       "tokens": [
         "sidebar_selection",
         "sidebar_ink",
         "sidebar_muted",
-        "status_success"
+        "status_success",
+        "status_danger"
       ],
       "platformNotes": "Device rows have no disclosure chevron. Re-selecting the current device does not collapse its workspaces or restart a healthy connection. Use the sidebar selection surface and normal ink for device identity; only the separate status indicator expresses reachability. Do not add a connection status text row or recovery banner below the device. Automatic reconnect stays quiet; tapping the selected failed or disconnected device retries the connection. Workspace disclosure remains independent and survives refresh and device switching. Compact and wide layouts use the same selection semantics."
+    },
+    "account_device_picker": {
+      "purpose": "Choose a desktop from the signed-in account and connect to it.",
+      "anatomy": [
+        "fixed_back_header",
+        "description",
+        "refresh_action",
+        "device_list",
+        "device_status"
+      ],
+      "states": [
+        "loading",
+        "empty",
+        "online",
+        "offline",
+        "controlling",
+        "connecting",
+        "retry",
+        "incompatible"
+      ],
+      "tokens": [
+        "page_bg",
+        "card",
+        "line",
+        "control_touch_size",
+        "sheet_row_height",
+        "sheet_icon_size",
+        "sheet_group_radius",
+        "sheet_content_max_width",
+        "connect_wide_panel_radius",
+        "body_medium",
+        "body_small",
+        "status_success",
+        "status_danger"
+      ],
+      "platformNotes": "Use a fixed header and a single scroll surface for the full device list. Keep confirmed incompatible devices visible with the localized compatibility explanation and disable their connection action. A legacy Relay can omit compatibility, in which case presence still determines whether a row can connect. Close the picker after the selected host completes its initial synchronization."
     },
     "folded_window_behavior": {
       "purpose": "Keep the folded phone portrait and transfer open navigation when unfolding.",
@@ -855,6 +1168,30 @@ export const mobileComponents = {
       ],
       "platformNotes": "The maximum width is the 276-unit compact HarmonyOS baseline; wide layouts may use a separate responsive policy. Show each available host message time below its content in localized short date/time with muted label-small text, right aligned for users and left aligned for assistants. Omit unavailable or invalid legacy timestamps. Ordinary failed tool calls share the neutral collapsed activity presentation; their actual failure details remain expandable. Questions, approvals and failed replies retain their attention states."
     },
+    "user_message_full_text": {
+      "purpose": "Read or copy a long user message while preserving its transcript position.",
+      "anatomy": [
+        "inline_full_text_action",
+        "copy_full_text_action",
+        "sheet_header",
+        "selectable_body"
+      ],
+      "states": [
+        "truncated",
+        "full_text_open",
+        "compact_bottom",
+        "wide_side"
+      ],
+      "tokens": [
+        "message_bubble_max_width",
+        "sheet_top_radius",
+        "sheet_header_height",
+        "sheet_horizontal_padding",
+        "file_link",
+        "body_medium"
+      ],
+      "platformNotes": "Show at most eight explicit lines or 360 UTF-16 units in the preview, whichever comes first. Preserve surrogate pairs and omit the ellipsis when only trailing whitespace is omitted. Put the full-text link immediately after the ellipsis. The adaptive panel reads and selects the original message. Closing it restores the same conversation position and draft."
+    },
     "conversation_overlay": {
       "purpose": "Lets the transcript own the whole pane while the header and composer stay reachable above it.",
       "anatomy": [
@@ -899,7 +1236,7 @@ export const mobileComponents = {
         "composer_collapsed_radius",
         "composer_expanded_radius"
       ],
-      "platformNotes": "Keyboard, dictation, and attachment pickers remain native adapters. The focused two-row form stays compact and exists to expose message context controls; multiline content and attachments may grow it further. The trailing action is the single filled action for Send, Dictate, or Stop. Use the approved 22-unit plus and 20-unit microphone SVGs inside unchanged 48-unit hit targets. Idle dictation uses a quiet soft surface and readable muted ink; blocked states remain visibly subdued."
+      "platformNotes": "Keyboard, dictation, and attachment pickers remain native adapters. The focused two-row form stays compact and exists to expose message context controls; multiline content and attachments may grow it further. The trailing action is the single filled action for Send, Dictate, or Stop. Use the approved 22-unit plus and 20-unit microphone SVGs inside unchanged 48-unit hit targets. Idle dictation uses a quiet soft surface and readable muted ink; blocked states remain visibly subdued. In HarmonyOS Local GenUI, keep the full-width editor and action row inside a single rounded surface at both widths. The action row stays visible with the keyboard closed, with the borderless model control at the leading edge and Send or Stop at the trailing edge. The unconfigured control opens setup directly."
     },
     "prompt_suggestion": {
       "purpose": "Offer the host's next-input suggestion above the remote conversation composer.",
@@ -956,7 +1293,7 @@ export const mobileComponents = {
       "platformNotes": "Compact layouts use a native bottom surface with a closeable header; wide layouts use an arrowless anchored surface without a redundant header. The selected model is first, uses the soft surface and a leading check mark, and all platform-specific provider glyphs and row dividers are omitted."
     },
     "adaptive_modal_surface": {
-      "purpose": "Hosts settings, connection, creation, selection, and detail flows without crossing a physical fold or obscuring more of the workspace than necessary.",
+      "purpose": "Hosts settings, connection, creation, selection, and detail flows in their native window regions.",
       "anatomy": [
         "scrim",
         "paper_surface",
@@ -966,6 +1303,7 @@ export const mobileComponents = {
       ],
       "states": [
         "compact_bottom",
+        "wide_center",
         "wide_side",
         "fold_operate",
         "busy",
@@ -975,6 +1313,9 @@ export const mobileComponents = {
         "scrim",
         "sheet_top_radius",
         "sheet_side_radius",
+        "settings_wide_panel_width",
+        "settings_wide_panel_height",
+        "settings_wide_panel_radius",
         "sheet_horizontal_padding",
         "sheet_header_height",
         "sheet_action_height",
@@ -982,7 +1323,7 @@ export const mobileComponents = {
         "line",
         "structure"
       ],
-      "platformNotes": "Use each platform's native modal lifecycle, accessibility focus, and back gesture; placement comes from the shared adaptive policy and visual geometry comes from these tokens."
+      "platformNotes": "Use each platform's native modal lifecycle, accessibility focus, and back gesture. Settings use a bottom sheet on compact windows and a centered scrollable panel on wide windows, including across an unfolded vertical crease. Keep the active settings page when the presentation changes. Other flows use the region selected by their placement policy."
     },
     "account_login_sheet": {
       "purpose": "Offers GitHub sign-in in a compact bottom sheet without empty full-screen space.",
@@ -1199,6 +1540,47 @@ export const mobileComponents = {
       ],
       "platformNotes": "Open from the session-list overflow inside the shared adaptive modal. Choices update local view state only; compact, wide, and fold-operate placements use the same cards and never stack native pickers or alerts."
     },
+    "device_model_defaults": {
+      "purpose": "Configure the model defaults for new sessions on the connected desktop.",
+      "anatomy": [
+        "connected_device_entry",
+        "back_and_close_header",
+        "desktop_summary",
+        "role_rows",
+        "role_picker",
+        "scope_card",
+        "write_feedback"
+      ],
+      "states": [
+        "unsupported",
+        "disconnected",
+        "loading",
+        "ready",
+        "empty",
+        "picking_role",
+        "saving",
+        "updated",
+        "failed"
+      ],
+      "tokens": [
+        "sheet_header_height",
+        "sheet_horizontal_padding",
+        "settings_content_max_width",
+        "settings_group_radius",
+        "settings_detail_row_height",
+        "settings_row_padding",
+        "model_source_row_height",
+        "model_account_row_height",
+        "composer_model_selector_row_radius",
+        "body_medium",
+        "body_small",
+        "label_small",
+        "line",
+        "soft",
+        "status_success"
+      ],
+      "platformNotes": "Put the entry on the connected desktop row. Show the update badge and explanation for an older host. Replace settings content in place with the desktop summary and the primary, fast, and image understanding roles. Open the selected role in the same surface. Preserve host order, filter to enabled models with the required capability, and show the provider and context size. Pin the unset row for fast and image understanding. Keep the confirmed values visible while saving and show the host's read-back result on the role row."
+    },
     "model_service_surface": {
       "purpose": "Manages the active chat model, account-synced choices, and the local provider editor as one replace-in-place settings flow.",
       "anatomy": [
@@ -1395,6 +1777,8 @@ export const mobileComponents = {
         "loading",
         "error",
         "app_open",
+        "dragging",
+        "desktop_target_active",
         "light",
         "dark"
       ],
@@ -1406,9 +1790,13 @@ export const mobileComponents = {
         "body_large",
         "title_small",
         "body_medium",
-        "label_small"
+        "label_small",
+        "miniapp_drag_icon_size",
+        "miniapp_drag_icon_radius",
+        "miniapp_drag_glow_height",
+        "miniapp_drag_target_extra_height"
       ],
-      "platformNotes": "Default to a non-looping swipeable card stack, with a 48vp header target to switch to horizontal cover-and-description cards. List mode uses one column below 840vp, two above; the gallery caps at 1000vp. Reuse established showcase assets and actual app descriptions. Card focus and view mode survive returning from an app and live resize. Opening a card launches the existing local app host; no reload on layout changes."
+      "platformNotes": "Default to a non-looping swipeable card stack, with a 48vp header target to switch to horizontal cover-and-description cards. List mode uses one column below 840vp, two above. The gallery caps at 1000vp. Card focus and view mode survive returning from an app and live resize. Opening a card launches the existing local app host without reloading on layout changes. Where the platform supports launcher pinning, holding a card contracts its preview around the pointer, reveals the adjoining card and dims the full window. Releasing within the bottom target prompts the system to pin the selected app. Cancellation restores the original card."
     },
     "welcome_home": {
       "purpose": "Signed-out disconnected home: fixed brand mark, looping desktop phrases, equal login and QR actions.",
@@ -1436,7 +1824,12 @@ export const mobileComponents = {
         "welcome_dock_radius",
         "welcome_dock_bottom",
         "welcome_mark_size",
+        "welcome_wide_mark_size",
+        "welcome_landscape_mark_size",
+        "welcome_wide_action_width",
+        "welcome_landscape_width",
         "welcome_word_size",
+        "welcome_long_word_size",
         "welcome_stage_height",
         "welcome_header_word_size",
         "welcome_dock",
@@ -1512,6 +1905,10 @@ export const mobileComponents = {
       "tokens": [
         "recent_home_mark_size",
         "recent_home_title_size",
+        "recent_home_phrase_stage_height",
+        "recent_home_top_padding",
+        "recent_home_hero_gap",
+        "recent_home_hero_bottom",
         "recent_home_row_padding",
         "recent_home_gutter",
         "recent_home_max_width",

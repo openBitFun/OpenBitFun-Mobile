@@ -609,7 +609,7 @@ export class SettingsController {
       throw new Error(RemoteI18n.t('remote.settings.deviceOffline'));
     }
     // A confirmed-incompatible device stays listed but is never a target.
-    if (!isDeviceControllable(device)) {
+    if (!isDeviceControllable(device.compatible)) {
       throw new Error(RemoteI18n.t('remote.settings.deviceIncompatible'));
     }
     if (!session || this.cloudRelayUrl.length === 0) {

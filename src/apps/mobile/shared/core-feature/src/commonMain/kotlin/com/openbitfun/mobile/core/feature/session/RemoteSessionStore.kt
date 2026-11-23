@@ -14,8 +14,16 @@ import com.openbitfun.mobile.core.feature.relay.HostCatalogNotice
 
 import com.openbitfun.mobile.core.domain.ChatSyncPhase
 import com.openbitfun.mobile.core.domain.ChatTranscriptOrigin
+import kotlinx.serialization.json.JsonElement
+import kotlinx.serialization.json.JsonNull
 import kotlinx.serialization.json.JsonObject
+import kotlinx.serialization.json.JsonArray
+import kotlinx.serialization.json.booleanOrNull
+import kotlinx.serialization.json.contentOrNull
+import kotlinx.serialization.json.jsonArray
+import kotlinx.serialization.json.jsonObject
 import kotlinx.serialization.json.jsonPrimitive
+import kotlinx.serialization.json.longOrNull
 
 import com.openbitfun.mobile.core.domain.ChatMessage
 import com.openbitfun.mobile.core.domain.ChatSessionCursor
@@ -42,6 +50,8 @@ import com.openbitfun.mobile.core.protocol.RemotePermissionMode
 import com.openbitfun.mobile.core.protocol.RemoteModelCatalog
 import com.openbitfun.mobile.core.protocol.isError
 import com.openbitfun.mobile.core.protocol.CommandStatusResponse
+import com.openbitfun.mobile.core.protocol.CommandStatus
+import com.openbitfun.mobile.core.protocol.SessionRolledBackResponse
 import com.openbitfun.mobile.core.protocol.PermissionModeResponse
 import com.openbitfun.mobile.core.protocol.SetSessionModelResponse
 import com.openbitfun.mobile.core.protocol.SendMessageResponse
@@ -71,10 +81,10 @@ import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlin.math.roundToLong
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withTimeout
-import kotlinx.serialization.json.JsonArray
 import kotlinx.serialization.json.JsonPrimitive
 import kotlinx.serialization.json.buildJsonObject
 import kotlinx.serialization.Serializable
@@ -82,6 +92,14 @@ import kotlinx.serialization.encodeToString
 import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.put
 import kotlin.time.Clock
+
+@Serializable
+private data class PaletteHostInvokeResult(
+    override val resp: String? = null,
+    override val message: String? = null,
+    val ok: Boolean = false,
+    val value: JsonElement = JsonNull,
+) : CommandStatus
 
 /** The remote session feature: the session list plus the conversation that is open. */
 public class RemoteSessionStore internal constructor(
@@ -109,7 +127,7 @@ public class RemoteSessionStore internal constructor(
                         refreshCatalog()
                     }
                 }
-                HostCatalogNotice.Failed -> _connectionPhase.value = ConnectionPhase.RECONNECTING
+                HostCatalogNotice.Failed -> setConnectionPhase(ConnectionPhase.RECONNECTING)
             }
         } }
     }
@@ -141,7 +159,7 @@ public class RemoteSessionStore internal constructor(
                         markConnected()
                     }
                 } catch (cancelled: CancellationException) { throw cancelled }
-                catch (_: Throwable) { _connectionPhase.value = ConnectionPhase.RECONNECTING }
+                catch (_: Throwable) { setConnectionPhase(ConnectionPhase.RECONNECTING) }
             }
         }
     }
@@ -150,6 +168,8 @@ public class RemoteSessionStore internal constructor(
     public val state: StateFlow<RemoteSessionUiState> = _state.asStateFlow()
     private val _connectionPhase = MutableStateFlow(ConnectionPhase.IDLE)
     public val connectionPhase: StateFlow<ConnectionPhase> = _connectionPhase.asStateFlow()
+    private val deviceModels = DeviceModelDefaultsStore(scope, transport) { refreshModelCatalog(invalidated = true) }
+    public val deviceModelDefaults: StateFlow<DeviceModelDefaultsUiState> = deviceModels.state
     private val _createOperation = MutableStateFlow<CreateSessionOperationState>(CreateSessionOperationState.Idle)
     /** Outcome is changed only by create operations, never by open/list selection. */
     public val createOperation: StateFlow<CreateSessionOperationState> = _createOperation.asStateFlow()
@@ -180,6 +200,11 @@ public class RemoteSessionStore internal constructor(
     private var healthGeneration: Long = 0
     private var modelCatalog: RemoteModelCatalog? = null
     private var modelCatalogFailure: ModelCatalogFailure? = null
+    private val _commandPalette = MutableStateFlow(CommandPaletteUiState.empty())
+    /** Command chips and sheets are session-scoped and survive native remounts. */
+    public val commandPalette: StateFlow<CommandPaletteUiState> = _commandPalette.asStateFlow()
+    private var commandPaletteSessionId: String? = null
+    private var commandPaletteJob: Job? = null
     private val locallyCreatedSessions: MutableMap<String, RemoteSession> = mutableMapOf()
     private val workspaceDirectoryJobs: MutableMap<String, Job> = mutableMapOf()
     private val workspaceDirectoryGenerations: MutableMap<String, Long> = mutableMapOf()
@@ -220,6 +245,13 @@ public class RemoteSessionStore internal constructor(
     public fun dispatch(intent: RemoteSessionIntent) {
         val current = _state.value as? RemoteSessionUiState.Ready
         when (intent) {
+            RemoteSessionIntent.RefreshCommandCatalog -> loadCommandCatalog(force = true)
+            is RemoteSessionIntent.RunCommandPaletteAction -> runCommandPaletteAction(intent.sessionId, intent.action)
+            RemoteSessionIntent.RefreshCommandPaletteUsage -> loadCommandPaletteUsage()
+            is RemoteSessionIntent.SelectCommandPaletteSkill -> selectCommandPaletteSkill(intent.skillId, intent.skillLabel)
+            RemoteSessionIntent.ClearCommandPaletteSkill -> clearCommandPaletteSkill()
+            is RemoteSessionIntent.RollbackSession -> rollbackSession(intent.sessionId, intent.targetTurnId)
+            is RemoteSessionIntent.RollbackAndSend -> rollbackAndSend(intent)
             RemoteSessionIntent.RefreshMessageQueue -> messageQueue.invalidate()
             is RemoteSessionIntent.MoveQueuedMessage -> messageQueue.move(intent.id, intent.beforeId)
             is RemoteSessionIntent.CancelQueuedMessage -> messageQueue.act(intent.id, "cancel")
@@ -299,6 +331,10 @@ public class RemoteSessionStore internal constructor(
             )
             is RemoteSessionIntent.SetPermissionMode -> setPermissionMode(intent)
             is RemoteSessionIntent.RefreshPermissionMode -> refreshPermissionMode()
+            RemoteSessionIntent.OpenDeviceModelDefaults -> deviceModels.open()
+            RemoteSessionIntent.RefreshDeviceModelDefaults -> deviceModels.retry()
+            RemoteSessionIntent.CloseDeviceModelDefaults -> deviceModels.close()
+            is RemoteSessionIntent.SelectDeviceModelDefault -> deviceModels.select(intent.role, intent.modelId)
             RemoteSessionIntent.RefreshModelCatalog -> refreshModelCatalog()
             is RemoteSessionIntent.SelectModel -> selectModel(intent)
             RemoteSessionIntent.Stop -> stop()
@@ -650,6 +686,9 @@ public class RemoteSessionStore internal constructor(
 
     public fun stop() {
         sessionRecords = null
+        commandPaletteSessionId = null
+        commandPaletteJob?.cancel()
+        _commandPalette.value = CommandPaletteUiState.empty()
         (_state.value as? RemoteSessionUiState.Ready)?.let { _state.value = it.copy(promptSuggestion = null) }
         catalogSubscription?.cancel(); catalogRefresh?.cancel()
         permissionMailbox.select(null)
@@ -683,9 +722,10 @@ public class RemoteSessionStore internal constructor(
         sessionUpdates?.cancel()
         // The next connection may reach a different build; ask it again.
         hostCapabilitiesKnown = false
+        deviceModels.close()
         transcriptWrite?.cancel()
         forgetWrittenTranscript()
-        _connectionPhase.value = ConnectionPhase.DISCONNECTED
+        setConnectionPhase(ConnectionPhase.DISCONNECTED)
     }
 
     private fun load(query: String, filter: SessionAgentFilter) {
@@ -705,7 +745,7 @@ public class RemoteSessionStore internal constructor(
                 ))
             }
         }
-        if (current == null) _connectionPhase.value = ConnectionPhase.CONNECTING
+        if (current == null) setConnectionPhase(ConnectionPhase.CONNECTING)
         val generation = beginWork()
         // Searching or switching tabs keeps the list on screen; only a cold start
         // blanks it, so typing in the search box does not flash a spinner.
@@ -823,6 +863,19 @@ public class RemoteSessionStore internal constructor(
         hostCapabilities = capabilities
         messageQueue.select((_state.value as? RemoteSessionUiState.Ready)?.selectedSessionId, "dialog_queue_v1" in capabilities)
         hostCapabilitiesKnown = true
+        updateDeviceModelGate()
+    }
+
+    private fun updateDeviceModelGate() {
+        deviceModels.setGate(
+            _connectionPhase.value == ConnectionPhase.CONNECTED,
+            if (hostCapabilitiesKnown) "device_model_defaults_v1" in hostCapabilities else null,
+        )
+    }
+
+    private fun setConnectionPhase(phase: ConnectionPhase) {
+        _connectionPhase.value = phase
+        updateDeviceModelGate()
     }
 
     /**
@@ -948,14 +1001,389 @@ public class RemoteSessionStore internal constructor(
         )
     }
 
+    private fun paletteForSession(sessionId: String): Boolean =
+        sessionId.isNotBlank() && commandPaletteSessionId == sessionId &&
+            (_state.value as? RemoteSessionUiState.Ready)?.selectedSessionId == sessionId
+
+    private fun updateCommandPalette(transform: (CommandPaletteUiState) -> CommandPaletteUiState) {
+        _commandPalette.value = transform(_commandPalette.value)
+    }
+
+    private fun sessionRequestJson(sessionId: String): JsonObject = buildJsonObject {
+        put("sessionId", sessionId)
+        workspaceId?.let { put("workspaceId", it) }
+        if (workspaceId == null) {
+            if (workspacePath.isNotBlank()) put("workspacePath", workspacePath)
+            workspaceConnectionId?.let { put("remoteConnectionId", it) }
+            workspaceSshHost?.let { put("remoteSshHost", it) }
+        }
+    }
+
+    /** Usage keeps the snake_case spelling of the desktop report request. */
+    private fun sessionUsageRequestJson(sessionId: String): JsonObject = buildJsonObject {
+        put("session_id", sessionId)
+        workspaceId?.let { put("workspace_id", it) }
+        if (workspaceId == null) {
+            if (workspacePath.isNotBlank()) put("workspace_path", workspacePath)
+            workspaceConnectionId?.let { put("remote_connection_id", it) }
+            workspaceSshHost?.let { put("remote_ssh_host", it) }
+        }
+    }
+
+    private suspend fun invokePalette(command: String, args: JsonObject): JsonElement {
+        val result = transport.send<PaletteHostInvokeResult>(
+            RemoteCommand(cmd = "host_invoke", command = command, args = args),
+        )
+        check(result.ok && result.resp != "error") { result.message ?: "Remote command failed" }
+        return result.value
+    }
+
+    private fun loadCommandCatalog(force: Boolean) {
+        val ready = _state.value as? RemoteSessionUiState.Ready ?: return
+        val sessionId = ready.selectedSessionId ?: return
+        val session = ready.sessions.firstOrNull { it.id == sessionId } ?: return
+        if (!force && commandPaletteSessionId == sessionId && _commandPalette.value.catalogStatus != CommandPaletteCatalogStatus.IDLE) return
+        commandPaletteSessionId = sessionId
+        commandPaletteJob?.cancel()
+        updateCommandPalette { it.copy(catalogStatus = CommandPaletteCatalogStatus.LOADING, catalogFailure = "", catalogErrorText = "") }
+        commandPaletteJob = scope.launch {
+            try {
+                val args = buildJsonObject {
+                    put("modeId", session.agentType)
+                    put("forceRefresh", force)
+                    workspaceId?.let { put("workspaceId", it) }
+                    if (workspaceId == null) {
+                        if (workspacePath.isNotBlank()) put("workspacePath", workspacePath)
+                        workspaceConnectionId?.let { put("remoteConnectionId", it) }
+                        workspaceSshHost?.let { put("remoteSshHost", it) }
+                    }
+                }
+                val value = invokePalette("get_mode_skill_configs", args)
+                if (!paletteForSession(sessionId)) return@launch
+                val rows = when (value) {
+                    is JsonArray -> value
+                    is JsonObject -> value["skills"]?.jsonArray ?: JsonArray(emptyList())
+                    else -> JsonArray(emptyList())
+                }.mapNotNull { element ->
+                    val row = element as? JsonObject ?: return@mapNotNull null
+                    CommandPaletteSkill(
+                        id = row.text("id", "key", "skill_id", "skillId"),
+                        name = row.text("name", "label"),
+                        description = row.text("description"),
+                        group = row.text("group", "group_key", "groupKey"),
+                        source = row.text("source"),
+                        shadowed = row.bool("shadowed"),
+                        selectedForRuntime = row.bool("selected_for_runtime", "selectedForRuntime"),
+                        effectiveEnabled = row.bool("effective_enabled", "effectiveEnabled"),
+                        globallyEnabled = row.bool("globally_enabled", "globallyEnabled"),
+                        allowUserInvocation = row.bool("allow_user_invocation", "allowUserInvocation"),
+                    ).takeIf { it.id.isNotBlank() && it.name.isNotBlank() }
+                }
+                val winners = linkedMapOf<String, CommandPaletteSkill>()
+                rows.forEach { row ->
+                    val previous = winners[row.id]
+                    val invocable = row.selectedForRuntime && row.effectiveEnabled && row.globallyEnabled && row.allowUserInvocation && !row.shadowed
+                    val previousInvocable = previous?.let {
+                        it.selectedForRuntime && it.effectiveEnabled && it.globallyEnabled && it.allowUserInvocation && !it.shadowed
+                    } ?: false
+                    if (previous == null || (!previousInvocable && invocable)) winners[row.id] = row
+                }
+                updateCommandPalette {
+                    it.copy(catalogStatus = CommandPaletteCatalogStatus.READY, skills = winners.values.filter { row ->
+                        row.selectedForRuntime && row.effectiveEnabled && row.globallyEnabled && row.allowUserInvocation && !row.shadowed
+                    })
+                }
+            } catch (cancelled: CancellationException) {
+                throw cancelled
+            } catch (error: Throwable) {
+                if (paletteForSession(sessionId)) {
+                    updateCommandPalette {
+                        it.copy(
+                            catalogStatus = CommandPaletteCatalogStatus.FAILED,
+                            catalogFailure = "unreachable",
+                            catalogErrorText = error.message.orEmpty(),
+                            skills = emptyList(),
+                        )
+                    }
+                }
+            }
+        }
+    }
+
+    private fun runCommandPaletteAction(sessionId: String, action: String) {
+        if (!paletteForSession(sessionId) || action !in setOf("compact", "init_agents_md")) return
+        if (_commandPalette.value.runningCommand.isNotBlank()) return
+        updateCommandPalette { it.copy(runningCommand = action, noticeKind = "", noticeLabelKey = "", noticeDetail = "", noticeRetryAction = "") }
+        commandPaletteJob?.cancel()
+        commandPaletteJob = scope.launch {
+            try {
+                val wire = if (action == "init_agents_md") "run_init_agents_md" else "compact_session"
+                val value = invokePalette(wire, buildJsonObject { put("request", sessionRequestJson(sessionId)) })
+                (transport as? RemoteSessionStreamTransport)?.wakeSessionStreams()
+                if (paletteForSession(sessionId)) {
+                    updateCommandPalette {
+                        it.copy(
+                            runningCommand = "",
+                            noticeKind = "done",
+                            noticeLabelKey = if (action == "init_agents_md") "commands.initDone" else "commands.compactDone",
+                            noticeDetail = (value as? JsonObject)?.text("message").orEmpty(),
+                        )
+                    }
+                    scope.launch {
+                        delay(4_000)
+                        if (paletteForSession(sessionId) && _commandPalette.value.noticeKind == "done") {
+                            updateCommandPalette { it.copy(noticeKind = "", noticeLabelKey = "", noticeDetail = "") }
+                        }
+                    }
+                }
+            } catch (cancelled: CancellationException) {
+                throw cancelled
+            } catch (error: Throwable) {
+                if (paletteForSession(sessionId)) {
+                    updateCommandPalette {
+                        it.copy(
+                            runningCommand = "",
+                            noticeKind = "failed",
+                            noticeLabelKey = if (action == "init_agents_md") "commands.initFailed" else "commands.compactFailed",
+                            noticeDetail = error.message.orEmpty(),
+                            noticeRetryAction = action,
+                        )
+                    }
+                }
+            }
+        }
+    }
+
+    private fun loadCommandPaletteUsage() {
+        val ready = _state.value as? RemoteSessionUiState.Ready ?: return
+        val sessionId = ready.selectedSessionId ?: return
+        if (!paletteForSession(sessionId)) return
+        updateCommandPalette { it.copy(usageStatus = CommandPaletteUsageStatus.LOADING, usageErrorText = "", usageSections = emptyList()) }
+        commandPaletteJob?.cancel()
+        commandPaletteJob = scope.launch {
+            try {
+                val value = invokePalette("get_session_usage_report", buildJsonObject { put("request", sessionUsageRequestJson(sessionId)) })
+                if (!paletteForSession(sessionId)) return@launch
+                updateCommandPalette {
+                    val sections = usageSections(value)
+                    it.copy(
+                        usageStatus = CommandPaletteUsageStatus.READY,
+                        usageSections = sections.first,
+                        usagePartial = sections.second,
+                    )
+                }
+            } catch (cancelled: CancellationException) {
+                throw cancelled
+            } catch (error: Throwable) {
+                if (paletteForSession(sessionId)) updateCommandPalette {
+                    it.copy(usageStatus = CommandPaletteUsageStatus.FAILED, usageErrorText = error.message.orEmpty(), usagePartial = false)
+                }
+            }
+        }
+    }
+
+    private fun selectCommandPaletteSkill(skillId: String, skillLabel: String) {
+        if (skillId.isBlank()) return
+        _commandPalette.value = _commandPalette.value.copy(skillId = skillId, skillLabel = skillLabel.trim())
+    }
+
+    private fun clearCommandPaletteSkill() {
+        _commandPalette.value = _commandPalette.value.copy(skillId = "", skillLabel = "")
+    }
+
+    private fun rollbackSession(sessionId: String, targetTurnId: String) {
+        if (!paletteForSession(sessionId) || targetTurnId.isBlank()) return
+        markSessionBusy(sessionId, true)
+        val operationToken = beginWork()
+        work = scope.launch {
+            try {
+                val response = transport.send<SessionRolledBackResponse>(
+                    RemoteCommand(cmd = "rollback_session_to_turn", sessionId = sessionId, targetTurnId = targetTurnId),
+                )
+                check(response.resp == "session_rolled_back") { response.message.orEmpty().ifBlank { "Rollback failed" } }
+                if (isCurrentWork(operationToken)) {
+                    refreshOpenTranscriptAfterRemoteAction(sessionId)
+                    updateCommandPalette {
+                        it.copy(
+                            noticeKind = "done",
+                            noticeLabelKey = "chat.rolledBackNotice",
+                            noticeDetail = "",
+                            noticeRetryAction = "",
+                        )
+                    }
+                }
+            } catch (cancelled: CancellationException) {
+                throw cancelled
+            } catch (error: Throwable) {
+                if (isCurrentWork(operationToken)) {
+                    refreshOpenTranscriptAfterRemoteAction(sessionId)
+                    updateCommandPalette {
+                        it.copy(noticeKind = "failed", noticeLabelKey = "chat.rollbackFailed", noticeDetail = error.message.orEmpty())
+                    }
+                }
+            }
+        }
+    }
+
+    private fun rollbackAndSend(intent: RemoteSessionIntent.RollbackAndSend) {
+        if (!paletteForSession(intent.sessionId) || intent.targetTurnId.isBlank()) return
+        markSessionBusy(intent.sessionId, true)
+        val operationToken = beginWork()
+        work = scope.launch {
+            try {
+                val response = transport.send<SessionRolledBackResponse>(
+                    RemoteCommand(cmd = "rollback_session_to_turn", sessionId = intent.sessionId, targetTurnId = intent.targetTurnId),
+                )
+                check(response.resp == "session_rolled_back") { response.message.orEmpty().ifBlank { "Rollback failed" } }
+                if (isCurrentWork(operationToken)) {
+                    scope.launch {
+                        sendMessage(
+                            RemoteSessionIntent.SendMessage(intent.sessionId, intent.content, intent.images),
+                        )
+                    }
+                }
+            } catch (cancelled: CancellationException) {
+                throw cancelled
+            } catch (error: Throwable) {
+                if (isCurrentWork(operationToken)) {
+                    refreshOpenTranscriptAfterRemoteAction(intent.sessionId)
+                    updateCommandPalette {
+                        it.copy(noticeKind = "failed", noticeLabelKey = "chat.rollbackFailed", noticeDetail = error.message.orEmpty())
+                    }
+                }
+            }
+        }
+    }
+
+    private fun refreshOpenTranscriptAfterRemoteAction(sessionId: String) {
+        if ((_state.value as? RemoteSessionUiState.Ready)?.selectedSessionId != sessionId) return
+        open(sessionId)
+    }
+
+    private fun markSessionBusy(sessionId: String, busy: Boolean) {
+        val ready = _state.value as? RemoteSessionUiState.Ready ?: return
+        if (ready.selectedSessionId == sessionId && ready.busy != busy) {
+            _state.value = ready.copy(busy = busy)
+        }
+    }
+
+    private fun usageSections(value: JsonElement): Pair<List<CommandPaletteUsageSection>, Boolean> {
+        val report = value as? JsonObject ?: return emptyList<CommandPaletteUsageSection>() to false
+        val sections = mutableListOf<CommandPaletteUsageSection>()
+        fun add(id: String, title: String, rows: List<CommandPaletteUsageRow>) {
+            if (rows.isNotEmpty()) sections += CommandPaletteUsageSection(id, title, rows)
+        }
+        val scope = report.obj("scope")
+        add("overview", "usage.sectionOverview", listOfNotNull(
+            scope.numberRow("turn_count", "turnCount", "usage.scopeTurns"),
+            scope.textRow("kind", "usage.scopeKind"),
+            scope.boolRow("includes_subagents", "includesSubagents", "usage.scopeSubagents"),
+            report.obj("coverage").textRow("level", "usage.coverageLevel"),
+            report.obj("coverage").textArrayRow("missing", "usage.coverageMissing"),
+            report.obj("workspace").textRow("path_label", "usage.workspace"),
+            report.obj("workspace").textRow("pathLabel", "usage.workspace"),
+        ))
+        val time = report.obj("time")
+        add("time", "usage.sectionTime", listOfNotNull(
+            time.durationRow("wall_time_ms", "wallTimeMs", "usage.timeSpan"),
+            time.durationRow("active_turn_ms", "activeTurnMs", "usage.timeTurns"),
+            time.durationRow("model_ms", "modelMs", "usage.timeModel"),
+            time.durationRow("tool_ms", "toolMs", "usage.timeTools"),
+        ))
+        val tokens = report.obj("tokens")
+        add("tokens", "usage.sectionTokens", listOfNotNull(
+            tokens.numberRow("input_tokens", "inputTokens", "usage.tokensInput"),
+            tokens.numberRow("output_tokens", "outputTokens", "usage.tokensOutput"),
+            tokens.numberRow("total_tokens", "totalTokens", "usage.tokensTotal"),
+            tokens.numberRow("cached_tokens", "cachedTokens", "usage.tokensCached"),
+        ))
+        val files = report.obj("files")
+        add("files", "usage.sectionFiles", listOfNotNull(
+            files.numberRow("changed_files", "changedFiles", "usage.filesChanged"),
+            files.numberRow("added_lines", "addedLines", "usage.filesAdded"),
+            files.numberRow("deleted_lines", "deletedLines", "usage.filesDeleted"),
+        ))
+        val compression = report.obj("compression")
+        add("compression", "usage.sectionCompression", listOfNotNull(
+            compression.numberRow("compaction_count", "compactionCount", "usage.compactionCount"),
+            compression.numberRow("manual_compaction_count", "manualCompactionCount", "usage.manualCompactionCount"),
+            compression.numberRow("automatic_compaction_count", "automaticCompactionCount", "usage.automaticCompactionCount"),
+            compression.numberRow("saved_tokens", "savedTokens", "usage.compactionSaved"),
+        ))
+        val models = report["models"] as? JsonArray
+        add("models", "usage.sectionModels", models.orEmpty().mapNotNull { element ->
+            val row = element as? JsonObject ?: return@mapNotNull null
+            val name = row.text("model_id", "modelId")
+            val calls = row.number("call_count", "callCount")
+            val tokens = row.number("total_tokens", "totalTokens")
+            val value = listOfNotNull(name.takeIf(String::isNotBlank), calls?.toString(), tokens?.let(::tokenText)).joinToString(" · ")
+            value.takeIf(String::isNotBlank)?.let { CommandPaletteUsageRow("usage.modelRow", it, "") }
+        })
+        val tools = report["tools"] as? JsonArray
+        add("tools", "usage.sectionTools", tools.orEmpty().mapNotNull { element ->
+            val row = element as? JsonObject ?: return@mapNotNull null
+            val name = row.text("tool_name", "toolName")
+            val calls = row.number("call_count", "callCount")
+            val errors = row.number("error_count", "errorCount")
+            val value = listOfNotNull(name.takeIf(String::isNotBlank), calls?.toString(), errors?.toString()).joinToString(" · ")
+            value.takeIf(String::isNotBlank)?.let { CommandPaletteUsageRow("usage.toolRow", it, "") }
+        })
+        val errors = report.obj("errors")
+        add("errors", "usage.sectionErrors", listOfNotNull(
+            errors.numberRow("total_errors", "totalErrors", "usage.errorsTotal"),
+            errors.numberRow("tool_errors", "toolErrors", "usage.errorsTools"),
+            errors.numberRow("model_errors", "modelErrors", "usage.errorsModels"),
+        ))
+        val privacy = report.obj("privacy")
+        add("privacy", "usage.sectionPrivacy", listOfNotNull(
+            privacy.boolRow("prompt_content_included", "promptContentIncluded", "usage.privacyPrompt"),
+            privacy.boolRow("tool_inputs_included", "toolInputsIncluded", "usage.privacyTools"),
+            privacy.boolRow("command_outputs_included", "commandOutputsIncluded", "usage.privacyCommands"),
+            privacy.boolRow("file_contents_included", "fileContentsIncluded", "usage.privacyFiles"),
+        ))
+        val partial = report.obj("coverage").text("level").lowercase().let { it.isNotBlank() && it != "complete" }
+        return sections to partial
+    }
+
+    private fun tokenText(value: Long): String = when {
+        value < 1_000L -> value.toString()
+        value < 1_000_000L -> "${((value / 100.0).roundToLong() / 10.0)}K"
+        value < 1_000_000_000L -> "${((value / 100_000.0).roundToLong() / 10.0)}M"
+        else -> "${((value / 100_000_000.0).roundToLong() / 10.0)}B"
+    }
+
+    private fun JsonObject.obj(key: String): JsonObject = this[key] as? JsonObject ?: JsonObject(emptyMap())
+    private fun JsonObject.text(vararg keys: String): String = keys.firstNotNullOfOrNull { key -> this[key]?.jsonPrimitive?.contentOrNull }.orEmpty()
+    private fun JsonObject.bool(vararg keys: String): Boolean = keys.firstNotNullOfOrNull { key -> this[key]?.jsonPrimitive?.booleanOrNull } ?: false
+    private fun JsonObject.number(vararg keys: String): Long? = keys.firstNotNullOfOrNull { key -> this[key]?.jsonPrimitive?.longOrNull }
+    private fun JsonObject.numberRow(snake: String, camel: String, label: String): CommandPaletteUsageRow? = number(snake, camel)?.let { CommandPaletteUsageRow(label, it.toString(), "") }
+    private fun JsonObject.textRow(key: String, label: String): CommandPaletteUsageRow? = text(key).takeIf(String::isNotBlank)?.let { CommandPaletteUsageRow(label, it, "") }
+    private fun JsonObject.textArrayRow(key: String, label: String): CommandPaletteUsageRow? =
+        (this[key] as? JsonArray)
+            ?.mapNotNull { it.jsonPrimitive.contentOrNull?.takeIf(String::isNotBlank) }
+            ?.joinToString(", ")
+            ?.takeIf(String::isNotBlank)
+            ?.let { CommandPaletteUsageRow(label, it, "") }
+    private fun JsonObject.boolRow(snake: String, camel: String, label: String): CommandPaletteUsageRow? = if (keys.any { it == snake || it == camel }) CommandPaletteUsageRow(label, if (bool(snake, camel)) "usage.yes" else "usage.no", if (bool(snake, camel)) "usage.yes" else "usage.no") else null
+    private fun JsonObject.durationRow(snake: String, camel: String, label: String): CommandPaletteUsageRow? = number(snake, camel)?.let { CommandPaletteUsageRow(label, durationText(it), "") }
+    private fun durationText(value: Long): String = when {
+        value < 1_000L -> "${value}ms"
+        value < 60_000L -> "${value / 1_000L}s"
+        value < 3_600_000L -> "${value / 60_000L}m ${value / 1_000L % 60}s".replace(" 0s", "")
+        else -> "${value / 3_600_000L}h ${value / 60_000L % 60}m".replace(" 0m", "")
+    }
+
     private fun open(sessionId: String) {
         val normalized = sessionId.trim()
         if (normalized.isEmpty()) {
             _state.value = RemoteSessionUiState.Failed(RemoteSessionFailureReason.SESSION_NOT_FOUND)
-            _connectionPhase.value = ConnectionPhase.FAILED
+            setConnectionPhase(ConnectionPhase.FAILED)
             return
         }
         val current = _state.value as? RemoteSessionUiState.Ready
+        commandPaletteSessionId = normalized
+        commandPaletteJob?.cancel()
+        _commandPalette.value = CommandPaletteUiState.empty()
         sessionRecords = null
         if (current != null) _state.value = current.copy(promptSuggestion = null)
         val restoredDraft = loadPersistedDraft(normalized)
@@ -1001,7 +1429,7 @@ public class RemoteSessionStore internal constructor(
                 )
             }
         }
-        if (current == null) _connectionPhase.value = ConnectionPhase.CONNECTING
+        if (current == null) setConnectionPhase(ConnectionPhase.CONNECTING)
         // Opening is not the host answering: the rows above are this device's
         // stored copy, which stops wherever its last write stopped — inside the
         // turn that was running when the app went away. Publishing them says
@@ -1044,6 +1472,7 @@ public class RemoteSessionStore internal constructor(
                 ).copy(promptSuggestion = currentPromptSuggestion(normalized))
                 markConnected()
                 refreshModelCatalog()
+                loadCommandCatalog(force = false)
             } catch (cancelled: CancellationException) {
                 throw cancelled
             } catch (error: Throwable) {
@@ -1345,7 +1774,7 @@ public class RemoteSessionStore internal constructor(
 
     private fun createSession(intent: RemoteSessionIntent.CreateSession, requestId: String) {
         val current = _state.value as? RemoteSessionUiState.Ready
-        if (current == null) _connectionPhase.value = ConnectionPhase.CONNECTING
+        if (current == null) setConnectionPhase(ConnectionPhase.CONNECTING)
         // Create has priority over list refresh. Invalidating the work generation
         // prevents a cancelled refresh from publishing a late stale page.
         val operationToken = beginWork()
@@ -2218,18 +2647,18 @@ public class RemoteSessionStore internal constructor(
         // next to a live list would hide the one thing the user can do about it.
         if (current == null || failed.reason == RemoteSessionFailureReason.HOST_STREAM_UNSUPPORTED) {
             _state.value = failed
-            _connectionPhase.value = ConnectionPhase.FAILED
+            setConnectionPhase(ConnectionPhase.FAILED)
             return
         }
         _state.value = current.copy(busy = false)
-        _connectionPhase.value = when (failed.reason) {
+        setConnectionPhase(when (failed.reason) {
             RemoteSessionFailureReason.NETWORK,
             RemoteSessionFailureReason.TIMEOUT,
             RemoteSessionFailureReason.TRANSPORT,
             -> ConnectionPhase.RECONNECTING
 
             else -> ConnectionPhase.FAILED
-        }
+        })
     }
 
     private fun failKnown(reason: RemoteSessionFailureReason, current: RemoteSessionUiState.Ready?) {
@@ -2238,7 +2667,7 @@ public class RemoteSessionStore internal constructor(
         } else {
             _state.value = current.copy(busy = false)
         }
-        _connectionPhase.value = ConnectionPhase.FAILED
+        setConnectionPhase(ConnectionPhase.FAILED)
     }
 
     /** Relay replay proves log availability, not that the controlled host is online.
@@ -2275,7 +2704,7 @@ public class RemoteSessionStore internal constructor(
     }
 
     private fun markConnected() {
-        _connectionPhase.value = ConnectionPhase.CONNECTED
+        setConnectionPhase(ConnectionPhase.CONNECTED)
     }
 
     public companion object {

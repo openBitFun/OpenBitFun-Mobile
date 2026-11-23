@@ -488,13 +488,13 @@ struct RemoteAuthorityGateTests {
         )
         expectInvalidationBeforeMutation(
             in: accountSource,
-            function: "private func invalidateTerminalAccountAuthority()",
+            function: "private func invalidateTerminalAccountAuthority(",
             mutation: "_ = coreAdapter?.invalidateRemoteAuthority",
             message: "token expiry invalidates transfers before exact adapter authority invalidation"
         )
         expectCallBeforeMutation(
             in: accountSource,
-            function: "private func invalidateTerminalAccountAuthority()",
+            function: "private func invalidateTerminalAccountAuthority(",
             call: "_ = coreAdapter?.invalidateRemoteAuthority",
             mutation: "clearInvalidatedRemoteAuthorityProjection(",
             message: "token expiry invalidates exact adapter authority before clearing the complete projection"

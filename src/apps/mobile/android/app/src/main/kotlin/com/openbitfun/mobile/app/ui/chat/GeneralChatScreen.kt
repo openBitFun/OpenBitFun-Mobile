@@ -339,6 +339,7 @@ internal fun GeneralChatScreen(
                             viewModel.dispatch(GeneralChatIntent.UpdateDraft(row.text))
                             viewModel.dispatch(GeneralChatIntent.Send)
                         },
+                        onRollback = {},
                         // No desktop behind this surface, so a link to a file has
                         // nothing to open — only a web address goes anywhere, and
                         // it leaves the app. Anything else is left as plain text.

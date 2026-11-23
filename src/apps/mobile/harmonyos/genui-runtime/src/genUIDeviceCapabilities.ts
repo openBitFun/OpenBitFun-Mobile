@@ -18,6 +18,7 @@ export interface GenUICollaborationResult {
 }
 export interface GenUICollaborationPort {
   available: boolean;
+  mode?: 'invite';
   reason: string;
   start(kind: GenUICollaborationKind, onResult: (result: GenUICollaborationResult) => void): () => void;
 }

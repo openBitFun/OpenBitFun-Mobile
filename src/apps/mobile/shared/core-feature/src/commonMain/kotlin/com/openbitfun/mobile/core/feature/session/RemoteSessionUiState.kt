@@ -420,6 +420,24 @@ public sealed interface RemoteSessionUiState {
 }
 
 public sealed interface RemoteSessionIntent {
+    /** Read the desktop mode skill catalog used by the conversation command row. */
+    public data object RefreshCommandCatalog : RemoteSessionIntent
+    /** Run `compact_session` or `run_init_agents_md` through the host bridge. */
+    public data class RunCommandPaletteAction(public val sessionId: String, public val action: String) : RemoteSessionIntent
+    /** Read a fresh usage report for the selected session. */
+    public data object RefreshCommandPaletteUsage : RemoteSessionIntent
+    /** Keep the selected skill token in the command palette state. */
+    public data class SelectCommandPaletteSkill(public val skillId: String, public val skillLabel: String) : RemoteSessionIntent
+    public data object ClearCommandPaletteSkill : RemoteSessionIntent
+    /** Roll the host session back to a user turn and refresh the open transcript. */
+    public data class RollbackSession(public val sessionId: String, public val targetTurnId: String) : RemoteSessionIntent
+    /** Roll back a target turn and only then submit the staged composer text. */
+    public data class RollbackAndSend(
+        public val sessionId: String,
+        public val targetTurnId: String,
+        public val content: String,
+        public val images: List<ComposerImage>?,
+    ) : RemoteSessionIntent
     public data object RefreshMessageQueue : RemoteSessionIntent
     public data class MoveQueuedMessage(public val id: String, public val beforeId: String?) : RemoteSessionIntent
     public data class CancelQueuedMessage(public val id: String) : RemoteSessionIntent
@@ -619,6 +637,14 @@ public sealed interface RemoteSessionIntent {
      * load or a save has failed.
      */
     public data object RefreshPermissionMode : RemoteSessionIntent
+
+    public data object OpenDeviceModelDefaults : RemoteSessionIntent
+    public data object RefreshDeviceModelDefaults : RemoteSessionIntent
+    public data object CloseDeviceModelDefaults : RemoteSessionIntent
+    public data class SelectDeviceModelDefault(
+        public val role: DeviceModelRole,
+        public val modelId: String?,
+    ) : RemoteSessionIntent
 
     /**
      * Re-read the desktop's model catalog without touching the session list or

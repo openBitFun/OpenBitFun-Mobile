@@ -44,6 +44,7 @@ enum MobileDesignColors {
     static let connectHeroSurface = dynamic(light: 0xFFF8FAFF, dark: 0xFF252522)
     static let connectScanAccent = dynamic(light: 0xFFFFD021, dark: 0xFFFFD021)
     static let scrim = dynamic(light: 0x44000000, dark: 0x44000000)
+    static let genuiModelScrim = dynamic(light: 0x33000000, dark: 0x33000000)
     static let shellScrim = dynamic(light: 0x24000000, dark: 0x24000000)
     static let mediaBackground = dynamic(light: 0xFF000000, dark: 0xFF000000)
     static let mediaScrim = dynamic(light: 0xB8000000, dark: 0xB8000000)
@@ -121,12 +122,56 @@ enum MobileDesignTypography {
 }
 
 enum MobileDesignGeometry {
+    static let genuiModelFieldHeight: CGFloat = 52
+    static let genuiModelActionHeight: CGFloat = 50
+    static let genuiModelFieldPadding: CGFloat = 14
+    static let genuiModelChipRadius: CGFloat = 14
+    static let genuiModelListSpacing: CGFloat = 10
+    static let genuiModelEditorSpacing: CGFloat = 12
+    static let genuiModelPanelWidth: CGFloat = 480
+    static let genuiModelPanelHeight: CGFloat = 560
+    static let genuiHistoryRowHeight: CGFloat = 56
+    static let genuiHistoryRowRadius: CGFloat = 10
+    static let genuiHistoryHorizontalInset: CGFloat = 12
+    static let genuiHistoryVerticalInset: CGFloat = 8
+    static let genuiHistoryLabelSpacing: CGFloat = 3
+    static let genuiHistoryActionInset: CGFloat = 20
+    static let genuiHistoryMenuHeight: CGFloat = 40
+    static let genuiHistoryMenuGap: CGFloat = 2
+    static let genuiAppControlSize: CGFloat = 40
+    static let genuiAppControlTopInset: CGFloat = 8
+    static let genuiAppControlSideInset: CGFloat = 12
+    static let genuiAppStatusHeight: CGFloat = 32
+    static let genuiAppStatusMaxWidth: CGFloat = 240
+    static let genuiAppStatusHorizontalPadding: CGFloat = 12
+    static let genuiCameraShortEdge: CGFloat = 96
+    static let genuiCameraLongEdge: CGFloat = 128
+    static let genuiCameraCompactShortEdge: CGFloat = 60
+    static let genuiCameraCompactLongEdge: CGFloat = 80
+    static let genuiCameraCompactHeightThreshold: CGFloat = 480
+    static let genuiCameraRadius: CGFloat = 16
+    static let genuiCameraCompactRadius: CGFloat = 12
+    static let genuiCameraSideInset: CGFloat = 12
+    static let genuiCameraBottomInset: CGFloat = 16
+    static let genuiCameraLabelInset: CGFloat = 6
+    static let genuiCameraCompactLabelInset: CGFloat = 4
+    static let genuiCameraLabelVerticalPadding: CGFloat = 2
+    static let genuiCameraLabelRadius: CGFloat = 8
     static let conversationHeaderHeight: CGFloat = 56
     static let conversationHeaderCompactHeight: CGFloat = 56
     static let controlTouchSize: CGFloat = 48
     static let navigationBackIconSize: CGFloat = 18
     static let messageActionIconSize: CGFloat = 14
     static let messageActionTouchSize: CGFloat = 32
+    static let messageAppPreviewSize: CGFloat = 76
+    static let messageAppPreviewRadius: CGFloat = 16
+    static let messageAppCardRadius: CGFloat = 20
+    static let messageAppCardPadding: CGFloat = 12
+    static let messageAppBadgeSize: CGFloat = 20
+    static let messageAppBadgeInset: CGFloat = 5
+    static let messageAppOpenRadius: CGFloat = 16
+    static let messageAppOpenHorizontalPadding: CGFloat = 14
+    static let messageAppOpenVerticalPadding: CGFloat = 6
     static let contentGutter: CGFloat = 16
     static let connectionStripHeight: CGFloat = 48
     static let timelineTopPadding: CGFloat = 22
@@ -138,6 +183,7 @@ enum MobileDesignGeometry {
     static let messageBubbleVerticalPadding: CGFloat = 11
     static let messageBubbleRadius: CGFloat = 17
     static let composerActionSize: CGFloat = 48
+    static let composerPrimarySurfaceSize: CGFloat = 32
     static let composerInputHeight: CGFloat = 44
     static let composerExpandedInputHeight: CGFloat = 58
     static let composerCollapsedHeight: CGFloat = 56
@@ -184,6 +230,12 @@ enum MobileDesignGeometry {
     static let settingsSectionGap: CGFloat = 20
     static let settingsIconSize: CGFloat = 18
     static let settingsContentMaxWidth: CGFloat = 560
+    static let settingsWidePanelWidth: CGFloat = 480
+    static let settingsWidePanelHeight: CGFloat = 560
+    static let settingsWidePanelRadius: CGFloat = 32
+    static let connectWidePanelRadius: CGFloat = 30
+    static let connectWidePanelShadowRadius: CGFloat = 30
+    static let connectWidePanelShadowOffsetY: CGFloat = 12
     static let settingsProminentCardRadius: CGFloat = 20
     static let modelCurrentRowHeight: CGFloat = 64
     static let modelSourceRowHeight: CGFloat = 62
@@ -203,13 +255,22 @@ enum MobileDesignGeometry {
     static let welcomeButtonGap: CGFloat = 11
     static let welcomeDockRadius: CGFloat = 30
     static let welcomeDockBottom: CGFloat = 39
-    static let welcomeMarkSize: CGFloat = 92
-    static let welcomeWordSize: CGFloat = 34
-    static let welcomeStageHeight: CGFloat = 220
+    static let welcomeMarkSize: CGFloat = 156
+    static let welcomeWideMarkSize: CGFloat = 184
+    static let welcomeLandscapeMarkSize: CGFloat = 216
+    static let welcomeWideActionWidth: CGFloat = 400
+    static let welcomeLandscapeWidth: CGFloat = 1000
+    static let welcomeWordSize: CGFloat = 30
+    static let welcomeLongWordSize: CGFloat = 25
+    static let welcomeStageHeight: CGFloat = 48
     static let welcomeHeaderWordSize: CGFloat = 17
     static let recentHomeGutter: CGFloat = 24
     static let recentHomeMarkSize: CGFloat = 160
     static let recentHomeTitleSize: CGFloat = 22
+    static let recentHomePhraseStageHeight: CGFloat = 28
+    static let recentHomeTopPadding: CGFloat = 56
+    static let recentHomeHeroGap: CGFloat = 16
+    static let recentHomeHeroBottom: CGFloat = 48
     static let recentHomeMaxWidth: CGFloat = 560
     static let recentHomeRowPadding: CGFloat = 12
     static let sidebarRefreshIconSize: CGFloat = 16
@@ -233,6 +294,10 @@ enum MobileDesignGeometry {
     static let miniappListCoverSize: CGFloat = 140
     static let miniappListRadius: CGFloat = 20
     static let miniappListGap: CGFloat = 16
+    static let miniappDragIconSize: CGFloat = 56
+    static let miniappDragIconRadius: CGFloat = 14
+    static let miniappDragGlowHeight: CGFloat = 72
+    static let miniappDragTargetExtraHeight: CGFloat = 86
 }
 
 enum MobileDesignBreakpoints {
@@ -246,4 +311,7 @@ enum MobileDesignMotion {
     static let structure: CGFloat = 220
     static let startupBrand: CGFloat = 6800
     static let coldStartHome: CGFloat = 2400
+    static let miniappDragContract: CGFloat = 300
+    static let miniappDragHintDelay: CGFloat = 200
+    static let miniappDragHintFade: CGFloat = 150
 }

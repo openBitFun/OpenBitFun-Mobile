@@ -1,8 +1,14 @@
 package com.openbitfun.mobile.app
 
+import android.graphics.Bitmap
+import android.graphics.Color
+import androidx.compose.material3.Text
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.toArgb
+import androidx.compose.ui.graphics.toPixelMap
 import androidx.compose.ui.test.assertIsNotEnabled
+import androidx.compose.ui.test.isDisplayed
 import androidx.compose.ui.test.junit4.v2.createComposeRule
 import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.onNodeWithContentDescription
@@ -11,10 +17,15 @@ import androidx.compose.ui.test.performClick
 import androidx.test.platform.app.InstrumentationRegistry
 import com.openbitfun.mobile.app.ui.chat.*
 import com.openbitfun.mobile.app.ui.chat.tool.*
+import com.openbitfun.mobile.app.ui.genui.readGenUiThumbnail
+import com.openbitfun.mobile.app.ui.genui.rememberGenUiThumbnail
+import com.openbitfun.mobile.app.ui.genui.saveGenUiThumbnail
 import com.openbitfun.mobile.app.ui.miniapps.BuiltinMiniAppBridge
 import com.openbitfun.mobile.app.ui.theme.OpenBitFunTheme
 import com.openbitfun.mobile.core.feature.connection.ConnectionPhase
 import com.openbitfun.mobile.core.feature.session.*
+import java.util.UUID
+import kotlinx.coroutines.runBlocking
 import org.json.JSONObject
 import org.junit.Assert.*
 import org.junit.Rule
@@ -22,6 +33,36 @@ import org.junit.Test
 
 class MobileParityTest {
     @get:Rule val rule = createComposeRule()
+
+    @Test fun openGenUiCardUpdatesWhenItsThumbnailIsWritten() {
+        val context = InstrumentationRegistry.getInstrumentation().targetContext
+        val uuid = UUID.randomUUID().toString()
+        val id = "local-genui:$uuid"
+        val image = Bitmap.createBitmap(2, 3, Bitmap.Config.ARGB_8888)
+        try {
+            rule.setContent {
+                val thumbnail = rememberGenUiThumbnail(id)
+                Text(thumbnail?.let { "${it.width} x ${it.height} ${it.toPixelMap()[0, 0].toArgb()}" } ?: "No preview")
+            }
+            rule.onNodeWithText("No preview").assertExists()
+
+            image.eraseColor(Color.BLUE)
+            runBlocking { saveGenUiThumbnail(context, id, "Fixture", 1, image) }
+            rule.waitUntil(5_000) { rule.onNodeWithText("2 x 2 ${Color.BLUE}").isDisplayed() }
+
+            image.eraseColor(Color.RED)
+            runBlocking { saveGenUiThumbnail(context, id, "Fixture", 2, image) }
+            rule.waitUntil(5_000) { rule.onNodeWithText("2 x 2 ${Color.RED}").isDisplayed() }
+
+            image.eraseColor(Color.GREEN)
+            runBlocking { saveGenUiThumbnail(context, id, "Fixture", 1, image) }
+            val stored = checkNotNull(readGenUiThumbnail(context, id))
+            try { assertEquals(Color.RED, stored.getPixel(0, 0)) } finally { stored.recycle() }
+        } finally {
+            image.recycle()
+            context.filesDir.resolve("genui-thumbnails/$uuid.png").delete()
+        }
+    }
 
     @Test fun runningRemoteDraftSendsInsteadOfStopping() {
         var sent = 0
@@ -140,6 +181,7 @@ class MobileParityTest {
         val catalog = org.json.JSONArray(context.assets.open("miniapps/catalog.json").bufferedReader().use { it.readText() })
         rule.setContent { OpenBitFunTheme(dark = false) { com.openbitfun.mobile.app.ui.miniapps.MiniAppsButton() } }
         rule.onNodeWithText(context.getString(R.string.miniapps_title)).performClick()
+        rule.onNodeWithTag("miniapp-view-toggle").performClick()
         run {
             val app = catalog.getJSONObject(index)
             val title = app.getJSONObject("locales").getJSONObject(locale).getString("name")
@@ -161,6 +203,10 @@ class MobileParityTest {
                 ready.get()
             }
             rule.onNodeWithContentDescription(context.getString(R.string.miniapps_back)).performClick()
+            rule.onNodeWithContentDescription(context.getString(R.string.miniapps_back)).performClick()
+            rule.onNodeWithText(context.getString(R.string.miniapps_title)).performClick()
+            rule.onNodeWithContentDescription(context.getString(R.string.miniapps_show_cards)).assertExists()
+            rule.onNodeWithText(title).assertExists()
         }
     }
 

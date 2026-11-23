@@ -21,7 +21,36 @@ const {ConversationHeaderPolicy} = load('pages/policy/ConversationHeaderPolicy')
 const {ChatSurface} = load('pages/state/ChatSurface');
 const {SessionActivityObserver, SessionActivityReducer} = load('services/SessionActivityObserver');
 const {SessionActivityState} = load('pages/state/SessionActivityState');
+const {ChatTimelineRowStore} = load('model/ChatTimelineModels');
+const {LocalGenUIConversationProjection} = load('pages/viewmodel/LocalGenUIConversationProjection');
 const row = (id, updatedAt, extra={}) => ({id, deviceId:'host', title:id, updatedAt, createdAt:'', status:'idle', ...extra});
+
+test('a new GenUI reply gets its own follow identity across streaming updates', () => {
+  const start = LocalGenUIConversationProjection.activeTurn(1, '');
+  const chunk = LocalGenUIConversationProjection.activeTurn(1, 'Streaming');
+  const next = LocalGenUIConversationProjection.activeTurn(2, '');
+  assert.equal(chunk.turnId, start.turnId);
+  assert.equal(chunk.id, start.id);
+  assert.notEqual(next.turnId, start.turnId);
+});
+
+test('a retained GenUI reply updates its card after verification and thumbnail capture', () => {
+  const store = new ChatTimelineRowStore();
+  const card = {appId: 'local-genui:app', title: 'Planner', status: 'Preparing', thumbnailPath: '', link: 'openbitfun-genui://app/local-genui:app'};
+  const item = {
+    id: 'assistant', type: 'assistant_message', isStreaming: false, isFinalizing: false,
+    message: {id: 'assistant', role: 'assistant', text: 'Ready', status: 'completed', appCard: card},
+  };
+  const [retained] = store.reconcile([item]);
+  const [verified] = store.reconcile([{...item, message: {...item.message, appCard: {...card, status: 'Ready to use'}}}]);
+  assert.equal(verified, retained);
+  assert.equal(verified.message.appCard.status, 'Ready to use');
+  const [withPreview] = store.reconcile([{
+    ...item, message: {...item.message, appCard: {...verified.message.appCard, thumbnailPath: '/private/planner.png'}},
+  }]);
+  assert.equal(withPreview, retained);
+  assert.equal(withPreview.message.appCard.thumbnailPath, '/private/planner.png');
+});
 
 test('recent uses host activity before slicing, deduplicates within device and preserves input', () => {
   const rows = [row('old','1700000000'), row('new','1700000002000'), row('middle','2023-11-14T22:13:21Z'),
@@ -38,6 +67,8 @@ test('workspace subtitles preserve host paths and distinguish SSH even for local
   assert.equal(WorkspacePathPresentation.label('/repo',{path:'/repo',remoteSshHost:'localhost',remoteConnectionId:'tunnel'}), 'localhost:/repo');
   assert.equal(WorkspacePathPresentation.label('',undefined,'Project'), 'Project');
   assert.equal(ConversationHeaderPolicy.present(ChatSurface.Remote,'Title','/repo','main',true).subtitle,'/repo');
+  assert.equal(ConversationHeaderPolicy.present(ChatSurface.Local, 'Title', '', '', true).allowRename, true);
+  assert.equal(ConversationHeaderPolicy.present(ChatSurface.Local, '', '', '', false).allowRename, false);
 });
 function event(sessionId, status, revision=1, extra={}) {
   return {session_id:sessionId,event:'session-record',payload:{sessionId,id:'turn/t',revision,

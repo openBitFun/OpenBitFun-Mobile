@@ -19,6 +19,26 @@ final class MobileCoreAdapter {
         #endif
         remoteSession?.dispatch(intent: RemoteSessionIntentSetForeground(active: active))
     }
+
+    func refreshCommandCatalog() { remoteSession?.dispatch(intent: RemoteSessionIntentRefreshCommandCatalog.shared) }
+    func refreshCommandPaletteUsage() { remoteSession?.dispatch(intent: RemoteSessionIntentRefreshCommandPaletteUsage.shared) }
+    func runCommandPaletteAction(sessionID: String, action: String) {
+        remoteSession?.dispatch(intent: RemoteSessionIntentRunCommandPaletteAction(sessionId: sessionID, action: action))
+    }
+    func selectCommandPaletteSkill(id: String, label: String) {
+        remoteSession?.dispatch(intent: RemoteSessionIntentSelectCommandPaletteSkill(skillId: id, skillLabel: label))
+    }
+    func clearCommandPaletteSkill() { remoteSession?.dispatch(intent: RemoteSessionIntentClearCommandPaletteSkill.shared) }
+    func rollbackSession(sessionID: String, targetTurnID: String) {
+        remoteSession?.dispatch(intent: RemoteSessionIntentRollbackSession(sessionId: sessionID, targetTurnId: targetTurnID))
+    }
+    func rollbackAndSend(sessionID: String, targetTurnID: String, content: String, images: [ComposerAttachment]) {
+        let attachments = images.map(\.coreImage)
+        remoteSession?.dispatch(intent: RemoteSessionIntentRollbackAndSend(
+            sessionId: sessionID, targetTurnId: targetTurnID, content: content,
+            images: attachments.isEmpty ? nil : attachments
+        ))
+    }
     private var remoteSession: RemoteSessionStore?
     private var remoteWorkspace: RemoteWorkspaceStore?
     private var remoteTargetKey: String?
@@ -49,6 +69,8 @@ final class MobileCoreAdapter {
     var onAccountState: ((AccountUiState, UInt64) -> Void)?
     var onRemoteTargetBound: ((String, UInt64, UInt64) -> Void)?
     var onRemoteState: ((RemoteSessionUiState, String, UInt64) -> Void)?
+    var onCommandPaletteState: ((CommandPaletteUiState, String, UInt64) -> Void)?
+    var onDeviceModelDefaults: ((DeviceModelDefaultsUiState, String, UInt64) -> Void)?
     var onRemoteConnectionPhase: ((OpenBitFunMobileCore.ConnectionPhase, String, UInt64) -> Void)?
     var onWorkspaceState: ((RemoteWorkspaceUiState, String, UInt64) -> Void)?
     var onDirectoryState: ((DeviceDirectoryUiState, UInt64) -> Void)?
@@ -59,6 +81,8 @@ final class MobileCoreAdapter {
         onAccountState: ((AccountUiState, UInt64) -> Void)? = nil,
         onRemoteTargetBound: ((String, UInt64, UInt64) -> Void)? = nil,
         onRemoteState: ((RemoteSessionUiState, String, UInt64) -> Void)? = nil,
+        onCommandPaletteState: ((CommandPaletteUiState, String, UInt64) -> Void)? = nil,
+        onDeviceModelDefaults: ((DeviceModelDefaultsUiState, String, UInt64) -> Void)? = nil,
         onRemoteConnectionPhase: ((OpenBitFunMobileCore.ConnectionPhase, String, UInt64) -> Void)? = nil,
         onWorkspaceState: ((RemoteWorkspaceUiState, String, UInt64) -> Void)? = nil,
         onDirectoryState: ((DeviceDirectoryUiState, UInt64) -> Void)? = nil,
@@ -86,6 +110,8 @@ final class MobileCoreAdapter {
         self.onAccountState = onAccountState
         self.onRemoteTargetBound = onRemoteTargetBound
         self.onRemoteState = onRemoteState
+        self.onCommandPaletteState = onCommandPaletteState
+        self.onDeviceModelDefaults = onDeviceModelDefaults
         self.onRemoteConnectionPhase = onRemoteConnectionPhase
         self.onWorkspaceState = onWorkspaceState
         self.onDirectoryState = onDirectoryState
@@ -152,13 +178,15 @@ final class MobileCoreAdapter {
     }
 
     func selectAccountDevice(id: String) {
+        let flow = SkieSwiftStateFlow<AccountUiState>(account.state)
+        guard let current = flow.value as? AccountUiStateReady,
+              current.devices.contains(where: { $0.id == id && $0.online && $0.controllable }) else { return }
         pendingDirectoryReconciles.removeAll()
         desiredRemoteTarget = .account(deviceID: id)
         hydrateAccountTargetOnBind = true
         initialRemoteTargetSelectionOpen = false
         account.dispatch(intent: AccountIntentSelectDevice(deviceId: id))
-        let state = SkieSwiftStateFlow<AccountUiState>(account.state).value
-        guard let ready = state as? AccountUiStateReady,
+        guard let ready = flow.value as? AccountUiStateReady,
               ready.selectedDeviceId == id else { return }
         // Selecting a persisted target can leave StateFlow unchanged. Publish
         // the confirmed snapshot before binding stores so the UI exits switching
@@ -206,7 +234,7 @@ final class MobileCoreAdapter {
         directoryGeneration &+= 1
         let generation = directoryGeneration
         deviceDirectory.dispatch(intent: DeviceDirectoryIntentSync(devices: devices.map {
-            DeviceDirectoryDevice(deviceId: $0.id, deviceName: $0.name, online: $0.online)
+            DeviceDirectoryDevice(deviceId: $0.id, deviceName: $0.name, online: $0.online, controllable: $0.controllable)
         }))
         rebindDirectoryObservation(generation: generation)
         return generation
@@ -265,6 +293,12 @@ final class MobileCoreAdapter {
     func refreshPermissionMailbox() {
         remoteSession?.dispatch(intent: RemoteSessionIntentRefreshPermissionMailbox.shared)
     }
+
+    func dispatchDeviceModels(_ intent: RemoteSessionIntent, targetKey: String) {
+        guard remoteTargetKey == targetKey else { return }
+        remoteSession?.dispatch(intent: intent)
+    }
+
     func sendRemote(sessionID: String, content: String, images: [ComposerAttachment]) {
         remoteSession?.dispatch(
             intent: RemoteSessionIntentSendMessage(
@@ -481,7 +515,8 @@ final class MobileCoreAdapter {
     @discardableResult
     func invalidateRemoteAuthority(
         ifTargetKey targetKey: String,
-        epoch: UInt64
+        epoch: UInt64,
+        preserveAccountTarget: Bool = false
     ) -> RemoteAuthorityInvalidationResult {
         guard RemoteAuthorityGate.exactInvalidationMatchesAuthority(
             expectedTargetKey: targetKey,
@@ -491,8 +526,10 @@ final class MobileCoreAdapter {
         ) else {
             return .notMatched(currentTargetKey: remoteTargetKey, currentEpoch: remoteTargetEpoch)
         }
-        desiredRemoteTarget = nil
-        initialRemoteTargetSelectionOpen = false
+        if !preserveAccountTarget {
+            desiredRemoteTarget = nil
+            initialRemoteTargetSelectionOpen = false
+        }
         resetRemoteStores()
         remoteTargetEpoch &+= 1
         return .invalidated(newEpoch: remoteTargetEpoch)
@@ -648,6 +685,14 @@ final class MobileCoreAdapter {
         onRemoteTargetBound?(targetKey, boundEpoch, accountGeneration)
 
         let sessionFlow = SkieSwiftStateFlow<RemoteSessionUiState>(sessionStore.state)
+        let commandPaletteFlow = SkieSwiftStateFlow<CommandPaletteUiState>(sessionStore.commandPalette)
+        onCommandPaletteState?(commandPaletteFlow.value, targetKey, boundEpoch)
+        remoteObservations.append(Task { [weak self] in
+            for await state in commandPaletteFlow {
+                guard !Task.isCancelled else { return }
+                self?.onCommandPaletteState?(state, targetKey, boundEpoch)
+            }
+        })
         reconcileDirectorySessionSnapshot(sessionFlow.value, sessionStore: sessionStore, targetKey: targetKey)
         onRemoteState?(sessionFlow.value, targetKey, boundEpoch)
         remoteObservations.append(Task { [weak self] in
@@ -676,6 +721,15 @@ final class MobileCoreAdapter {
                 self?.log.info("Remote health phase: \(phase.name, privacy: .public) epoch=\(boundEpoch)")
                 #endif
                 self?.onRemoteConnectionPhase?(phase, targetKey, boundEpoch)
+            }
+        })
+
+        let modelDefaults = SkieSwiftStateFlow<DeviceModelDefaultsUiState>(sessionStore.deviceModelDefaults)
+        onDeviceModelDefaults?(modelDefaults.value, targetKey, boundEpoch)
+        remoteObservations.append(Task { [weak self] in
+            for await state in modelDefaults {
+                guard !Task.isCancelled else { return }
+                self?.onDeviceModelDefaults?(state, targetKey, boundEpoch)
             }
         })
 

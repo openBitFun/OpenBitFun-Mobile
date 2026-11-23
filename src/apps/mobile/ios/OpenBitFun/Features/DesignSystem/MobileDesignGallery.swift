@@ -287,7 +287,7 @@ struct StreamingRegressionView: View {
         if ProcessInfo.processInfo.arguments.contains("--subagent-detail-regression") {
             return MobileConversationRow(id: "subtask-details", kind: "ASSISTANT", text: "", thinking: nil,
                 images: [], tools: [], blocks: [
-                    .subagent(id: "details", title: "SUBTASK-DETAILS", running: generation == 0,
+                    .subagent(id: "details", title: generation == 0 ? "SUBTASK-DETAILS" : "SUBTASK-DETAILS · 失败", running: generation == 0,
                         text: "PARENT-SUMMARY-MUST-NOT-REPEAT", children: [
                             .thinking(id: "child-old", text: "OLD-CHILD-THOUGHT", streaming: true),
                             .tools(id: "child-tools", tools: [tool("child-one"), tool("child-two")]),

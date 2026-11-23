@@ -5,10 +5,15 @@ import kotlin.test.assertEquals
 
 class ConversationHeaderPresentationTest {
     @Test
-    fun aNamedDesktopIsTheAnswerEvenWhenABranchIsKnown() {
+    fun aResolvedWorkspacePathIsTheAnswerBeforeTheDesktopName() {
         assertEquals(
-            "Studio",
-            ConversationHeaderPresenter.contextTitle(desktopName = "Studio", workspaceBranch = "main"),
+            "/workspace/OpenBitFun",
+            ConversationHeaderPresenter.contextTitle(
+                desktopName = "Studio",
+                workspaceBranch = "main",
+                workspacePath = "/workspace/OpenBitFun",
+                workspaceName = "OpenBitFun",
+            ),
         )
     }
 
@@ -17,6 +22,19 @@ class ConversationHeaderPresentationTest {
         assertEquals(
             "OpenBitFun · feat/chat",
             ConversationHeaderPresenter.contextTitle(desktopName = "", workspaceBranch = "feat/chat"),
+        )
+    }
+
+    @Test
+    fun aWorkspaceNameIsUsedWhenItsPathIsMissing() {
+        assertEquals(
+            "OpenBitFun",
+            ConversationHeaderPresenter.contextTitle(
+                desktopName = "Studio",
+                workspaceBranch = "main",
+                workspacePath = "",
+                workspaceName = "OpenBitFun",
+            ),
         )
     }
 

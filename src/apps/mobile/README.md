@@ -8,8 +8,10 @@ This directory contains the native mobile product surfaces for OpenBitFun:
 
 The mobile apps are remote controllers: OpenBitFun account sign-in and the device
 directory select a desktop or CLI host that owns configuration and Agent Runtime
-execution. Phones submit tasks and display results; they do not synchronize model
-configuration or execute agents locally.
+execution. Phones submit remote tasks and display results. The separate **Create mini
+apps** flow uses a provider configured on the phone to generate local OpenUI
+documents. Its sessions, provider profiles, and generated app state are independent
+of the selected remote device.
 
 The official Relay needs no user deployment. Use the same login method and
 account on the phone and host; GitHub and email-code accounts are independent.
@@ -81,6 +83,7 @@ metadata, execution-mode IDs, speech draft merging, and completion observation i
 | Next-input suggestions | Android, iOS and HarmonyOS show the host's suggestion above an empty, idle composer; tapping fills and focuses the editor without sending | Uses the existing host session stream. Hints retain their exact text and retire on newer turns, session changes or host restarts. Older hosts simply show no hint; no new Relay API or migration is needed. |
 | Plans | Legacy CreatePlan, structured plans and `.plan.md` writes show a plan card with file preview and Build | Build requires `plan_build_v1`, a completed plan tool and an idle connected session. Paths remain remote; the mobile app never runs the plan locally. |
 | Offline Mini Apps | Gomoku, Regex Playground and Daily Divination open from welcome and sidebar without login | Product-owned sources are bundled by `miniapps/generate.cjs`; native WebView hosts expose only per-app allowlisted storage and clipboard. No network, Node or shell bridge. |
+| Local GenUI | The sidebar opens local creation sessions, direct model generation and the bundled OpenUI runtime | The current per-platform capability gaps and simulator procedure are in the [native parity audit](docs/native-parity-audit.md). |
 | Code preview | Native lexical colors, line numbers and referenced-line backgrounds | Both apps use the core-feature highlighter with native theme tokens; large files retain its bounded plain-text fallback. |
 | Account profile | Public GitHub login and avatar replace the numeric-ID placeholder | The immutable Relay user ID still authorizes devices. Display metadata uses a separate encrypted 24-hour cache; offline refreshes preserve credentials and cached display. |
 | Task completion | Notify for a previously observed successful remote turn while backgrounded | Identity includes target, session and turn. Replayed, failed and cancelled turns do not notify. These are local notifications, not server push. iOS observes within its OS background-task allowance; Android observes while the controller process remains alive. Neither promises notification after process termination. |

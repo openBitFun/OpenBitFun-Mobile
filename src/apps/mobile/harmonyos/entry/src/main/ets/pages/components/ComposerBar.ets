@@ -34,14 +34,13 @@ export enum ComposerPresentation {
 
 const COMPOSER_ACTION_SIZE: number = MobileDesignGeometry.composerActionSize;
 /** The optical primary surface is separate from its full touch target. */
-const COMPOSER_PRIMARY_SURFACE_SIZE: number = 32;
+const COMPOSER_PRIMARY_SURFACE_SIZE: number = MobileDesignGeometry.composerPrimarySurfaceSize;
 const COMPOSER_SEND_TRANSITION_DURATION: number = 200;
 const COMPOSER_INPUT_HEIGHT: number = MobileDesignGeometry.composerInputHeight;
 const COMPOSER_EXPANDED_INPUT_HEIGHT: number = MobileDesignGeometry.composerExpandedInputHeight;
 const COMPOSER_EXPANDED_INPUT_MAX_HEIGHT: number =
   MobileDesignTypography.bodyLarge.lineHeight * 4 + 18;
 const COMPOSER_COLLAPSED_HEIGHT: number = MobileDesignGeometry.composerCollapsedHeight;
-const COMPOSER_COMPACT_COLLAPSED_HEIGHT: number = MobileDesignGeometry.composerCollapsedHeight;
 const COMPOSER_EXPANDED_ACTION_ROW_HEIGHT: number = MobileDesignGeometry.composerExpandedActionRowHeight;
 const COMPOSER_EXPANDED_HEIGHT: number = MobileDesignGeometry.composerExpandedHeight;
 const COMPOSER_COMPACT_HORIZONTAL_GUTTER: number = MobileDesignGeometry.contentGutter;
@@ -202,41 +201,41 @@ export struct ComposerBar {
       if (this.selectedImages.length > 0) {
         this.SelectedImageStrip()
       }
-      Row({ space: this.isComposerExpanded() ? 0 : 5 }) {
+      Row({ space: this.showsActionRow() ? 0 : 5 }) {
         if (this.shouldShowAddButton()) {
           Row() {
             this.AddButton()
           }
-          .width(this.isComposerExpanded() ? 0 : COMPOSER_ACTION_SIZE)
+          .width(this.showsActionRow() ? 0 : COMPOSER_ACTION_SIZE)
           .height(COMPOSER_ACTION_SIZE)
-          .opacity(this.isComposerExpanded() ? 0 : 1)
-          .visibility(this.isComposerExpanded() ? Visibility.None : Visibility.Visible)
+          .opacity(this.showsActionRow() ? 0 : 1)
+          .visibility(this.showsActionRow() ? Visibility.None : Visibility.Visible)
           .clip(true)
         }
         this.InputField()
         Row() {
           this.PrimaryActionButton()
         }
-        .width(this.isComposerExpanded() ? 0 : COMPOSER_ACTION_SIZE)
+        .width(this.showsActionRow() ? 0 : COMPOSER_ACTION_SIZE)
         .height(COMPOSER_ACTION_SIZE)
-        .opacity(this.isComposerExpanded() ? 0 : 1)
-        .visibility(this.isComposerExpanded() ? Visibility.None : Visibility.Visible)
+        .opacity(this.showsActionRow() ? 0 : 1)
+        .visibility(this.showsActionRow() ? Visibility.None : Visibility.Visible)
         .clip(true)
       }
       .width('100%')
       .constraintSize({
         minHeight: this.isComposerExpanded() ? MobileDesignGeometry.composerExpandedInputRowHeight :
-          this.collapsedComposerHeight(),
+          this.restingInputRowHeight(),
         maxHeight: this.isComposerExpanded() ? COMPOSER_EXPANDED_INPUT_MAX_HEIGHT :
-          this.collapsedComposerHeight()
+          this.restingInputRowHeight()
       })
 
-      if (this.isComposerExpanded()) {
+      if (this.showsActionRow()) {
         Row({ space: 6 }) {
           if (this.shouldShowAddButton()) {
             this.AddButton()
           }
-          if (this.shouldShowModelControl()) {
+          if (this.capabilities.supportsModelManagement || this.shouldShowModelControl()) {
             this.ModelControl()
           }
           Blank()
@@ -249,7 +248,7 @@ export struct ComposerBar {
         }
         .width('100%')
         .height(COMPOSER_EXPANDED_ACTION_ROW_HEIGHT)
-        .padding({ left: 2, right: 0 })
+        .padding({ left: this.capabilities.supportsModelManagement ? 0 : 2 })
         .alignItems(VerticalAlign.Center)
         .transition(TransitionEffect.translate({ x: 0, y: 8 })
           .combine(TransitionEffect.opacity(0))
@@ -261,8 +260,8 @@ export struct ComposerBar {
     .padding({
       left: 8,
       right: 8,
-      top: this.isComposerExpanded() ? 4 : 0,
-      bottom: this.isComposerExpanded() ? 2 : 0
+      top: this.isComposerExpanded() ? 4 : (this.showsActionRow() ? 2 : 0),
+      bottom: this.showsActionRow() ? 2 : 0
     })
     // The transcript now runs underneath the pill, so the fill is translucent
     // and the blur does the separating. The colour is the floor under it: on a
@@ -286,13 +285,13 @@ export struct ComposerBar {
       Text(this.displaySelectedModel())
         .fontSize(MobileDesignTypography.bodySmall.size)
         .fontWeight(FontWeight.Medium)
-        .fontColor(INK)
+        .fontColor(this.capabilities.supportsModelManagement && !this.needsLocalModelSetup() ? MUTED : INK)
         .maxLines(1)
         .textOverflow({ overflow: TextOverflow.Ellipsis })
         .constraintSize({ maxWidth: 192 })
       Stack({ alignContent: Alignment.Center }) {
-        SymbolGlyph(this.isModelSelectorExpanded() ?
-          $r('sys.symbol.chevron_up') : $r('sys.symbol.chevron_down'))
+        SymbolGlyph(this.needsLocalModelSetup() ? $r('sys.symbol.plus') :
+          (this.isModelSelectorExpanded() ? $r('sys.symbol.chevron_up') : $r('sys.symbol.chevron_down')))
           .fontSize(13)
           .fontColor([INK])
           .opacity(0.68)
@@ -303,8 +302,9 @@ export struct ComposerBar {
     .height(COMPOSER_ACTION_SIZE)
     .constraintSize({ maxWidth: 220 })
     .padding({ left: 4, right: 4 })
-    .backgroundColor(TRANSPARENT)
-    .accessibilityText(`${RemoteI18n.t('chat.selectModel')} · ${this.displaySelectedModel()}`)
+    .id(`${this.inputId}-model`)
+    .accessibilityText(this.needsLocalModelSetup() ? this.displaySelectedModel() :
+      `${RemoteI18n.t('chat.selectModel')} · ${this.displaySelectedModel()}`)
     .bindPopup(this.showModelSelectorPopover, {
       builder: () => {
         this.ModelSelector()
@@ -323,16 +323,15 @@ export struct ComposerBar {
       }
     })
     .onTouch((event: TouchEvent) => {
-      if (event.type === TouchType.Down) {
+      if (event.type === TouchType.Down && !this.needsLocalModelSetup()) {
         // Capture focus before the sheet/popover moves it away. Choosing a
         // model is part of the current edit, not the end of that edit.
         this.beginModelSelectionFromComposer();
       }
     })
     .onClick(() => {
-      // A surface that owns its models opens their manager when none exist yet.
-      if (this.enabledModels().length === 0 && this.capabilities.supportsModelManagement) {
-        this.onManageModels();
+      if (this.needsLocalModelSetup()) {
+        void this.openModelManager();
         return;
       }
       this.toggleModelSelectorPopover();
@@ -389,8 +388,7 @@ export struct ComposerBar {
         .padding({ left: 10, right: 10, top: 8, bottom: 8 })
         .borderRadius(MobileDesignGeometry.composerModelSelectorRowRadius)
         .onClick(() => {
-          this.closeModelSelector(true);
-          this.onManageModels();
+          void this.openModelManager();
         })
       }
     }
@@ -659,8 +657,12 @@ export struct ComposerBar {
         return;
       }
       if (action === ComposerPrimaryAction.Send) {
-        this.beginSendTransition();
-        this.onSend();
+        if (this.needsLocalModelSetup()) {
+          void this.sendWithKeyboardReleased();
+        } else {
+          this.beginSendTransition();
+          this.onSend();
+        }
         return;
       }
       if (action === ComposerPrimaryAction.Voice) {
@@ -879,30 +881,34 @@ export struct ComposerBar {
   // Attachments and the skill token live inside the card, so the card has to
   // grow to hold them.
   private composerHeight(): number {
-    const base = this.isComposerExpanded() ? COMPOSER_EXPANDED_HEIGHT : this.collapsedComposerHeight();
+    // The column sizes the always-visible Local GenUI footer from its rows.
+    const base = this.isComposerExpanded() ? COMPOSER_EXPANDED_HEIGHT : this.restingInputRowHeight();
     const attachmentBlock = this.selectedImages.length > 0 ? COMPOSER_IMAGE_STRIP_BLOCK : 0;
     const tokenBlock = this.hasSkillToken() ? COMPOSER_TOKEN_STRIP_BLOCK : 0;
     return base + attachmentBlock + tokenBlock;
   }
 
-  private collapsedComposerHeight(): number {
-    return this.presentation === ComposerPresentation.Compact ?
-      COMPOSER_COMPACT_COLLAPSED_HEIGHT : COMPOSER_COLLAPSED_HEIGHT;
+  private restingInputRowHeight(): number {
+    return this.capabilities.supportsModelManagement ? COMPOSER_INPUT_HEIGHT : COMPOSER_COLLAPSED_HEIGHT;
   }
 
   // The pill radius only reads as a pill while the card is one row tall.
   private composerRadius(): number {
-    if (this.isComposerExpanded() || this.selectedImages.length > 0 || this.hasSkillToken()) {
+    if (this.showsActionRow() || this.selectedImages.length > 0 || this.hasSkillToken()) {
       return MobileDesignGeometry.composerExpandedRadius;
     }
     return MobileDesignGeometry.composerCollapsedRadius;
+  }
+
+  private showsActionRow(): boolean {
+    return this.capabilities.supportsModelManagement || this.isComposerExpanded();
   }
 
   private isComposerExpanded(): boolean {
     return ChatComposerPolicy.isExpanded(
       this.inputText,
       this.inputFocused,
-      this.isModelSelectorExpanded(),
+      !this.capabilities.supportsModelManagement && this.isModelSelectorExpanded(),
       this.keepExpandedForModelSelection
     );
   }
@@ -912,7 +918,11 @@ export struct ComposerBar {
   }
 
   private shouldShowModelControl(): boolean {
-    return this.enabledModels().length > 0 || this.capabilities.supportsModelManagement;
+    return this.enabledModels().length > 0;
+  }
+
+  private needsLocalModelSetup(): boolean {
+    return this.capabilities.supportsModelManagement && this.selectedModelId.length === 0;
   }
 
   private enabledModels(): ConversationUiModel[] {
@@ -953,10 +963,8 @@ export struct ComposerBar {
     if (roleKey.length > 0) {
       return RemoteI18n.t(roleKey);
     }
+    if (this.needsLocalModelSetup()) return RemoteI18n.t('localGenui.configureModel');
     const selected = this.selectedModel();
-    if (!selected && this.enabledModels().length === 0 && this.capabilities.supportsModelManagement) {
-      return RemoteI18n.t('localGenui.addModel');
-    }
     return selected ? ConversationModelPresentationPolicy.primaryLabel(selected, RemoteI18n.t('chat.model')) :
       RemoteI18n.t('chat.model');
   }
@@ -1031,9 +1039,9 @@ export struct ComposerBar {
       return;
     }
 
-    // Keep the expanded composer and its model-control anchor mounted while the
-    // IME releases the window. Opening the popup before this completes makes its
-    // viewport and hit-testing inherit the keyboard-constrained layout.
+    // Keep the model-control anchor mounted while the IME releases the window.
+    // Opening the popup before this completes makes its viewport and hit-testing
+    // inherit the keyboard-constrained layout.
     this.isPreparingModelSelectorPopover = true;
     await this.releaseComposerKeyboard();
 
@@ -1058,6 +1066,17 @@ export struct ComposerBar {
       // window event. Releasing focus still leaves the model anchor mounted.
     }
     this.getUIContext().getFocusController().clearFocus();
+  }
+
+  private async openModelManager(): Promise<void> {
+    this.closeModelSelector();
+    await this.releaseComposerKeyboard();
+    this.onManageModels();
+  }
+
+  private async sendWithKeyboardReleased(): Promise<void> {
+    await this.releaseComposerKeyboard();
+    this.onSend();
   }
 
   private beginModelSelectionFromComposer(): void {

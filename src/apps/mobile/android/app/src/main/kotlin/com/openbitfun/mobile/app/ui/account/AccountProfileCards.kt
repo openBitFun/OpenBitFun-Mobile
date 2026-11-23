@@ -39,9 +39,11 @@ import androidx.compose.ui.unit.sp
 import com.openbitfun.mobile.app.R
 import com.openbitfun.mobile.app.platform.loadAccountAvatar
 import com.openbitfun.mobile.app.ui.settings.SettingsCard
+import com.openbitfun.mobile.app.ui.settings.DeviceModelSettingsEntry
 import com.openbitfun.mobile.app.ui.theme.generated.MobileDesignGeometry
 import com.openbitfun.mobile.app.ui.theme.openBitFunColors
 import com.openbitfun.mobile.core.feature.account.AccountUiState
+import com.openbitfun.mobile.core.feature.session.DeviceModelAvailability
 
 internal const val ACCOUNT_SETTINGS_SIGN_IN_TEST_TAG: String = "account-settings-sign-in"
 internal const val ACCOUNT_SETTINGS_DEVICES_TEST_TAG: String = "account-settings-devices"
@@ -137,6 +139,11 @@ internal fun AccountSettingsDevicesSection(
     onRefresh: () -> Unit,
     onSelect: (String) -> Unit,
     modifier: Modifier,
+    connectedDeviceId: String?,
+    modelAvailability: DeviceModelAvailability,
+    onOpenModelSettings: (String) -> Unit,
+    modelSettingsUnsupported: Boolean,
+    onModelSettingsUnsupported: () -> Unit,
 ) {
     Column(modifier = modifier.fillMaxWidth()) {
         Row(
@@ -196,14 +203,14 @@ internal fun AccountSettingsDevicesSection(
                         }
                         account.devices.forEach { device ->
                             val selected = device.id == account.selectedDeviceId
-                            val reconnectable = selected && !device.online
+                            val reconnectable = device.controllable && selected && !device.online
                             Row(
                                 modifier = Modifier
                                     .fillMaxWidth()
                                     .defaultMinSize(minHeight = 54.dp)
                                     .clip(RoundedCornerShape(10.dp))
                                     .clickable(
-                                        enabled = device.online || reconnectable,
+                                        enabled = device.controllable && (device.online || reconnectable),
                                         role = Role.Button,
                                         onClick = { onSelect(device.id) },
                                     )
@@ -228,13 +235,14 @@ internal fun AccountSettingsDevicesSection(
                                     Text(
                                         stringResource(
                                             when {
+                                                !device.controllable -> R.string.account_device_incompatible
                                                 selected && device.online -> R.string.account_device_current_control
                                                 device.online -> R.string.account_online
                                                 else -> R.string.account_offline
                                             },
                                         ),
                                         fontSize = 13.sp,
-                                        color = if (device.online) {
+                                        color = if (device.online && device.controllable) {
                                             openBitFunColors.statusSuccess
                                         } else {
                                             MaterialTheme.colorScheme.onSurfaceVariant
@@ -242,9 +250,18 @@ internal fun AccountSettingsDevicesSection(
                                     )
                                 }
                                 when {
+                                    !device.controllable -> Unit
+                                    device.online && device.id == connectedDeviceId -> DeviceModelSettingsEntry(modelAvailability) {
+                                        if (modelAvailability == DeviceModelAvailability.UNSUPPORTED) onModelSettingsUnsupported()
+                                        else onOpenModelSettings(device.id)
+                                    }
                                     reconnectable -> DeviceActionChip(stringResource(R.string.remote_settings_reconnect))
                                     device.online && !selected -> DeviceActionChip(stringResource(R.string.account_connect))
                                 }
+                            }
+                            if (device.id == connectedDeviceId && modelSettingsUnsupported &&
+                                modelAvailability == DeviceModelAvailability.UNSUPPORTED) {
+                                DevicesNote(stringResource(R.string.device_models_unsupported))
                             }
                         }
                     }

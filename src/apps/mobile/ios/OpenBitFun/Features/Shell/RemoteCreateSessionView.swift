@@ -375,9 +375,9 @@ struct RemoteCreateSessionView: View {
                                 kind: .device,
                                 icon: "desktopcomputer",
                                 title: device.name.isEmpty ? device.id : device.name,
-                                subtitle: model.localized(device.online ? "在线" : "离线"),
+                                subtitle: model.localized(device.presenceKey),
                                 selected: device.selected,
-                                enabled: device.online || device.selected
+                                enabled: device.controllable && (device.online || device.selected)
                             ) {
                                 pickerKind = nil
                                 selectedWorkspace = nil

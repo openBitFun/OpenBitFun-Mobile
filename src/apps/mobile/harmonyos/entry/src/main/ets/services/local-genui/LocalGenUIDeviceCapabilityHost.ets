@@ -24,6 +24,7 @@ export interface LocalGenUIDeviceCapabilityEvents {
   status: (subscriptionId: string, status: string) => void;
   /** Presentation: whether the camera preview surface should exist. */
   cameraWanted: (wanted: boolean) => void;
+  cameraActive: (active: boolean) => void;
 }
 
 /**
@@ -54,6 +55,7 @@ export class LocalGenUIDeviceCapabilityHost {
   }
 
   private onCameraStatus(status: LocalGestureCameraStatus): void {
+    this.events.cameraActive(status === LocalGestureCameraStatus.Active);
     if (status === LocalGestureCameraStatus.Active) {
       this.retries = 0;
     }
@@ -148,6 +150,7 @@ export class LocalGenUIDeviceCapabilityHost {
 
   detachSurface(): void {
     this.surfaceId = '';
+    this.events.cameraActive(false);
     this.clearRetry();
     void this.camera.stop();
   }
@@ -157,6 +160,7 @@ export class LocalGenUIDeviceCapabilityHost {
     this.surfaceId = '';
     this.clearRetry();
     void this.camera.stop();
+    this.events.cameraActive(false);
     this.events.cameraWanted(false);
   }
 
@@ -164,6 +168,7 @@ export class LocalGenUIDeviceCapabilityHost {
     const wanted = this.visible && this.subscriptions.size > 0;
     this.events.cameraWanted(wanted);
     if (!wanted) {
+      this.events.cameraActive(false);
       void this.camera.stop();
       return;
     }

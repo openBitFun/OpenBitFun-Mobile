@@ -307,22 +307,23 @@ final class RemoteAccountWorkflowPerformanceUITests: XCTestCase {
     override func setUpWithError() throws {
         continueAfterFailure = false
         workflowStartedAt = Date()
-        app.launchArguments = ["--simplified-chinese"]
+        app.launchArguments = ["--simplified-chinese", "--drawer"]
         app.launch()
     }
 
     func testLoginDeviceWorkspaceSessionSwitchAndSend() throws {
         let environment = ProcessInfo.processInfo.environment
-        guard let username = environment["OPENBITFUN_E2E_USERNAME"], !username.isEmpty,
-              let password = environment["OPENBITFUN_E2E_PASSWORD"], !password.isEmpty else {
+        let username = environment["OPENBITFUN_E2E_USERNAME"] ?? ""
+        let password = environment["OPENBITFUN_E2E_PASSWORD"] ?? ""
+        if (!app.launchArguments.contains("--drawer")) && (username.isEmpty || password.isEmpty) {
             throw XCTSkip("Set OPENBITFUN_E2E_USERNAME and OPENBITFUN_E2E_PASSWORD to run the real relay workflow.")
         }
-
         let sidebarAlreadyOpen = try signIn(username: username, password: password)
         let deviceID = try selectFirstRemoteDevice(openSidebar: !sidebarAlreadyOpen)
         let sessionIDs = try exerciseWorkspaceDirectory(deviceID: deviceID)
         try exerciseSessionSwitching(sessionIDs: sessionIDs)
-        try sendVerificationMessage()
+        _ = try sendVerificationMessage()
+        try exerciseCommandPalette()
         let idleStarted = Date()
         RunLoop.current.run(until: Date().addingTimeInterval(5))
         recordStep("post_workflow_idle", since: idleStarted)
@@ -330,11 +331,21 @@ final class RemoteAccountWorkflowPerformanceUITests: XCTestCase {
     }
 
     private func signIn(username: String, password: String) throws -> Bool {
+        if app.launchArguments.contains("--drawer") {
+            recordStep("account_restore_ready", since: workflowStartedAt)
+            return true
+        }
+        if app.buttons["查看设备"].exists || app.buttons["View devices"].exists {
+            let viewDevices = app.buttons["查看设备"].exists ? app.buttons["查看设备"] : app.buttons["View devices"]
+            viewDevices.tap()
+            recordStep("device_directory_opened", since: workflowStartedAt)
+            return false
+        }
         let sidebar = try requireFirst([
             app.buttons["打开侧栏"],
             app.buttons["Open sidebar"],
         ], timeout: 20, failure: "The sidebar action did not become available.")
-        sidebar.tap()
+        tapEvenIfCovered(sidebar)
 
         let accountActions = [
             app.buttons["登录 OpenBitFun 账号"],
@@ -407,15 +418,28 @@ final class RemoteAccountWorkflowPerformanceUITests: XCTestCase {
         let devices = app.buttons.matching(
             NSPredicate(format: "identifier BEGINSWITH %@", "sidebar.device.")
         )
-        let device = try requireUsableElement(
-            in: devices,
-            timeout: 30,
-            failure: "No online account device became selectable."
-        )
+        let deadline = Date().addingTimeInterval(30)
+        var device: XCUIElement?
+        while Date() < deadline, device == nil {
+            for index in 0..<devices.count {
+                let candidate = devices.element(boundBy: index)
+                let status = candidate.value as? String
+                if candidate.exists && candidate.isEnabled && status == "在线" {
+                    device = candidate
+                    break
+                }
+            }
+            if device == nil { RunLoop.current.run(until: Date().addingTimeInterval(0.1)) }
+        }
+        guard let device else {
+            recordDiagnostics(named: "UsableElementMissing")
+            XCTFail("No online account device became selectable.")
+            throw WorkflowError.requiredElementMissing
+        }
         let identifier = device.identifier
         let deviceID = String(identifier.dropFirst("sidebar.device.".count))
         let started = Date()
-        device.tap()
+        tapEvenIfCovered(device)
 
         let workspaces = app.buttons.matching(
             NSPredicate(format: "identifier BEGINSWITH %@", "sidebar.workspace.\(deviceID).")
@@ -585,7 +609,7 @@ final class RemoteAccountWorkflowPerformanceUITests: XCTestCase {
         _ = try requireUsableElement(in: sessions, timeout: 10, failure: "Expanded sessions were not restored in the sidebar.")
     }
 
-    private func sendVerificationMessage() throws {
+    private func sendVerificationMessage() throws -> String {
         let composer = app.textFields["composer.input"]
         XCTAssertTrue(waitUntil(timeout: 10) { composer.exists }, "The composer was unavailable before send.")
         XCTAssertTrue(composer.isHittable, "The composer was obstructed before send.")
@@ -615,6 +639,37 @@ final class RemoteAccountWorkflowPerformanceUITests: XCTestCase {
             "The submitted message did not appear in the active timeline."
         )
         recordStep("send_message_visible", since: started)
+        return message
+    }
+
+    private func exerciseCommandPalette() throws {
+        let usage = try requireFirst([app.buttons["会话用量"]], timeout: 10, failure: "The usage command chip did not appear.")
+        let skills = try requireFirst([app.buttons["技能"]], timeout: 10, failure: "The skills command chip did not appear.")
+        XCTAssertTrue(app.buttons["压缩会话"].exists, "The compact command chip did not appear.")
+        XCTAssertTrue(app.buttons["生成 AGENTS.md"].exists, "The init command chip did not appear.")
+        XCTAssertTrue(app.buttons["会话目标"].exists, "The goal command chip did not appear.")
+
+        let chips = app.scrollViews["commandPalette.chips"]
+        for _ in 0..<4 {
+            chips.swipeLeft()
+        }
+        usage.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.5)).tap()
+        XCTAssertTrue(app.navigationBars["会话用量"].waitForExistence(timeout: 8), "The usage sheet did not open.")
+        let usageShot = XCTAttachment(screenshot: XCUIScreen.main.screenshot())
+        usageShot.name = "RemoteCommandPalette-Usage"
+        usageShot.lifetime = .keepAlways
+        add(usageShot)
+        app.buttons["关闭"].tap()
+
+        chips.swipeLeft()
+        skills.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.5)).tap()
+        XCTAssertTrue(app.navigationBars["选择技能"].waitForExistence(timeout: 8), "The skills sheet did not open.")
+        let skillsShot = XCTAttachment(screenshot: XCUIScreen.main.screenshot())
+        skillsShot.name = "RemoteCommandPalette-Skills"
+        skillsShot.lifetime = .keepAlways
+        add(skillsShot)
+        app.buttons["关闭"].tap()
+        recordStep("command_palette_sheets_ready", since: workflowStartedAt)
     }
 
     private func waitForDirectoryLoadingToFinish(timeout: TimeInterval) {
@@ -670,6 +725,14 @@ final class RemoteAccountWorkflowPerformanceUITests: XCTestCase {
         recordDiagnostics(named: "UsableElementMissing")
         XCTFail(failure)
         throw WorkflowError.requiredElementMissing
+    }
+
+    private func tapEvenIfCovered(_ element: XCUIElement) {
+        if element.isHittable {
+            element.tap()
+        } else {
+            element.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.5)).tap()
+        }
     }
 
     private func scrollToHittable(_ element: XCUIElement) -> Bool {
@@ -834,6 +897,105 @@ final class GitHubLoginPresentationUITests: XCTestCase {
 }
 
 final class MobileParityUITests: XCTestCase {
+    func testAccountDevicePickerShowsTheDirectoryAndWaitsForTheHost() {
+        XCUIDevice.shared.orientation = .portrait
+        let app = XCUIApplication(bundleIdentifier: "com.openbitfun.mobile.ios")
+        app.launchArguments = ["--harness-preview", "--account-device-picker-preview", "--incompatible-device-preview", "--simplified-chinese"]
+        app.launchMobileReady()
+        let header = app.staticTexts["connect-account-device-title"]
+        XCTAssertTrue(header.waitForExistence(timeout: 8))
+        let first = app.buttons["connect-account-device-row-account-desktop-1"]
+        XCTAssertTrue(first.label.contains("当前控制"))
+        let offline = app.buttons["connect-account-device-row-account-desktop-3"]
+        XCTAssertFalse(offline.isEnabled)
+        let incompatible = app.buttons["connect-account-device-row-account-desktop-5"]
+        XCTAssertFalse(incompatible.isEnabled)
+        XCTAssertTrue(incompatible.label.contains("客户端版本不兼容，无法互控。"))
+        let bottom = app.buttons["connect-account-device-row-account-desktop-9"]
+        let before = XCTAttachment(screenshot: XCUIScreen.main.screenshot())
+        before.name = "ConnectAccountDevices"
+        before.lifetime = .keepAlways
+        add(before)
+        if !bottom.isHittable { app.swipeUp() }
+        XCTAssertTrue(bottom.isHittable)
+        if !first.isHittable { app.swipeDown() }
+        let failure = app.buttons["connect-account-device-row-account-desktop-2"]
+        failure.tap()
+        XCTAssertTrue(header.exists)
+        let retry = app.buttons["connect-account-device-refresh"]
+        let failed = XCTNSPredicateExpectation(predicate: NSPredicate(format: "label == %@", "重试"), object: retry)
+        XCTAssertEqual(XCTWaiter.wait(for: [failed], timeout: 8), .completed)
+        XCTAssertTrue(header.exists)
+        XCTAssertTrue(failure.isEnabled)
+        app.buttons["connect-account-device-row-account-desktop-4"].tap()
+        let dismissed = XCTNSPredicateExpectation(predicate: NSPredicate(format: "exists == false"), object: header)
+        XCTAssertEqual(XCTWaiter.wait(for: [dismissed], timeout: 8), .completed)
+    }
+
+    func testDeviceModelSettingsUseTheControlledDesktopAndShowCompatibleModels() {
+        XCUIDevice.shared.orientation = .portrait
+        defer { XCUIDevice.shared.orientation = .portrait }
+        let app = XCUIApplication(bundleIdentifier: "com.openbitfun.mobile.ios")
+        app.launchArguments = ["--harness-preview", "--device-model-defaults-preview", "--simplified-chinese"]
+        app.launchMobileReady()
+        let entry = app.buttons["device-model-settings"]
+        XCTAssertTrue(entry.waitForExistence(timeout: 10))
+        if !entry.isHittable { app.swipeUp() }
+        entry.tap()
+        let header = app.staticTexts["device-model-page"]
+        XCTAssertTrue(header.waitForExistence(timeout: 8))
+        XCTAssertEqual(header.label, "Account desktop 1")
+
+        func capture(_ name: String) {
+            let shot = XCTAttachment(screenshot: XCUIScreen.main.screenshot())
+            shot.name = name
+            shot.lifetime = .keepAlways
+            add(shot)
+        }
+
+        func assertCenteredPanel() {
+            // The title starts after the leading 8-point inset and 48-point back control.
+            let expectedLeft = app.frame.midX - 240 + 56
+            XCTAssertEqual(header.frame.minX, expectedLeft, accuracy: 8)
+        }
+
+        if UIDevice.current.userInterfaceIdiom == .pad { assertCenteredPanel() }
+        capture("DeviceModelDefaults")
+        let imageRole = app.buttons["device-model-role-image_understanding"]
+        XCTAssertTrue(imageRole.exists)
+        imageRole.tap()
+        let image = app.buttons["device-model-option-vision"]
+        XCTAssertTrue(image.waitForExistence(timeout: 8))
+        XCTAssertEqual(header.label, "多模态模型")
+        XCTAssertFalse(app.buttons["device-model-option-mini"].exists)
+        capture("DeviceModelMultimodal")
+        if UIDevice.current.userInterfaceIdiom == .phone {
+            XCUIDevice.shared.orientation = .landscapeLeft
+            let landscape = XCTNSPredicateExpectation(predicate: NSPredicate { _, _ in
+                app.frame.width > app.frame.height
+            }, object: nil)
+            XCTAssertEqual(XCTWaiter.wait(for: [landscape], timeout: 15), .completed)
+            XCTAssertTrue(image.waitForExistence(timeout: 8))
+            XCTAssertEqual(header.label, "多模态模型")
+            assertCenteredPanel()
+            capture("DeviceModelLandscape")
+            XCUIDevice.shared.orientation = .portrait
+            let portrait = XCTNSPredicateExpectation(predicate: NSPredicate { _, _ in
+                app.frame.height > app.frame.width
+            }, object: nil)
+            XCTAssertEqual(XCTWaiter.wait(for: [portrait], timeout: 15), .completed)
+            XCTAssertTrue(image.waitForExistence(timeout: 8))
+            XCTAssertEqual(header.label, "多模态模型")
+        }
+        image.tap()
+        XCTAssertEqual(header.label, "Account desktop 1")
+        XCTAssertTrue(imageRole.label.contains("vision-preview"))
+        XCTAssertTrue(app.staticTexts.containing(NSPredicate(format: "label BEGINSWITH %@", "已更新为 vision-preview")).firstMatch.exists)
+        imageRole.tap()
+        app.buttons["device-model-option-unset"].tap()
+        XCTAssertTrue(imageRole.label.contains("未配置"))
+    }
+
     func testFilePreviewPresentsDownloadExporterAbovePreview() {
         let app = XCUIApplication(bundleIdentifier: "com.openbitfun.mobile.ios")
         app.launchArguments = ["--harness-preview", "--file-preview", "--download-preview", "--simplified-chinese"]
@@ -901,6 +1063,1342 @@ final class MobileParityUITests: XCTestCase {
         add(evidence)
     }
 
+    func testSignedOutWelcomeAndMiniAppsEntry() throws {
+        let app = XCUIApplication(bundleIdentifier: "com.openbitfun.mobile.ios")
+        app.launchArguments = ["--simplified-chinese"]
+        app.launchMobileReady()
+        let explore = app.buttons["探索小应用"]
+        guard explore.waitForExistence(timeout: 10) else {
+            throw XCTSkip("Uses a signed-out simulator installation.")
+        }
+        XCTAssertTrue(app.buttons["展开侧边栏"].isHittable)
+        let evidence = XCTAttachment(screenshot: XCUIScreen.main.screenshot())
+        evidence.name = "WelcomeHome"
+        evidence.lifetime = .keepAlways
+        add(evidence)
+        explore.tap()
+        XCTAssertTrue(app.buttons["miniapp-view-toggle"].waitForExistence(timeout: 10))
+    }
+
+    func testLocalGenUiWithFixtureProvider() throws {
+        let app = try launchLocalGenUiFixture()
+        let draft = app.textViews["local-genui-composer"]
+        XCTAssertTrue(draft.waitForExistence(timeout: 10))
+        draft.tap()
+        draft.typeText("Create a focus timer")
+        app.buttons["发送"].tap()
+
+        let appBody = app.webViews.staticTexts["三端创作核对"].firstMatch
+        XCTAssertTrue(appBody.waitForExistence(timeout: 30), "The native document must render the tool result.")
+        let actions = app.buttons["小应用操作"]
+        XCTAssertTrue(actions.waitForExistence(timeout: 12), "The local renderer must verify the final document.")
+        XCTAssertTrue(app.webViews.staticTexts["同一份 OpenUI 文档"].exists)
+        let evidence = XCTAttachment(screenshot: XCUIScreen.main.screenshot())
+        evidence.name = "LocalGenUI-GeneratedDocument"
+        evidence.lifetime = .keepAlways
+        add(evidence)
+
+        actions.tap()
+        app.buttons["添加到小应用"].tap()
+        app.buttons["返回"].firstMatch.tap()
+        XCTAssertTrue(app.buttons["三端创作核对"].waitForExistence(timeout: 10))
+    }
+
+    func testLocalGenUiTranscriptCardsTimesAndCopyFormats() throws {
+        let app = try launchLocalGenUiFixture()
+        let input = app.textViews["local-genui-composer"]
+        XCTAssertTrue(input.waitForExistence(timeout: 10))
+        input.tap()
+        input.typeText("TranscriptParityFixture")
+        app.buttons["发送"].tap()
+
+        let appMenu = app.buttons["小应用操作"]
+        XCTAssertTrue(appMenu.waitForExistence(timeout: 30))
+        app.buttons["返回"].firstMatch.tap()
+        let card = app.buttons["三端会话卡片核对"]
+        XCTAssertTrue(card.waitForExistence(timeout: 10))
+        XCTAssertEqual(card.value as? String, "可以使用")
+        XCTAssertEqual(app.staticTexts.matching(identifier: "local-genui-message-time").count, 2)
+        let transcript = XCTAttachment(screenshot: XCUIScreen.main.screenshot())
+        transcript.name = "GenUI-Transcript"
+        transcript.lifetime = .keepAlways
+        add(transcript)
+
+        let copy = app.buttons["local-genui-message-copy"].firstMatch
+        copy.tap()
+        XCTAssertTrue(app.buttons["复制（富文本）"].exists)
+        XCTAssertTrue(app.buttons["复制纯文本"].exists)
+        let markdown = app.buttons["复制 Markdown"]
+        XCTAssertTrue(markdown.exists)
+        let menu = XCTAttachment(screenshot: XCUIScreen.main.screenshot())
+        menu.name = "GenUI-CopyFormats"
+        menu.lifetime = .keepAlways
+        add(menu)
+        markdown.tap()
+        card.tap()
+        XCTAssertTrue(appMenu.waitForExistence(timeout: 10))
+    }
+
+    func testLocalGenUiLongMessagePreservesDraftAndTranscriptPosition() throws {
+        let app = try launchLocalGenUiFixture()
+        let input = app.textViews["local-genui-composer"]
+        let transcript = app.scrollViews["local-genui-transcript"]
+        let sent = "LongMessageParityFixture "
+            + String(repeating: "Keep this exact wording for the local conversation. ", count: 10)
+            + "LongMessageEnd"
+        XCTAssertTrue(input.waitForExistence(timeout: 10))
+        input.tap()
+        input.typeText(sent)
+        XCTAssertEqual(input.value as? String, sent)
+        app.buttons["发送"].tap()
+        XCTAssertTrue(app.buttons["小应用操作"].waitForExistence(timeout: 30))
+        app.buttons["返回"].firstMatch.tap()
+
+        input.tap()
+        input.typeText("DraftBeforeFullText")
+        let keyboard = app.keyboards.firstMatch
+        if keyboard.exists {
+            let start = transcript.coordinate(withNormalizedOffset: CGVector(dx: 0.38, dy: 0.32))
+            let end = app.coordinate(withNormalizedOffset: CGVector(dx: 0.38, dy: 0.86))
+            start.press(forDuration: 0.08, thenDragTo: end)
+            let gone = NSPredicate { _, _ in !keyboard.exists }
+            XCTAssertEqual(XCTWaiter.wait(for: [XCTNSPredicateExpectation(predicate: gone, object: nil)], timeout: 5), .completed)
+        }
+        let preview = app.staticTexts["local-genui-truncated-message"].firstMatch
+        let link = app.links["全文"].firstMatch
+        for _ in 0..<8 {
+            if link.isHittable && link.frame.maxY < input.frame.minY { break }
+            transcript.swipeDown()
+        }
+        XCTAssertTrue(preview.isHittable)
+        XCTAssertFalse(preview.label.contains("LongMessageEnd"))
+        XCTAssertTrue(link.isHittable)
+        XCTAssertLessThan(link.frame.maxY, input.frame.minY)
+        let before = preview.frame
+        let shortened = XCTAttachment(screenshot: XCUIScreen.main.screenshot())
+        shortened.name = "GenUI-LongMessagePreview"
+        shortened.lifetime = .keepAlways
+        add(shortened)
+
+        link.tap()
+        let fullText = app.staticTexts["local-genui-full-text-content"]
+        XCTAssertTrue(fullText.waitForExistence(timeout: 10))
+        XCTAssertEqual(fullText.label, sent)
+        let sheet = XCTAttachment(screenshot: XCUIScreen.main.screenshot())
+        sheet.name = "GenUI-FullMessage"
+        sheet.lifetime = .keepAlways
+        add(sheet)
+        app.buttons["关闭"].firstMatch.tap()
+        XCTAssertTrue(preview.waitForExistence(timeout: 10))
+        XCTAssertEqual(preview.frame.minY, before.minY, accuracy: 40)
+        XCTAssertEqual(input.value as? String, "DraftBeforeFullText")
+    }
+
+    func testLocalGenUiStreamingPreservesReadingPositionThenFollowsNewTurn() throws {
+        let app = try launchLocalGenUiFixture()
+        let input = app.textViews["local-genui-composer"]
+        let transcript = app.scrollViews["local-genui-transcript"]
+        let send = app.buttons["发送"]
+        let stop = app.buttons["停止"]
+        let oldestPrompt = "ScrollFollowSeed original reading position"
+        let oldest = app.staticTexts[oldestPrompt]
+        let seedTail = app.staticTexts["ScrollSeedTail"]
+        let streamTail = app.staticTexts["ScrollStreamTail"]
+        XCTAssertTrue(input.waitForExistence(timeout: 10))
+
+        func submit(_ text: String) {
+            input.tap()
+            input.typeText(text)
+            send.tap()
+        }
+
+        func visible(_ element: XCUIElement) -> Bool {
+            element.isHittable && element.frame.maxY < input.frame.minY &&
+                element.frame.minY > transcript.frame.minY
+        }
+
+        func waitUntilVisible(_ element: XCUIElement) {
+            let predicate = NSPredicate { _, _ in visible(element) }
+            XCTAssertEqual(XCTWaiter.wait(for: [XCTNSPredicateExpectation(predicate: predicate, object: nil)],
+                                          timeout: 10), .completed)
+        }
+
+        submit(oldestPrompt)
+        waitUntilVisible(seedTail)
+        XCTAssertFalse(visible(oldest))
+
+        submit("ScrollFollowStreamFixture")
+        XCTAssertTrue(stop.waitForExistence(timeout: 5))
+        for _ in 0..<6 {
+            if visible(oldest) { break }
+            transcript.swipeDown()
+        }
+        XCTAssertTrue(visible(oldest))
+        XCTAssertTrue(stop.exists, "The transcript must be scrolled before the reply finishes.")
+        let position = oldest.frame.minY
+        XCTAssertTrue(send.waitForExistence(timeout: 25))
+        XCTAssertTrue(visible(oldest))
+        XCTAssertEqual(oldest.frame.minY, position, accuracy: 30)
+        XCTAssertFalse(visible(streamTail))
+
+        submit("ScrollFollowResume")
+        waitUntilVisible(app.staticTexts["ScrollResumeTail"])
+        XCTAssertFalse(visible(oldest))
+    }
+
+    func testMissingGeneratedMiniAppShortcutShowsUnavailablePage() throws {
+        guard #available(iOS 16.4, *) else { throw XCTSkip("URL launch requires iOS 16.4.") }
+        let app = XCUIApplication(bundleIdentifier: "com.openbitfun.mobile.ios")
+        app.launchArguments = ["--harness-preview", "--drawer", "--simplified-chinese"]
+        app.launchMobileReady()
+        let missing = URL(string: "openbitfun://miniapp/local-genui:00000000-0000-4000-8000-f00000000001")!
+        app.open(missing)
+
+        let status = app.staticTexts["local-genui-app-status"]
+        XCTAssertTrue(status.waitForExistence(timeout: 10))
+        XCTAssertEqual(status.label, "找不到这个应用了。")
+        XCTAssertFalse(app.webViews.firstMatch.exists)
+        XCTAssertFalse(app.buttons["小应用操作"].exists)
+        let evidence = XCTAttachment(screenshot: XCUIScreen.main.screenshot())
+        evidence.name = "MissingGeneratedMiniAppShortcut"
+        evidence.lifetime = .keepAlways
+        add(evidence)
+
+        app.buttons["返回"].tap()
+        XCTAssertTrue(status.waitForNonExistence(timeout: 5))
+        XCTAssertFalse(app.buttons["miniapp-view-toggle"].exists)
+    }
+
+    func testLocalGenUiGalleryReturnsToItsOwningConversation() throws {
+        let app = try launchLocalGenUiFixture()
+        let input = app.textViews["local-genui-composer"]
+        XCTAssertTrue(input.waitForExistence(timeout: 10))
+        input.tap()
+        input.typeText("GalleryReturnParity")
+        app.buttons["发送"].tap()
+
+        let actions = app.buttons["小应用操作"]
+        XCTAssertTrue(actions.waitForExistence(timeout: 30))
+        actions.tap()
+        app.buttons["添加到小应用"].tap()
+        for _ in 0..<3 { app.buttons["返回"].firstMatch.tap() }
+
+        let sidebarEntry = app.buttons["小应用"].firstMatch
+        if !sidebarEntry.isHittable { app.buttons["展开侧边栏"].firstMatch.tap() }
+        XCTAssertTrue(sidebarEntry.waitForExistence(timeout: 10))
+        sidebarEntry.tap()
+        let toggle = app.buttons["miniapp-view-toggle"]
+        XCTAssertTrue(toggle.waitForExistence(timeout: 10))
+        if toggle.label == "切换为列表" { toggle.tap() }
+        let card = app.buttons.matching(NSPredicate(format:
+            "identifier BEGINSWITH %@ AND label CONTAINS %@", "miniapp:", "三端应用馆会话核对")).firstMatch
+        for _ in 0..<6 {
+            if card.isHittable { break }
+            app.scrollViews.firstMatch.swipeUp()
+        }
+        XCTAssertTrue(card.isHittable)
+        card.tap()
+        XCTAssertTrue(actions.waitForExistence(timeout: 15))
+        actions.tap()
+        app.buttons["对话"].tap()
+        XCTAssertTrue(app.staticTexts["GalleryReturnParity"].waitForExistence(timeout: 10))
+        XCTAssertTrue(input.exists)
+    }
+
+    func testLocalGenUiGalleryUpdatesCoverAfterEditingFromGallery() throws {
+        let app = try launchLocalGenUiFixture()
+        let fixtureID = String(UUID().uuidString.prefix(6))
+        let title = "三端封面核对 \(fixtureID)"
+        let input = app.textViews["local-genui-composer"]
+        let actions = app.buttons["小应用操作"]
+
+        func submit(_ operation: String, content: String) {
+            XCTAssertTrue(input.waitForExistence(timeout: 10))
+            input.tap()
+            input.typeText("ThumbnailParity\(operation)\(fixtureID)")
+            app.buttons["发送"].tap()
+            XCTAssertTrue(actions.waitForExistence(timeout: 30))
+            XCTAssertTrue(app.webViews.firstMatch.staticTexts[content].waitForExistence(timeout: 10))
+        }
+
+        func back(times: Int) {
+            for _ in 0..<times { app.buttons["返回"].firstMatch.tap() }
+        }
+
+        submit("Create", content: "初始封面")
+        actions.tap()
+        app.buttons["添加到小应用"].tap()
+        back(times: 3)
+
+        let entry = app.buttons["小应用"].firstMatch
+        if !entry.isHittable { app.buttons["展开侧边栏"].firstMatch.tap() }
+        entry.tap()
+        let toggle = app.buttons["miniapp-view-toggle"]
+        XCTAssertTrue(toggle.waitForExistence(timeout: 10))
+        if toggle.label == "切换为列表" { toggle.tap() }
+        let card = app.buttons.matching(NSPredicate(format:
+            "identifier BEGINSWITH %@ AND label CONTAINS %@", "miniapp:", title)).firstMatch
+        for _ in 0..<10 {
+            if card.isHittable { break }
+            app.scrollViews.firstMatch.swipeUp()
+        }
+        XCTAssertTrue(card.isHittable)
+        let before = card.screenshot()
+        card.tap()
+        XCTAssertTrue(actions.waitForExistence(timeout: 15))
+        actions.tap()
+        app.buttons["对话"].tap()
+
+        submit("Update", content: "更新后的封面")
+        back(times: 3)
+        XCTAssertTrue(card.waitForExistence(timeout: 10))
+        let updated = XCTNSPredicateExpectation(predicate: NSPredicate { _, _ in
+            card.isHittable && card.screenshot().pngRepresentation != before.pngRepresentation
+        }, object: nil)
+        XCTAssertEqual(XCTWaiter.wait(for: [updated], timeout: 10), .completed)
+        for (name, screenshot) in [("GenUiGalleryCoverBefore", before), ("GenUiGalleryCoverAfter", card.screenshot())] {
+            let evidence = XCTAttachment(screenshot: screenshot)
+            evidence.name = name
+            evidence.lifetime = .keepAlways
+            add(evidence)
+        }
+    }
+
+    func testLocalGenUiGalleryUsesAdditionOrderAfterRestart() throws {
+        let app = try launchLocalGenUiFixture()
+        let firstID = String(UUID().uuidString.prefix(6))
+        let secondID = String(UUID().uuidString.prefix(6))
+        let firstTitle = "三端封面核对 \(firstID)"
+        let secondTitle = "三端封面核对 \(secondID)"
+        let composer = app.textViews["local-genui-composer"]
+        let actions = app.buttons["小应用操作"]
+        let back = app.buttons["返回"].firstMatch
+
+        func create(_ id: String) {
+            XCTAssertTrue(composer.waitForExistence(timeout: 10))
+            composer.tap()
+            composer.typeText("ThumbnailParityCreate\(id)")
+            app.buttons["发送"].tap()
+            XCTAssertTrue(actions.waitForExistence(timeout: 30))
+        }
+
+        func addToGallery() {
+            actions.tap()
+            app.buttons["添加到小应用"].tap()
+        }
+
+        func verifyGallery(_ screenshotName: String) {
+            let entry = app.buttons["小应用"].firstMatch
+            if !entry.isHittable { app.buttons["展开侧边栏"].firstMatch.tap() }
+            XCTAssertTrue(entry.waitForExistence(timeout: 10))
+            entry.tap()
+            let toggle = app.buttons["miniapp-view-toggle"]
+            XCTAssertTrue(toggle.waitForExistence(timeout: 10))
+            if toggle.label == "切换为列表" { toggle.tap() }
+
+            func card(_ title: String) -> XCUIElement {
+                app.buttons.matching(NSPredicate(format:
+                    "identifier BEGINSWITH %@ AND label CONTAINS %@", "miniapp:", title)).firstMatch
+            }
+            let first = card(firstTitle)
+            let second = card(secondTitle)
+            for _ in 0..<5 {
+                if first.isHittable && second.isHittable { break }
+                app.scrollViews.firstMatch.swipeUp()
+            }
+            XCTAssertTrue(first.isHittable && second.isHittable)
+            XCTAssertTrue(first.label.contains("AI 生成的小应用"))
+            XCTAssertTrue(second.label.contains("AI 生成的小应用"))
+            let firstRow = first.frame.minY
+            let secondRow = second.frame.minY
+            XCTAssertTrue(firstRow < secondRow || (firstRow == secondRow && first.frame.minX < second.frame.minX))
+            let evidence = XCTAttachment(screenshot: XCUIScreen.main.screenshot())
+            evidence.name = screenshotName
+            evidence.lifetime = .keepAlways
+            add(evidence)
+        }
+
+        create(firstID)
+        back.tap()
+        back.tap()
+        app.buttons["local-genui-new-session"].tap()
+        create(secondID)
+        addToGallery()
+        back.tap()
+        back.tap()
+
+        let olderSession = app.buttons.matching(NSPredicate(format: "label CONTAINS %@", firstTitle)).firstMatch
+        XCTAssertTrue(olderSession.waitForExistence(timeout: 10))
+        olderSession.tap()
+        let olderApp = app.buttons[firstTitle]
+        XCTAssertTrue(olderApp.waitForExistence(timeout: 10))
+        olderApp.tap()
+        XCTAssertTrue(actions.waitForExistence(timeout: 15))
+        addToGallery()
+        for _ in 0..<3 { back.tap() }
+        verifyGallery("GenUiGalleryAdditionOrder")
+
+        app.terminate()
+        app.launchMobileReady()
+        verifyGallery("GenUiGalleryAdditionOrderAfterRestart")
+    }
+
+    func testLocalGenUiCalendarActions() throws {
+        let app = try launchLocalGenUiFixture()
+        let draft = app.textViews["local-genui-composer"]
+        XCTAssertTrue(draft.waitForExistence(timeout: 10))
+        draft.tap()
+        draft.typeText("Verify calendar actions")
+        app.buttons["发送"].tap()
+
+        let web = app.webViews.firstMatch
+        XCTAssertTrue(app.buttons["小应用操作"].waitForExistence(timeout: 30))
+        let query = web.buttons["查询测试日程"]
+        XCTAssertTrue(query.waitForExistence(timeout: 10))
+        query.tap()
+        let springboard = XCUIApplication(bundleIdentifier: "com.apple.springboard")
+        let access = springboard.buttons.matching(NSPredicate(format: "label IN %@", ["Allow Full Access", "允许完全访问"])).firstMatch
+        let count = app.staticTexts.matching(NSPredicate(format: "label BEGINSWITH %@", "找到 ")).firstMatch
+        if !count.waitForExistence(timeout: 2), access.waitForExistence(timeout: 4) { access.tap() }
+        XCTAssertTrue(count.waitForExistence(timeout: 7))
+        let baseline = try XCTUnwrap(Int(String(count.label.filter(\.isNumber))))
+
+        let create = web.buttons["添加测试日程"]
+        XCTAssertTrue(create.waitForExistence(timeout: 10))
+        create.tap()
+
+        let created = app.staticTexts.matching(NSPredicate(format: "label BEGINSWITH %@", "已添加日程")).firstMatch
+        XCTAssertTrue(created.waitForExistence(timeout: 7), "Calendar access must result in a real saved event.")
+        let id = String(created.label.filter(\.isNumber))
+        XCTAssertFalse(id.isEmpty)
+        let field = web.textFields.firstMatch
+        XCTAssertTrue(field.waitForExistence(timeout: 5))
+        field.coordinate(withNormalizedOffset: CGVector(dx: 0.94, dy: 0.5)).tap()
+        field.typeText(XCUIKeyboardKey.delete.rawValue)
+        let cleared = XCTNSPredicateExpectation(predicate: NSPredicate(format: "value == %@", ""), object: field)
+        XCTAssertEqual(XCTWaiter.wait(for: [cleared], timeout: 4), .completed)
+        field.tap()
+        field.typeText(id)
+        XCTAssertEqual(field.value as? String, id)
+        web.staticTexts["三端日历核对"].firstMatch.tap()
+
+        web.buttons["更新测试日程"].tap()
+        XCTAssertTrue(app.staticTexts["已更新日程（编号 \(id)）"].waitForExistence(timeout: 5))
+        query.tap()
+        XCTAssertTrue(app.staticTexts["找到 \(baseline + 1) 个日程"].waitForExistence(timeout: 5))
+        let evidence = XCTAttachment(screenshot: XCUIScreen.main.screenshot())
+        evidence.name = "LocalGenUI-CalendarCount"
+        evidence.lifetime = .keepAlways
+        add(evidence)
+
+        web.buttons["删除测试日程"].tap()
+        XCTAssertTrue(app.staticTexts["已删除日程（编号 \(id)）"].waitForExistence(timeout: 5))
+        query.tap()
+        XCTAssertTrue(app.staticTexts["找到 \(baseline) 个日程"].waitForExistence(timeout: 5))
+    }
+
+    func testLocalGenUiHostedImages() throws {
+        let app = try launchLocalGenUiFixture()
+        let draft = app.textViews["local-genui-composer"]
+        XCTAssertTrue(draft.waitForExistence(timeout: 10))
+        draft.tap()
+        draft.typeText("PhotoParityFixture")
+        app.buttons["发送"].tap()
+
+        let web = app.webViews.firstMatch
+        XCTAssertTrue(app.buttons["小应用操作"].waitForExistence(timeout: 30))
+        XCTAssertTrue(web.staticTexts["三端图片核对"].firstMatch.exists)
+        XCTAssertTrue(web.images["Tangerine"].firstMatch.waitForExistence(timeout: 24))
+        let evidence = XCTAttachment(screenshot: XCUIScreen.main.screenshot())
+        evidence.name = "LocalGenUI-HostedImages"
+        evidence.lifetime = .keepAlways
+        add(evidence)
+    }
+
+    func testLocalGenUiAnimatedCover() throws {
+        let app = try launchLocalGenUiFixture()
+        let draft = app.textViews["local-genui-composer"]
+        XCTAssertTrue(draft.waitForExistence(timeout: 10))
+        draft.tap()
+        draft.typeText("MotionParityFixture")
+        app.buttons["发送"].tap()
+
+        XCTAssertTrue(app.buttons["小应用操作"].waitForExistence(timeout: 30))
+        XCTAssertTrue(app.webViews.staticTexts["三端动效核对"].firstMatch.exists)
+    }
+
+    func testLocalGenUiGestureScoreboardWithoutCamera() throws {
+        let app = try launchLocalGenUiFixture()
+        let draft = app.textViews["local-genui-composer"]
+        XCTAssertTrue(draft.waitForExistence(timeout: 10))
+        draft.tap()
+        draft.typeText("GestureParityFixture")
+        app.buttons["发送"].tap()
+
+        let web = app.webViews.firstMatch
+        XCTAssertTrue(app.buttons["小应用操作"].waitForExistence(timeout: 30))
+        let toggle = web.switches["开启手势记分"]
+        XCTAssertTrue(toggle.waitForExistence(timeout: 10))
+        toggle.tap()
+        let unavailable = web.switches["此设备不支持手势识别"]
+        XCTAssertTrue(unavailable.waitForExistence(timeout: 10))
+        let manual = web.buttons["乙队 加 1 分"]
+        XCTAssertTrue(manual.exists)
+        manual.tap()
+        XCTAssertTrue(web.staticTexts["1"].firstMatch.waitForExistence(timeout: 5))
+        let evidence = XCTAttachment(screenshot: XCUIScreen.main.screenshot())
+        evidence.name = "LocalGenUI-GestureScoreboardWithoutCamera"
+        evidence.lifetime = .keepAlways
+        add(evidence)
+
+        unavailable.tap()
+        XCTAssertTrue(toggle.waitForExistence(timeout: 5))
+        XCTAssertFalse(app.staticTexts["摄像头已开"].exists)
+    }
+
+    func testLocalGenUiCrossDeviceImage() throws {
+        continueAfterFailure = false
+        let app = try launchLocalGenUiFixture()
+        let draft = app.textViews["local-genui-composer"]
+        XCTAssertTrue(draft.waitForExistence(timeout: 10))
+        draft.tap()
+        draft.typeText("DeviceImageParityFixture")
+        app.buttons["发送"].tap()
+        let web = app.webViews.firstMatch
+        XCTAssertTrue(app.buttons["小应用操作"].waitForExistence(timeout: 30))
+
+        let imageKind = UserDefaults.standard.string(forKey: "OpenBitFunGenUiImageKind") ??
+            ProcessInfo.processInfo.environment["OPENBITFUN_GENUI_IMAGE_KIND"] ??
+            ProcessInfo.processInfo.environment["TEST_RUNNER_OPENBITFUN_GENUI_IMAGE_KIND"] ?? "gallery"
+        let sourceButton = switch imageKind {
+        case "photo": web.buttons["从其他设备拍照"]
+        case "scan": web.buttons["从其他设备扫描文档"]
+        default: web.buttons["选择其他设备的图片"]
+        }
+        XCTAssertTrue(sourceButton.waitForExistence(timeout: 10))
+        sourceButton.tap()
+        let nearby = ProcessInfo.processInfo.environment["OPENBITFUN_GENUI_LIVE_NEARBY"] == "1"
+        if nearby {
+            let peer = app.buttons["genui-nearby-device"].firstMatch
+            XCTAssertTrue(peer.waitForExistence(timeout: 60))
+            peer.tap()
+            let verification = app.staticTexts["genui-nearby-verification"]
+            XCTAssertTrue(verification.waitForExistence(timeout: 12))
+            let comparison = XCTAttachment(screenshot: XCUIScreen.main.screenshot())
+            comparison.name = "GenUiNearbyRequester"
+            comparison.lifetime = .keepAlways
+            add(comparison)
+            app.buttons["验证码一致"].tap()
+        } else {
+            let fallback = app.buttons["使用连接码"]
+            XCTAssertTrue(fallback.waitForExistence(timeout: 12))
+            fallback.tap()
+        }
+        let copy = app.buttons["复制连接码"]
+        if !nearby { XCTAssertTrue(copy.waitForExistence(timeout: 12)) }
+        let transferred = web.images["从其他设备接收的图片"]
+
+        if nearby || ProcessInfo.processInfo.environment["OPENBITFUN_GENUI_LIVE_IMAGE_TRANSFER"] == "1" {
+            if !nearby { copy.tap() }
+            if nearby {
+                let failed = app.staticTexts["无法连接这台设备，请重试。"]
+                let outcome = XCTNSPredicateExpectation(
+                    predicate: NSPredicate { _, _ in transferred.exists || failed.exists }, object: nil
+                )
+                XCTAssertEqual(XCTWaiter.wait(for: [outcome], timeout: 100), .completed)
+                XCTAssertTrue(transferred.exists, "The nearby sender must deliver its photo.")
+            } else {
+                XCTAssertTrue(transferred.waitForExistence(timeout: 100))
+            }
+            let dismissed = XCTNSPredicateExpectation(
+                predicate: NSPredicate(format: "exists == false"), object: app.staticTexts["genui-image-receive"]
+            )
+            XCTAssertEqual(XCTWaiter.wait(for: [dismissed], timeout: 5), .completed)
+
+            app.buttons["返回"].firstMatch.tap()
+            let reopen = app.buttons["三端取材核对"].firstMatch
+            XCTAssertTrue(reopen.waitForExistence(timeout: 10))
+            reopen.tap()
+            XCTAssertTrue(transferred.waitForExistence(timeout: 10), "The saved image must reopen with the document.")
+        } else {
+            app.buttons["关闭"].firstMatch.tap()
+            XCTAssertTrue(sourceButton.waitForExistence(timeout: 5))
+        }
+        let attachment = XCTAttachment(screenshot: XCUIScreen.main.screenshot())
+        attachment.name = "LocalGenUI-CrossDeviceImage"
+        attachment.lifetime = .keepAlways
+        add(attachment)
+    }
+
+    func testLocalGenUiCrossDevicePhoto() throws {
+        UserDefaults.standard.set("photo", forKey: "OpenBitFunGenUiImageKind")
+        defer { UserDefaults.standard.removeObject(forKey: "OpenBitFunGenUiImageKind") }
+        try testLocalGenUiCrossDeviceImage()
+    }
+
+    func testLocalGenUiCrossDeviceScan() throws {
+        UserDefaults.standard.set("scan", forKey: "OpenBitFunGenUiImageKind")
+        defer { UserDefaults.standard.removeObject(forKey: "OpenBitFunGenUiImageKind") }
+        try testLocalGenUiCrossDeviceImage()
+    }
+
+    func testLocalGenUiNearbySender() throws {
+        continueAfterFailure = false
+        guard ProcessInfo.processInfo.environment["OPENBITFUN_GENUI_LIVE_NEARBY"] == "1" else {
+            throw XCTSkip("Requires a second simulator running the GenUI image request.")
+        }
+        let app = XCUIApplication(bundleIdentifier: "com.openbitfun.mobile.ios")
+        app.launchArguments = ["--harness-preview", "--drawer", "--simplified-chinese"]
+        app.launchMobileReady()
+        let entry = app.buttons["sidebar-local-bot"]
+        XCTAssertTrue(entry.waitForExistence(timeout: 10))
+        entry.tap()
+        app.buttons["更多"].tap()
+        app.buttons["发送图片到另一台设备"].tap()
+        XCTAssertTrue(app.staticTexts["正在等待附近设备发来取材请求。"].waitForExistence(timeout: 12))
+        let verification = app.staticTexts["genui-nearby-verification"]
+        XCTAssertTrue(verification.waitForExistence(timeout: 100))
+        let comparison = XCTAttachment(screenshot: XCUIScreen.main.screenshot())
+        comparison.name = "GenUiNearbySender"
+        comparison.lifetime = .keepAlways
+        add(comparison)
+        app.buttons["验证码一致"].tap()
+        let gallery = app.buttons["从图库选择"]
+        XCTAssertTrue(gallery.waitForExistence(timeout: 12))
+        gallery.tap()
+        let photo = app.images.matching(identifier: "PXGGridLayout-Info").firstMatch
+        XCTAssertTrue(photo.waitForExistence(timeout: 15))
+        photo.tap()
+        let send = app.buttons["发送选中的图片"]
+        XCTAssertTrue(send.waitForExistence(timeout: 12))
+        send.tap()
+        XCTAssertTrue(app.staticTexts["图片已送达。"].waitForExistence(timeout: 15))
+        XCTAssertTrue(app.staticTexts["正在等待附近设备发来取材请求。"].waitForExistence(timeout: 12))
+        let delivered = XCTAttachment(screenshot: XCUIScreen.main.screenshot())
+        delivered.name = "GenUiNearbyDelivered"
+        delivered.lifetime = .keepAlways
+        add(delivered)
+    }
+
+    func testLocalGenUiComposerKeepsTheKeyboardDuringModelSelection() throws {
+        let app = try launchLocalGenUiFixture()
+        let input = app.textViews["local-genui-composer"]
+        let selector = app.buttons["local-genui-model-control"]
+        let transcript = app.scrollViews["local-genui-transcript"]
+        let keyboard = app.keyboards.firstMatch
+        let manage = app.buttons["管理模型"]
+        let draft = "ComposerParityDraft\nKeep the second line"
+        XCTAssertTrue(input.waitForExistence(timeout: 10))
+        let restingHeight = input.frame.height
+        let restingRowDistance = selector.frame.minY - input.frame.minY
+
+        func capture(_ name: String) {
+            let attachment = XCTAttachment(screenshot: XCUIScreen.main.screenshot())
+            attachment.name = name
+            attachment.lifetime = .keepAlways
+            add(attachment)
+        }
+
+        func dismissKeyboard() {
+            let start = transcript.coordinate(withNormalizedOffset: CGVector(dx: 0.38, dy: 0.32))
+            let end = app.coordinate(withNormalizedOffset: CGVector(dx: 0.38, dy: 0.86))
+            start.press(forDuration: 0.08, thenDragTo: end)
+            let dismissed = NSPredicate { _, _ in !keyboard.exists }
+            XCTAssertEqual(XCTWaiter.wait(for: [XCTNSPredicateExpectation(predicate: dismissed, object: nil)],
+                                          timeout: 8), .completed)
+        }
+
+        capture("GenUI-ComposerResting")
+        input.tap()
+        XCTAssertTrue(keyboard.waitForExistence(timeout: 5))
+        input.typeText("ComposerParityDraft")
+        XCTAssertGreaterThan(selector.frame.minY - input.frame.minY, restingRowDistance + 8)
+        dismissKeyboard()
+        XCTAssertEqual(selector.frame.minY - input.frame.minY, restingRowDistance, accuracy: 4)
+        XCTAssertEqual(input.value as? String, "ComposerParityDraft")
+        input.coordinate(withNormalizedOffset: CGVector(dx: 0.88, dy: 0.45)).tap()
+        input.typeText("\nKeep the second line")
+        XCTAssertEqual(input.value as? String, draft)
+        let editingHeight = input.frame.height
+        XCTAssertGreaterThan(editingHeight, restingHeight + 10)
+        XCTAssertEqual(editingHeight, 66, accuracy: 2)
+
+        let selectedName = selector.label
+        selector.tap()
+        XCTAssertTrue(manage.waitForExistence(timeout: 8))
+        XCTAssertTrue(keyboard.exists)
+        XCTAssertLessThan(manage.frame.maxY, selector.frame.minY)
+        capture("GenUI-ComposerModelMenu")
+        let choices = app.buttons.matching(identifier: "local-genui-model-option").allElementsBoundByIndex
+        let first = try XCTUnwrap(choices.first)
+        XCTAssertEqual(first.label, selectedName)
+        let choice = choices.dropFirst().first { $0.label != selectedName } ?? first
+        let nextName = choice.label
+        choice.tap()
+        XCTAssertFalse(manage.exists)
+        XCTAssertTrue(keyboard.exists)
+        XCTAssertEqual(input.value as? String, draft)
+        XCTAssertEqual(selector.label, nextName)
+
+        dismissKeyboard()
+        XCTAssertEqual(input.value as? String, draft)
+        XCTAssertEqual(input.frame.height, editingHeight, accuracy: 4)
+        capture("GenUI-ComposerMultilineResting")
+
+        app.buttons["发送"].tap()
+        XCTAssertTrue(app.buttons["小应用操作"].waitForExistence(timeout: 25))
+    }
+
+    func testLocalGenUiTextReplyKeepsTheEditorFocusedAfterAcceptingTheDraft() throws {
+        let app = try launchLocalGenUiFixture()
+        let input = app.textViews["local-genui-composer"]
+        let keyboard = app.keyboards.firstMatch
+        let send = app.buttons["发送"]
+        XCTAssertTrue(input.waitForExistence(timeout: 10))
+        input.tap()
+        XCTAssertTrue(keyboard.waitForExistence(timeout: 5))
+        input.typeText("ScrollFollowResume")
+        send.tap()
+
+        XCTAssertTrue(app.staticTexts["ScrollResumeTail"].waitForExistence(timeout: 20))
+        XCTAssertTrue(keyboard.exists)
+        XCTAssertEqual(input.value as? String ?? "", "")
+        let evidence = XCTAttachment(screenshot: XCUIScreen.main.screenshot())
+        evidence.name = "GenUI-TextReplyContinuesEditing"
+        evidence.lifetime = .keepAlways
+        add(evidence)
+
+        let nextDraft = "Continue with a fresh draft\nLine 2\nLine 3\nLine 4\nLine 5\nLine 6"
+        input.typeText(nextDraft)
+        XCTAssertEqual(input.value as? String, nextDraft)
+        XCTAssertEqual(input.frame.height, 114, accuracy: 2)
+        let viewport = XCTAttachment(screenshot: XCUIScreen.main.screenshot())
+        viewport.name = "GenUI-ComposerFourLineViewport"
+        viewport.lifetime = .keepAlways
+        add(viewport)
+        send.tap()
+        XCTAssertTrue(app.buttons["小应用操作"].waitForExistence(timeout: 25))
+        XCTAssertFalse(keyboard.exists)
+    }
+
+    func testLocalGenUiModelPanelAdaptsWithoutLosingEditor() throws {
+        XCUIDevice.shared.orientation = .portrait
+        defer { XCUIDevice.shared.orientation = .portrait }
+        let app = try launchLocalGenUiFixture()
+        let endpoint = try XCTUnwrap(ProcessInfo.processInfo.environment["OPENBITFUN_GENUI_FIXTURE_URL"])
+        let compact = app.staticTexts["local-genui-model-bottom-sheet"]
+        let centered = app.staticTexts["local-genui-model-centered"]
+        let isPad = UIDevice.current.userInterfaceIdiom == .pad
+        app.buttons["local-genui-model-control"].tap()
+        app.buttons["管理模型"].tap()
+        XCTAssertTrue((isPad ? centered : compact).waitForExistence(timeout: 8))
+        try openGenUiAddModel(app)
+
+        let display = app.textFields["genui-model-display"]
+        let address = app.textFields["genui-model-url"]
+        let model = app.textFields["genui-model-name"]
+        let key = app.secureTextFields["genui-model-key"]
+        let displayName = "Resize model probe"
+        let testKey = "local-fixture-key"
+        XCTAssertTrue(display.waitForExistence(timeout: 8))
+        display.tap()
+        display.typeText(displayName)
+        address.tap()
+        address.typeText(endpoint)
+        key.tap()
+        key.typeText(testKey)
+
+        let modelScroll = app.scrollViews["local-genui-model-scroll"]
+        let fetch = modelScroll.buttons["获取模型列表"]
+        if !fetch.isHittable { modelScroll.swipeUp() }
+        fetch.tap()
+        let choice = modelScroll.buttons["parity-vision"]
+        XCTAssertTrue(choice.waitForExistence(timeout: 15))
+        if !choice.isHittable { modelScroll.swipeUp() }
+        choice.tap()
+
+        func verifyEditor(_ header: XCUIElement, _ name: String) {
+            XCTAssertTrue(header.waitForExistence(timeout: 12))
+            XCTAssertEqual(header.label, "添加模型")
+            XCTAssertEqual(display.value as? String, displayName)
+            XCTAssertEqual(address.value as? String, endpoint)
+            XCTAssertEqual((key.value as? String)?.count, testKey.count)
+            XCTAssertEqual(model.value as? String, "parity-vision")
+            XCTAssertTrue(choice.exists)
+            let screenshot = XCTAttachment(screenshot: XCUIScreen.main.screenshot())
+            screenshot.name = name
+            screenshot.lifetime = .keepAlways
+            add(screenshot)
+        }
+
+        verifyEditor(isPad ? centered : compact, "GenUI-ModelEditor-Portrait")
+        XCUIDevice.shared.orientation = .landscapeLeft
+        let landscape = XCTNSPredicateExpectation(predicate: NSPredicate { _, _ in
+            app.frame.width > app.frame.height
+        }, object: nil)
+        XCTAssertEqual(XCTWaiter.wait(for: [landscape], timeout: 15), .completed)
+        verifyEditor(centered, "GenUI-ModelEditor-Landscape")
+        XCUIDevice.shared.orientation = .portrait
+        let portrait = XCTNSPredicateExpectation(predicate: NSPredicate { _, _ in
+            app.frame.height > app.frame.width
+        }, object: nil)
+        XCTAssertEqual(XCTWaiter.wait(for: [portrait], timeout: 15), .completed)
+        verifyEditor(isPad ? centered : compact, "GenUI-ModelEditor-Restored")
+
+        app.buttons["关闭"].tap()
+        XCTAssertEqual((isPad ? centered : compact).label, "管理模型")
+        XCTAssertFalse(app.staticTexts[displayName].exists)
+        try openGenUiAddModel(app)
+        XCTAssertNotEqual(display.value as? String, displayName)
+        XCTAssertFalse(choice.exists)
+    }
+
+    func testLocalGenUiModelSheetKeepsDraftAndUsesDiscoveredModel() throws {
+        let app = try launchLocalGenUiFixture()
+        let endpoint = try XCTUnwrap(ProcessInfo.processInfo.environment["OPENBITFUN_GENUI_FIXTURE_URL"])
+        let draft = app.textViews["local-genui-composer"]
+        XCTAssertTrue(draft.waitForExistence(timeout: 10))
+        draft.tap()
+        let draftMarker = "Keep the draft while changing models"
+        if (draft.value as? String)?.contains(draftMarker) != true {
+            draft.typeText(draftMarker)
+        }
+        let enteredDraft = try XCTUnwrap(draft.value as? String)
+        XCTAssertTrue(enteredDraft.contains(draftMarker))
+        let selector = app.buttons["local-genui-model-control"]
+        XCTAssertTrue(selector.waitForExistence(timeout: 10))
+        selector.tap()
+        app.buttons["管理模型"].tap()
+        XCTAssertTrue(app.staticTexts["管理模型"].waitForExistence(timeout: 8))
+        try openGenUiAddModel(app)
+
+        let display = app.textFields["genui-model-display"]
+        XCTAssertTrue(display.waitForExistence(timeout: 8))
+        display.tap()
+        display.typeText("Parity alternate")
+        let address = app.textFields["genui-model-url"]
+        address.tap()
+        address.typeText(endpoint)
+        let key = app.secureTextFields["genui-model-key"]
+        key.tap()
+        key.typeText("local-fixture-key")
+
+        let modelScroll = app.scrollViews["local-genui-model-scroll"]
+        let fetch = modelScroll.buttons["获取模型列表"]
+        if !fetch.isHittable { modelScroll.swipeUp() }
+        fetch.tap()
+        let choice = modelScroll.buttons["parity-fast"]
+        XCTAssertTrue(choice.waitForExistence(timeout: 15))
+        if !choice.isHittable { modelScroll.swipeUp() }
+        choice.tap()
+        let field = app.textFields["genui-model-name"]
+        XCTAssertEqual(field.value as? String, "parity-fast")
+        let save = modelScroll.buttons["保存"]
+        if !save.isHittable { modelScroll.swipeUp() }
+        save.tap()
+        XCTAssertTrue(app.staticTexts["当前使用"].waitForExistence(timeout: 10))
+        XCTAssertTrue(app.staticTexts["Parity alternate"].firstMatch.exists)
+
+        let list = XCTAttachment(screenshot: XCUIScreen.main.screenshot())
+        list.name = "LocalGenUI-ModelProfiles"
+        list.lifetime = .keepAlways
+        add(list)
+
+        let active = app.buttons["local-genui-active-profile"]
+        XCTAssertTrue(active.waitForExistence(timeout: 8))
+        active.tap()
+        XCTAssertTrue(app.staticTexts["编辑模型"].waitForExistence(timeout: 8))
+        fetch.tap()
+        XCTAssertTrue(choice.waitForExistence(timeout: 15))
+        XCTAssertEqual(field.value as? String, "parity-fast")
+        let editor = XCTAttachment(screenshot: XCUIScreen.main.screenshot())
+        editor.name = "LocalGenUI-ModelDiscovery"
+        editor.lifetime = .keepAlways
+        add(editor)
+        app.buttons["关闭"].tap()
+        XCTAssertTrue(app.staticTexts["管理模型"].waitForExistence(timeout: 8))
+        app.buttons["关闭"].tap()
+        XCTAssertTrue(selector.waitForExistence(timeout: 8))
+        XCTAssertEqual(selector.label, "parity-fast")
+        XCTAssertEqual(draft.value as? String, enteredDraft)
+
+        app.buttons["发送"].tap()
+        XCTAssertTrue(app.buttons["小应用操作"].waitForExistence(timeout: 30))
+        XCTAssertTrue(app.webViews.staticTexts["三端创作核对"].firstMatch.exists)
+    }
+
+    func testLocalGenUiCreationHistoryKeepsWorkingDraftAndSortsByActivity() throws {
+        let app = try launchLocalGenUiFixture()
+        let input = app.textViews["local-genui-composer"]
+        let newSession = app.buttons["local-genui-new-session"]
+        let rows = app.buttons.matching(identifier: "local-genui-session")
+        let alpha = rows.matching(NSPredicate(format: "label CONTAINS %@", "三端记录甲")).firstMatch
+        let beta = rows.matching(NSPredicate(format: "label CONTAINS %@", "三端记录乙")).firstMatch
+        let back = app.buttons["返回"].firstMatch
+        func send(_ prompt: String) {
+            XCTAssertTrue(input.waitForExistence(timeout: 10))
+            input.tap()
+            input.typeText(prompt)
+            app.buttons["发送"].tap()
+        }
+        func closeAppToHistory() {
+            XCTAssertTrue(app.buttons["小应用操作"].waitForExistence(timeout: 30))
+            back.tap()
+            XCTAssertTrue(input.waitForExistence(timeout: 10))
+            back.tap()
+            XCTAssertTrue(newSession.waitForExistence(timeout: 10))
+        }
+
+        input.tap()
+        input.typeText("Spare draft")
+        back.tap()
+        XCTAssertTrue(newSession.waitForExistence(timeout: 10))
+        let baseline = rows.count
+        newSession.tap()
+        XCTAssertEqual(input.value as? String, "Spare draft")
+        input.tap()
+        input.typeText(String(repeating: XCUIKeyboardKey.delete.rawValue, count: "Spare draft".count))
+        back.tap()
+        XCTAssertTrue(newSession.waitForExistence(timeout: 10))
+        XCTAssertEqual(rows.count, baseline)
+
+        newSession.tap()
+        send("HistoryParityAlpha")
+        closeAppToHistory()
+        XCTAssertTrue(alpha.waitForExistence(timeout: 10))
+        newSession.tap()
+        send("HistoryParityBeta")
+        closeAppToHistory()
+        XCTAssertTrue(beta.waitForExistence(timeout: 10))
+        XCTAssertLessThan(beta.frame.minY, alpha.frame.minY)
+        XCTAssertNotNil(alpha.label.range(of: #"\d{4}.*\d{2}:\d{2}"#, options: .regularExpression))
+
+        alpha.tap()
+        send("HistoryParityAlphaFollowUp")
+        back.tap()
+        XCTAssertTrue(newSession.waitForExistence(timeout: 10))
+        XCTAssertLessThan(alpha.frame.minY, beta.frame.minY)
+        XCTAssertTrue(newSession.wait(for: \.isEnabled, toEqual: true, timeout: 20))
+        let history = XCTAttachment(screenshot: XCUIScreen.main.screenshot())
+        history.name = "LocalGenUI-CreationHistory"
+        history.lifetime = .keepAlways
+        add(history)
+
+        alpha.tap()
+        XCTAssertTrue(input.waitForExistence(timeout: 10))
+        XCTAssertEqual(app.staticTexts.matching(identifier: "小应用已准备好。").count, 2)
+        back.tap()
+        XCTAssertTrue(newSession.waitForExistence(timeout: 10))
+
+        beta.press(forDuration: 0.8)
+        let delete = app.buttons["local-genui-delete-session"]
+        XCTAssertTrue(delete.waitForExistence(timeout: 8))
+        let menu = XCTAttachment(screenshot: XCUIScreen.main.screenshot())
+        menu.name = "LocalGenUI-HistoryActions"
+        menu.lifetime = .keepAlways
+        add(menu)
+        delete.tap()
+        XCTAssertTrue(beta.wait(for: \.exists, toEqual: false, timeout: 10))
+        XCTAssertTrue(alpha.exists)
+    }
+
+    func testLocalGenUiFirstValidationFailureCanBeReopenedAndCreatedAgain() throws {
+        let app = try launchLocalGenUiFixture()
+        let input = app.textViews["local-genui-composer"]
+        let send = app.buttons["发送"]
+        let actions = app.buttons["小应用操作"]
+        let failure = app.staticTexts["没有生成成功"]
+        let title = "三端首轮失败核对"
+        let failedCards = app.buttons.matching(NSPredicate(format: "label == %@ AND value == %@", title, "没有生成成功"))
+        let failedCard = failedCards.firstMatch
+        let repairNotices = app.staticTexts.matching(identifier: "刚才的应用有点问题，正在自动修正")
+        let readyCard = app.buttons.matching(NSPredicate(format: "label == %@ AND value == %@", title, "可以使用")).firstMatch
+
+        XCTAssertTrue(input.waitForExistence(timeout: 10))
+        input.tap()
+        input.typeText("FirstFailureParity")
+        send.tap()
+        XCTAssertTrue(failure.waitForExistence(timeout: 40))
+        XCTAssertLessThan(failure.frame.midY, app.frame.height * 0.2)
+        XCTAssertEqual(failure.frame.midY, app.buttons["返回"].firstMatch.frame.midY, accuracy: 8)
+        XCTAssertFalse(actions.exists)
+        XCTAssertFalse(app.webViews.firstMatch.exists)
+        let rejected = XCTAttachment(screenshot: XCUIScreen.main.screenshot())
+        rejected.name = "GenUI-FirstValidationFailure"
+        rejected.lifetime = .keepAlways
+        add(rejected)
+
+        app.buttons["返回"].firstMatch.tap()
+        XCTAssertTrue(failedCard.waitForExistence(timeout: 10))
+        XCTAssertEqual(failedCards.count, 2)
+        XCTAssertEqual(repairNotices.count, 1)
+        let card = XCTAttachment(screenshot: XCUIScreen.main.screenshot())
+        card.name = "GenUI-FailedCard"
+        card.lifetime = .keepAlways
+        add(card)
+        app.terminate()
+        app.launchMobileReady()
+        XCTAssertTrue(app.buttons["sidebar-local-bot"].waitForExistence(timeout: 10))
+        app.buttons["sidebar-local-bot"].tap()
+        let session = app.buttons.matching(identifier: "local-genui-session")
+            .matching(NSPredicate(format: "label CONTAINS %@", title)).firstMatch
+        XCTAssertTrue(session.waitForExistence(timeout: 10))
+        session.tap()
+        XCTAssertTrue(failedCard.waitForExistence(timeout: 10))
+        XCTAssertEqual(failedCards.count, 2)
+        XCTAssertEqual(repairNotices.count, 1)
+        let reopened = XCTAttachment(screenshot: XCUIScreen.main.screenshot())
+        reopened.name = "GenUI-ReopenedRepairTranscript"
+        reopened.lifetime = .keepAlways
+        add(reopened)
+        failedCard.tap()
+        XCTAssertTrue(failure.waitForExistence(timeout: 10))
+        XCTAssertFalse(actions.exists)
+
+        app.buttons["返回"].firstMatch.tap()
+        input.tap()
+        input.typeText("FirstFailureParityRecover")
+        send.tap()
+        XCTAssertTrue(actions.waitForExistence(timeout: 35))
+        XCTAssertTrue(app.webViews.staticTexts["同一应用修正后可使用"].firstMatch.waitForExistence(timeout: 10))
+        app.buttons["返回"].firstMatch.tap()
+        XCTAssertTrue(readyCard.waitForExistence(timeout: 10))
+        XCTAssertEqual(failedCards.count, 2)
+        XCTAssertEqual(repairNotices.count, 1)
+    }
+
+    func testLocalGenUiRepairsFailedRenderAndKeepsThePreviousWorkingState() throws {
+        let app = try launchLocalGenUiFixture()
+        let input = app.textViews["local-genui-composer"]
+        let web = app.webViews.firstMatch
+        let ready = app.buttons["小应用操作"]
+        let repairNotices = app.staticTexts.matching(identifier: "刚才的应用有点问题，正在自动修正")
+        func send(_ prompt: String) {
+            XCTAssertTrue(input.waitForExistence(timeout: 10))
+            input.tap()
+            input.typeText(prompt)
+            XCTAssertEqual(input.value as? String, prompt)
+            app.buttons["发送"].tap()
+        }
+
+        send("RepairParityCreate")
+        XCTAssertTrue(app.staticTexts["正在自动修正…"].waitForExistence(timeout: 20))
+        XCTAssertTrue(ready.waitForExistence(timeout: 30))
+        XCTAssertTrue(web.staticTexts["自动修复已完成"].exists)
+        XCTAssertTrue(web.staticTexts["保留原有区块"].exists)
+        web.buttons["计数加一"].tap()
+        XCTAssertTrue(web.staticTexts["保留计数 1"].waitForExistence(timeout: 10))
+
+        app.buttons["返回"].firstMatch.tap()
+        XCTAssertEqual(repairNotices.count, 1)
+        send("RepairParityReject")
+        XCTAssertTrue(app.staticTexts["正在自动修正…"].waitForExistence(timeout: 20))
+        XCTAssertTrue(ready.waitForExistence(timeout: 30))
+        XCTAssertTrue(web.staticTexts["自动修复已完成"].exists)
+        XCTAssertTrue(web.staticTexts["保留计数 1"].exists)
+
+        app.buttons["返回"].firstMatch.tap()
+        XCTAssertEqual(repairNotices.count, 2)
+        let transcript = XCTAttachment(screenshot: XCUIScreen.main.screenshot())
+        transcript.name = "GenUI-RepairFallbackTranscript"
+        transcript.lifetime = .keepAlways
+        add(transcript)
+        let readyCards = app.buttons.matching(NSPredicate(format: "label == %@ AND value == %@", "三端修复核对", "可以使用"))
+        XCTAssertEqual(readyCards.count, 3)
+        let latestCard = readyCards.element(boundBy: 2)
+        XCTAssertTrue(latestCard.isHittable)
+        latestCard.tap()
+        XCTAssertTrue(web.staticTexts["保留计数 1"].waitForExistence(timeout: 10))
+        let screenshot = XCTAttachment(screenshot: XCUIScreen.main.screenshot())
+        screenshot.name = "LocalGenUI-RepairKeptWorkingRevision"
+        screenshot.lifetime = .keepAlways
+        add(screenshot)
+
+        app.buttons["返回"].firstMatch.tap()
+        send("RepairParityMigration")
+        XCTAssertTrue(app.staticTexts["新版本和已有数据不兼容，已保留原来的版本"].waitForExistence(timeout: 30))
+        XCTAssertTrue(web.staticTexts["保留计数 1"].exists)
+        let migration = XCTAttachment(screenshot: XCUIScreen.main.screenshot())
+        migration.name = "LocalGenUI-IncompatibleState"
+        migration.lifetime = .keepAlways
+        add(migration)
+    }
+
+    func testLocalGenUiFloatingControlsRespectLandscapeSafeAreas() throws {
+        XCUIDevice.shared.orientation = .portrait
+        defer { XCUIDevice.shared.orientation = .portrait }
+        let app = try launchLocalGenUiFixture()
+        let input = app.textViews["local-genui-composer"]
+        XCTAssertTrue(input.waitForExistence(timeout: 10))
+        input.tap()
+        input.typeText("InsetsParityLandscape")
+        app.buttons["发送"].tap()
+
+        let options = app.buttons["小应用操作"]
+        if UIDevice.current.userInterfaceIdiom == .pad {
+            XCTAssertTrue(options.waitForExistence(timeout: 20))
+            XCUIDevice.shared.orientation = .landscapeLeft
+        }
+        let landscape = XCTNSPredicateExpectation(predicate: NSPredicate { _, _ in
+            app.frame.width > app.frame.height
+        }, object: nil)
+        XCTAssertEqual(XCTWaiter.wait(for: [landscape], timeout: 24), .completed)
+        let back = app.buttons["返回"].firstMatch
+        XCTAssertTrue(options.waitForExistence(timeout: 10))
+        let web = app.webViews.firstMatch
+        let count = web.staticTexts["窗口计数 1"]
+        web.buttons["窗口计数加一"].tap()
+        XCTAssertTrue(count.waitForExistence(timeout: 10))
+        let viewport = app.frame
+        let leading = back.frame.minX - viewport.minX
+        let trailing = viewport.maxX - options.frame.maxX
+        XCTAssertEqual(back.frame.size.width, 40, accuracy: 1)
+        XCTAssertEqual(options.frame.size.width, 40, accuracy: 1)
+        XCTAssertEqual(back.frame.midY, options.frame.midY, accuracy: 1)
+        XCTAssertGreaterThanOrEqual(leading, 11)
+        XCTAssertGreaterThanOrEqual(trailing, 11)
+        XCTAssertGreaterThan(count.frame.minX, back.frame.minX)
+
+        let screenshot = XCTAttachment(screenshot: XCUIScreen.main.screenshot())
+        screenshot.name = "LocalGenUI-LandscapeSafeAreas"
+        screenshot.lifetime = .keepAlways
+        add(screenshot)
+        let measurements = XCTAttachment(string: "Window \(viewport)\nBack \(back.frame)\nOptions \(options.frame)\nDocument \(count.frame)")
+        measurements.name = "LocalGenUI-LandscapeMeasurements"
+        measurements.lifetime = .keepAlways
+        add(measurements)
+        back.tap()
+        XCTAssertTrue(input.waitForExistence(timeout: 10))
+    }
+
+    func testLocalGenUiResumesVerificationAfterProcessTermination() throws {
+        let app = try launchLocalGenUiFixture()
+        let launchArguments = app.launchArguments
+        let input = app.textViews["local-genui-composer"]
+        let web = app.webViews.firstMatch
+        let appCard = app.buttons.matching(identifier: "三端恢复核对")
+        let pendingCard = appCard.matching(NSPredicate(format: "value == %@", "正在准备")).firstMatch
+        func send(_ prompt: String) {
+            XCTAssertTrue(input.waitForExistence(timeout: 10))
+            input.tap()
+            input.typeText(prompt)
+            XCTAssertEqual(input.value as? String, prompt)
+            app.buttons["发送"].tap()
+        }
+        func openSession() {
+            app.buttons["sidebar-local-bot"].tap()
+            let session = app.buttons.matching(identifier: "local-genui-session")
+                .matching(NSPredicate(format: "label CONTAINS %@", "三端恢复核对")).firstMatch
+            XCTAssertTrue(session.waitForExistence(timeout: 10))
+            session.tap()
+        }
+        func attach(_ name: String) {
+            let screenshot = XCTAttachment(screenshot: XCUIScreen.main.screenshot())
+            screenshot.name = name
+            screenshot.lifetime = .keepAlways
+            add(screenshot)
+        }
+
+        send("CheckpointParityBase")
+        XCTAssertTrue(app.buttons["小应用操作"].waitForExistence(timeout: 30))
+        XCTAssertTrue(web.staticTexts["原有版本"].exists)
+        web.buttons["计数加一"].tap()
+        XCTAssertTrue(web.staticTexts["保留计数 1"].waitForExistence(timeout: 10))
+
+        app.terminate()
+        app.launchArguments = launchArguments + ["--hold-genui-reopen-for-testing"]
+        app.launchMobileReady()
+        openSession()
+        send("CheckpointParityUpdate")
+        let checkpoint = app.descendants(matching: .any)["local-genui-review-checkpoint"].firstMatch
+        XCTAssertTrue(checkpoint.waitForExistence(timeout: 20))
+        attach("LocalGenUI-CheckpointBeforeExit")
+        app.buttons["返回"].firstMatch.tap()
+        XCTAssertTrue(pendingCard.waitForExistence(timeout: 4))
+        XCTAssertEqual(appCard.count, 2)
+        attach("LocalGenUI-PreparingCandidateCard")
+
+        app.terminate()
+        app.launchArguments = launchArguments
+        app.launchMobileReady()
+        openSession()
+        XCTAssertTrue(appCard.firstMatch.waitForExistence(timeout: 10))
+        appCard.firstMatch.tap()
+        XCTAssertTrue(web.staticTexts["中断后恢复的版本"].waitForExistence(timeout: 20))
+        XCTAssertTrue(web.staticTexts["保留计数 1"].exists)
+        attach("LocalGenUI-RecoveredCheckpoint")
+
+        app.buttons["返回"].firstMatch.tap()
+        XCTAssertEqual(appCard.count, 2)
+        XCTAssertFalse(pendingCard.exists)
+
+        let rename = app.buttons["local-genui-rename-session"]
+        XCTAssertTrue(rename.waitForExistence(timeout: 10))
+        rename.tap()
+        let titleEditor = app.textFields["conversation-rename-title"]
+        XCTAssertTrue(titleEditor.waitForExistence(timeout: 10))
+        attach("LocalGenUI-InlineRename")
+        titleEditor.tap()
+        let oldTitle = try XCTUnwrap(titleEditor.value as? String)
+        titleEditor.typeText(String(repeating: XCUIKeyboardKey.delete.rawValue, count: oldTitle.count))
+        titleEditor.typeText("Checkpoint renamed")
+        app.buttons["保存"].tap()
+        XCTAssertEqual(rename.value as? String, "Checkpoint renamed")
+        let actions = app.buttons["local-genui-session-actions"]
+        actions.tap()
+        let history = app.buttons["创作记录"]
+        XCTAssertTrue(history.waitForExistence(timeout: 10))
+        attach("LocalGenUI-CreationHistoryAction")
+        history.tap()
+        let renamedSession = app.buttons.matching(identifier: "local-genui-session")
+            .matching(NSPredicate(format: "label CONTAINS %@", "Checkpoint renamed")).firstMatch
+        XCTAssertTrue(renamedSession.waitForExistence(timeout: 10))
+        renamedSession.tap()
+        XCTAssertEqual(rename.value as? String, "Checkpoint renamed")
+    }
+
+    func testLocalGenUiReopenProbeTimeoutKeepsAppAndUserData() throws {
+        let app = try launchLocalGenUiFixture(arguments: ["--hold-genui-reopen-for-testing"])
+        let input = app.textViews["local-genui-composer"]
+        let web = app.webViews.firstMatch
+        let ready = app.buttons["小应用操作"]
+        let checkpoint = app.descendants(matching: .any)["local-genui-review-checkpoint"].firstMatch
+        func send(_ prompt: String, openFromCandidate: Bool = false) {
+            XCTAssertTrue(input.waitForExistence(timeout: 10))
+            input.tap()
+            input.typeText(prompt)
+            app.buttons["发送"].tap()
+            XCTAssertTrue(checkpoint.waitForExistence(timeout: 20))
+            if openFromCandidate {
+                app.buttons["返回"].firstMatch.tap()
+                let pending = app.buttons.matching(NSPredicate(format: "label == %@ AND value == %@", "三端恢复核对", "正在准备")).firstMatch
+                XCTAssertTrue(pending.waitForExistence(timeout: 4))
+                pending.tap()
+            }
+            XCTAssertTrue(ready.waitForExistence(timeout: 20))
+        }
+        func attach(_ name: String) {
+            let screenshot = XCTAttachment(screenshot: XCUIScreen.main.screenshot())
+            screenshot.name = name
+            screenshot.lifetime = .keepAlways
+            add(screenshot)
+        }
+
+        send("CheckpointParityBase", openFromCandidate: true)
+        XCTAssertTrue(web.staticTexts["原有版本"].waitForExistence(timeout: 10))
+        web.buttons["计数加一"].tap()
+        XCTAssertTrue(web.staticTexts["保留计数 1"].waitForExistence(timeout: 10))
+        app.buttons["返回"].firstMatch.tap()
+        send("CheckpointParityUpdate")
+        XCTAssertTrue(web.staticTexts["中断后恢复的版本"].waitForExistence(timeout: 10))
+        XCTAssertTrue(web.staticTexts["保留计数 1"].exists)
+        attach("LocalGenUI-ReopenProbeTimeoutApp")
+
+        app.terminate()
+        app.launchArguments.removeAll { $0 == "--hold-genui-reopen-for-testing" }
+        app.launchMobileReady()
+        app.buttons["sidebar-local-bot"].tap()
+        let session = app.buttons.matching(identifier: "local-genui-session")
+            .matching(NSPredicate(format: "label CONTAINS %@", "三端恢复核对")).firstMatch
+        XCTAssertTrue(session.waitForExistence(timeout: 10))
+        session.tap()
+        let cards = app.buttons.matching(identifier: "三端恢复核对")
+        XCTAssertTrue(cards.firstMatch.waitForExistence(timeout: 10))
+        XCTAssertEqual(cards.count, 2)
+        XCTAssertEqual(cards.firstMatch.value as? String, "可以使用")
+        attach("LocalGenUI-ReopenProbeTimeoutCards")
+        cards.firstMatch.tap()
+        XCTAssertTrue(web.staticTexts["中断后恢复的版本"].waitForExistence(timeout: 10))
+        XCTAssertTrue(web.staticTexts["保留计数 1"].exists)
+    }
+
+    private func launchLocalGenUiFixture(arguments: [String] = []) throws -> XCUIApplication {
+        guard let endpoint = ProcessInfo.processInfo.environment["OPENBITFUN_GENUI_FIXTURE_URL"] else {
+            throw XCTSkip("Set OPENBITFUN_GENUI_FIXTURE_URL for the local model fixture.")
+        }
+        let app = XCUIApplication(bundleIdentifier: "com.openbitfun.mobile.ios")
+        app.launchArguments = ["--harness-preview", "--drawer", "--simplified-chinese"] + arguments
+        app.launchMobileReady()
+
+        let entry = app.buttons["sidebar-local-bot"]
+        XCTAssertTrue(entry.waitForExistence(timeout: 10))
+        entry.tap()
+        app.buttons["local-genui-new-session"].tap()
+        let selector = app.buttons["local-genui-model-control"]
+        XCTAssertTrue(selector.waitForExistence(timeout: 10))
+        if selector.label == "配置模型" {
+            selector.tap()
+            let name = app.textFields["genui-model-display"]
+            XCTAssertTrue(name.waitForExistence(timeout: 10))
+            name.tap()
+            name.typeText("Parity fixture")
+            let address = app.textFields["genui-model-url"]
+            address.tap()
+            address.typeText(endpoint)
+            let model = app.textFields["genui-model-name"]
+            model.tap()
+            model.typeText("parity-fixture")
+            let key = app.secureTextFields["genui-model-key"]
+            key.tap()
+            key.typeText("local-fixture-key")
+            app.buttons["保存并使用"].tap()
+        }
+        return app
+    }
+
+    private func openGenUiAddModel(_ app: XCUIApplication) throws {
+        let scroll = app.scrollViews["local-genui-model-scroll"]
+        let add = app.buttons["local-genui-model-add"]
+        XCTAssertTrue(scroll.waitForExistence(timeout: 8))
+        for _ in 0..<6 {
+            if add.isHittable && scroll.frame.contains(add.frame) { break }
+            scroll.swipeUp()
+        }
+        XCTAssertTrue(add.isHittable)
+        XCTAssertTrue(scroll.frame.contains(add.frame))
+        add.tap()
+        let header = app.staticTexts.matching(NSPredicate(
+            format: "label == %@ AND (identifier == %@ OR identifier == %@)",
+            "添加模型", "local-genui-model-centered", "local-genui-model-bottom-sheet"
+        )).firstMatch
+        _ = try XCTUnwrap(header.waitForExistence(timeout: 8) ? header : nil, "Expected the blank model editor")
+    }
+
+    func testMiniAppDesktopActionOpensSystemShortcutEditor() {
+        let app = XCUIApplication(bundleIdentifier: "com.openbitfun.mobile.ios")
+        app.launchArguments = ["--harness-preview", "--drawer", "--simplified-chinese"]
+        app.launchMobileReady()
+        app.buttons["小应用"].firstMatch.tap()
+        let card = app.buttons["miniapp:builtin-gomoku"]
+        XCTAssertTrue(card.waitForExistence(timeout: 10))
+        card.press(forDuration: 0.8)
+        app.buttons["添加桌面图标"].firstMatch.tap()
+
+        let handoff = app.buttons["拷贝链接并打开快捷指令"]
+        XCTAssertTrue(handoff.waitForExistence(timeout: 5))
+        let guide = XCTAttachment(screenshot: XCUIScreen.main.screenshot())
+        guide.name = "MiniAppDesktopGuide"
+        guide.lifetime = .keepAlways
+        add(guide)
+        handoff.tap()
+
+        let shortcuts = XCUIApplication(bundleIdentifier: "com.apple.shortcuts")
+        let foreground = XCTNSPredicateExpectation(predicate: NSPredicate { _, _ in shortcuts.state == .runningForeground }, object: nil)
+        XCTAssertEqual(XCTWaiter.wait(for: [foreground], timeout: 15), .completed)
+        let actionSearchLabels = ["搜索操作", "Search Actions"]
+        let actionSearch = shortcuts.descendants(matching: .any).matching(NSPredicate(
+            format: "label IN %@ OR placeholderValue IN %@", actionSearchLabels, actionSearchLabels
+        )).firstMatch
+        XCTAssertTrue(actionSearch.waitForExistence(timeout: 15))
+        let editor = XCTAttachment(screenshot: XCUIScreen.main.screenshot())
+        editor.name = "MiniAppSystemShortcutEditor"
+        editor.lifetime = .keepAlways
+        add(editor)
+
+        app.activate()
+        XCTAssertTrue(card.waitForExistence(timeout: 5))
+    }
+
     func testOfflineMiniAppsOpenFromSidebar() {
         let app = XCUIApplication(bundleIdentifier: "com.openbitfun.mobile.ios")
         app.launchArguments = ["--harness-preview", "--drawer", "--simplified-chinese"]
@@ -912,12 +2410,14 @@ final class MobileParityUITests: XCTestCase {
         sidebar.lifetime = .keepAlways
         add(sidebar)
         miniapps.tap()
-        XCTAssertTrue(app.staticTexts["全部应用"].waitForExistence(timeout: 10))
-        XCTAssertTrue(app.staticTexts["离线可用"].exists)
+        let carousel = app.buttons["miniapp:builtin-gomoku"]
+        XCTAssertTrue(carousel.waitForExistence(timeout: 10))
+        XCTAssertTrue(carousel.isHittable)
         let gallery = XCTAttachment(screenshot: XCUIScreen.main.screenshot())
         gallery.name = "OfflineMiniApp-Gallery"
         gallery.lifetime = .keepAlways
         add(gallery)
+        app.buttons["miniapp-view-toggle"].tap()
         for title in ["五子棋", "正则游乐场", "每日占卜"] {
             let entry = app.buttons.containing(NSPredicate(format: "label CONTAINS %@", title)).firstMatch
             XCTAssertTrue(entry.waitForExistence(timeout: 10))
@@ -931,6 +2431,13 @@ final class MobileParityUITests: XCTestCase {
             app.buttons["返回"].tap()
             XCTAssertTrue(entry.waitForExistence(timeout: 5))
         }
+        app.buttons["返回"].tap()
+        XCTAssertTrue(miniapps.waitForExistence(timeout: 10))
+        miniapps.tap()
+        XCTAssertTrue(app.buttons["miniapp-view-toggle"].waitForExistence(timeout: 10))
+        XCTAssertEqual(app.buttons["miniapp-view-toggle"].label, "切换为卡片")
+        app.buttons["miniapp-view-toggle"].tap()
+        XCTAssertTrue(app.buttons["miniapp:builtin-daily-divination"].isHittable)
     }
 }
 

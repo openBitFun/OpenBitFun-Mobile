@@ -32,6 +32,18 @@ public data class CommandStatusResponse(
     @SerialName("message") override val message: String? = null,
 ) : CommandStatus
 
+/** The authoritative answer to rollback_session_to_turn. */
+@Serializable
+public data class SessionRolledBackResponse(
+    @SerialName("resp") override val resp: String? = null,
+    @SerialName("message") override val message: String? = null,
+    @SerialName("session_id") public val sessionId: String? = null,
+    @SerialName("retired_turn_ids") public val retiredTurnIds: List<String> = emptyList(),
+    @SerialName("restored_files") public val restoredFiles: List<String> = emptyList(),
+    @SerialName("composer_text") public val composerText: String? = null,
+    @SerialName("changed") public val changed: Boolean = false,
+) : CommandStatus
+
 internal fun Decoder.requireJsonObject(typeName: String): JsonObject {
     val input = this as? JsonDecoder
         ?: throw IllegalStateException("$typeName can only be read from JSON")

@@ -19,5 +19,10 @@ html, body {
 }
 .local-genui-runtime__unsupported { box-sizing: border-box; padding: 16px; color: var(--openbitfun-color-content-secondary); font-family: var(--openbitfun-type-body-sm-font-family); font-size: var(--openbitfun-type-body-sm-font-size); }
 .local-genui-runtime__waiting { min-height: 1px; }
-/* The page background reaches the bottom of a short page. */
-.local-genui-runtime .gen-ui-application--harmony-genui { box-sizing: border-box; min-height: 100vh; }
+/* Android WebView can retain the keyboard-sized CSS viewport while the
+ * native dialog expands. The measured host height keeps the page wash full. */
+.local-genui-runtime .gen-ui-application--harmony-genui {
+  box-sizing: border-box;
+  min-height: 100vh;
+  min-height: max(100vh, var(--genui-host-height, 0px));
+}

@@ -1,4 +1,5 @@
 import index from './fluent-emoji-3d-index.json';
+import { localImageUrl } from '../localImageUrl';
 
 const EMOJI_CDN_REVISION = index.sha;
 const EMOJI_ASSET_ROOT = `https://cdn.jsdelivr.net/gh/microsoft/fluentui-emoji@${EMOJI_CDN_REVISION}/assets/`;
@@ -12,5 +13,5 @@ export function fluentEmoji3dUrl(emoji: string): string | undefined {
     .map(character => (character.codePointAt(0) ?? 0).toString(16))
     .join('-');
   const path = EMOJI_ASSETS[key];
-  return path ? EMOJI_ASSET_ROOT + path.split('/').map(encodeURIComponent).join('/') : undefined;
+  return path ? localImageUrl(EMOJI_ASSET_ROOT + path.split('/').map(encodeURIComponent).join('/')) : undefined;
 }

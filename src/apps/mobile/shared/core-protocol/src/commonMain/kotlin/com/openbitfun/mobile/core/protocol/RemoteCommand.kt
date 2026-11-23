@@ -84,6 +84,8 @@ public data class RemoteCommand(
     // every poll.
     @SerialName("known_model_catalog_version") val knownModelCatalogVersion: Long? = null,
     @SerialName("turn_id") val turnId: String? = null,
+    @SerialName("target_turn_id") val targetTurnId: String? = null,
+    @SerialName("expected_storage_turn_index") val expectedStorageTurnIndex: Long? = null,
     @SerialName("tool_id") val toolId: String? = null,
     /**
      * The desktop confirm_tool handler accepts only tool_id today. This client
@@ -107,4 +109,8 @@ public data class RemoteCommand(
     @SerialName("epoch") val epoch: Long? = null,
     @SerialName("subscribe") val subscribe: Boolean? = null,
     @SerialName("subscription_id") val subscriptionId: String? = null,
+    // JsonNull clears a managed slot. Kotlin null leaves it out of the envelope.
+    @SerialName("primary") val primaryDefault: JsonElement? = null,
+    @SerialName("fast") val fastDefault: JsonElement? = null,
+    @SerialName("image_understanding") val imageUnderstandingDefault: JsonElement? = null,
 )

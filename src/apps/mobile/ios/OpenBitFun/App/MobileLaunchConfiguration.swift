@@ -48,6 +48,12 @@ enum MobileLaunchConfiguration {
             model.remoteHostCapabilities = ["harness_profiles_v1"]
         }
         #if DEBUG
+        if arguments.contains("--device-model-defaults-preview") {
+            model.configureDeviceModelDefaultsPreview(unsupported: arguments.contains("--older-model-host"))
+        }
+        if arguments.contains("--account-device-picker-preview") {
+            model.configureAccountDevicePickerPreview()
+        }
         if arguments.contains("--permission-mailbox-preview") {
             model.configureTimelinePreview()
             model.permissionMailbox = PermissionMailboxUiState(requests: [
@@ -278,6 +284,72 @@ enum MobileLaunchConfiguration {
 }
 
 private extension MobileAppModel {
+    #if DEBUG
+    func configureAccountDevicePickerPreview() {
+        accountUser = "octocat"
+        accountSelectedDeviceID = "account-desktop-1"
+        accountDevices = (1...9).map { index in
+            MobileAccountDevice(
+                id: "account-desktop-\(index)", name: "Account desktop \(index)",
+                online: index % 3 != 0, selected: index == 1,
+                controllable: index != 5 || !ProcessInfo.processInfo.arguments.contains("--incompatible-device-preview")
+            )
+        }
+        devicePickerOpen = true
+        previewConnectPickerDevice = { [weak self] device in
+            Task { @MainActor [weak self] in
+                try? await Task.sleep(for: .seconds(2))
+                guard let self else { return }
+                let phase: OpenBitFunMobileCore.ConnectionPhase = device.id == "account-desktop-2" ? .failed : .connected
+                settleDevicePickerConnection(phase: phase, targetKey: "account:\(device.id)")
+            }
+        }
+    }
+
+    func configureDeviceModelDefaultsPreview(unsupported: Bool) {
+        configureConnectedPreview()
+        accountUser = "octocat"
+        accountDeviceName = "Account desktop 1"
+        accountDevices = [
+            MobileAccountDevice(id: "preview-desktop", name: "Account desktop 1", online: true, selected: true),
+            MobileAccountDevice(id: "preview-mac", name: "Other desktop", online: true, selected: false),
+        ]
+        settingsOpen = true
+        let availability: DeviceModelAvailability = unsupported ? .unsupported : .available
+        deviceModelDefaults = DeviceModelDefaultsUiState(
+            availability: availability, operation: .idle, roles: [], activeRole: nil, hasModels: false
+        )
+        let primary = DeviceModelChoiceUi(id: "sonnet", title: "claude-sonnet-4-5", subtitle: "anthropic · 200k")
+        let fast = DeviceModelChoiceUi(id: "mini", title: "gpt-5-mini", subtitle: "openai · 128k")
+        let gemini = DeviceModelChoiceUi(id: "gemini", title: "gemini-2.5-flash", subtitle: "google · 1000k")
+        let qwen = DeviceModelChoiceUi(id: "qwen", title: "qwen3-coder", subtitle: "local · 33k")
+        let vision = DeviceModelChoiceUi(id: "vision", title: "vision-preview", subtitle: "openbitfun · 64k")
+        let text = [primary, fast, gemini, qwen]
+        var roles = [
+            DeviceModelRoleUi(role: .primary, selected: primary, resolved: true, choices: text),
+            DeviceModelRoleUi(role: .fast, selected: nil, resolved: true, choices: text),
+            DeviceModelRoleUi(role: .imageUnderstanding, selected: nil, resolved: false, choices: [gemini, vision]),
+        ]
+        previewDeviceModelDispatch = { [weak self] intent in
+            guard let self, !unsupported else { return }
+            if let selection = intent as? RemoteSessionIntentSelectDeviceModelDefault,
+               let index = roles.firstIndex(where: { $0.role == selection.role }) {
+                let row = roles[index]
+                let choice = row.choices.first { $0.id == selection.modelId }
+                roles[index] = DeviceModelRoleUi(role: row.role, selected: choice, resolved: choice != nil || row.role == .fast,
+                                                choices: row.choices)
+                deviceModelDefaults = DeviceModelDefaultsUiState(
+                    availability: .available, operation: .saved, roles: roles, activeRole: selection.role, hasModels: true
+                )
+            } else if intent is RemoteSessionIntentOpenDeviceModelDefaults || intent is RemoteSessionIntentRefreshDeviceModelDefaults {
+                deviceModelDefaults = DeviceModelDefaultsUiState(
+                    availability: .available, operation: .ready, roles: roles, activeRole: nil, hasModels: true
+                )
+            }
+        }
+    }
+    #endif
+
     func configureConnectedPreview() {
         accountUser = "preview"
         accountSelectedDeviceID = "preview-desktop"

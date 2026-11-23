@@ -5,7 +5,6 @@ import { LocalGenUIModelProfile } from '../../services/local-genui/LocalGenUIMod
 
 /** Link scheme the shared timeline renders for a generated app. */
 export const LOCAL_GENUI_APP_LINK: string = 'openbitfun-genui://app/';
-const ACTIVE_TURN_ID: string = 'local-genui-active-turn';
 
 /**
  * Projects Local GenUI records onto the shapes the shared ConversationView
@@ -45,13 +44,14 @@ export class LocalGenUIConversationProjection {
     });
   }
 
-  static activeTurn(text: string): ChatMessage {
+  static activeTurn(serial: number, text: string): ChatMessage {
+    const id = `local-genui-active-turn-${serial}`;
     return {
-      id: ACTIVE_TURN_ID,
+      id,
       role: 'assistant',
       text,
       status: 'active',
-      turnId: ACTIVE_TURN_ID,
+      turnId: id,
       items: text.length > 0 ? [{ type: 'text', content: text }] : []
     };
   }

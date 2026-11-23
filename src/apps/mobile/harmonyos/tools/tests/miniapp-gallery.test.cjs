@@ -10,7 +10,9 @@ function load(name, deps={}) {
  const exports={};new Function('require','exports',js)(name=>deps[name]||{},exports);return exports;
 }
 const tokens=load('generated/MobileDesignTokens');
-const {MiniAppGalleryPolicy:P}=load('pages/policy/MiniAppGalleryPolicy',{'../../generated/MobileDesignTokens':tokens});
+const tokenDependency = { '../../generated/MobileDesignTokens': tokens };
+const {MiniAppGalleryPolicy:P}=load('pages/policy/MiniAppGalleryPolicy',tokenDependency);
+const dragState = load('pages/state/MiniAppDragState', tokenDependency);
 test('swiping is bounded, a tap does not advance and a resize stays inside the live viewport',()=>{
  assert.equal(P.nextIndex(0,80,3),0); assert.equal(P.nextIndex(2,-80,3),2);
  assert.equal(P.nextIndex(0,-80,3),1); assert.equal(P.nextIndex(1,80,3),0);
@@ -22,7 +24,7 @@ test('swiping is bounded, a tap does not advance and a resize stays inside the l
  }
 });
 const {MiniAppState}=load('pages/state/MiniAppState', {
- './MiniAppDragState':load('pages/state/MiniAppDragState')
+ './MiniAppDragState':dragState
 });
 const {MiniAppViewModel}=load('pages/viewmodel/MiniAppViewModel',{
  '../state/MiniAppState':{MiniAppState},
@@ -42,7 +44,7 @@ test('opening and returning from an offline app preserves gallery mode/focus and
 });
 
 test('dropping on the measured hint or below it is accepted across window sizes', () => {
-  const { MiniAppDragState } = load('pages/state/MiniAppDragState');
+  const { MiniAppDragState } = dragState;
   const drag = new MiniAppDragState();
   for (const width of [360, 840]) {
     drag.windowX = 16;

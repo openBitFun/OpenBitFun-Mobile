@@ -12,6 +12,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import com.openbitfun.mobile.app.R
 import com.openbitfun.mobile.app.ui.theme.generated.MobileDesignGeometry
 
@@ -58,11 +59,40 @@ internal fun ConnectionSheetFooter(label: String, primary: Boolean = false, enab
 }
 
 // These sheet roles reserve their full contract line box, including for CJK fallback fonts.
-internal fun androidx.compose.ui.text.TextStyle.connectionSheetTextStyle() = copy(
-    platformStyle = androidx.compose.ui.text.PlatformTextStyle(includeFontPadding = false),
-    lineHeightStyle = androidx.compose.ui.text.style.LineHeightStyle(
-        alignment = androidx.compose.ui.text.style.LineHeightStyle.Alignment.Center,
-        trim = androidx.compose.ui.text.style.LineHeightStyle.Trim.Both,
-        mode = androidx.compose.ui.text.style.LineHeightStyle.Mode.Tight,
-    ),
-)
+internal fun androidx.compose.ui.text.TextStyle.connectionSheetTextStyle(): androidx.compose.ui.text.TextStyle {
+    val title = fontSize == 22.sp
+    val body = fontSize == 14.sp
+    return if (title) {
+        copy(
+            // The Android CJK fallback's untrimmed 22sp glyph box rounds to 29dp.
+            // 21.5sp preserves the Harmony 28dp title box on the reference density.
+            fontSize = 21.5.sp,
+            platformStyle = androidx.compose.ui.text.PlatformTextStyle(includeFontPadding = false),
+            lineHeight = 28.sp,
+            lineHeightStyle = androidx.compose.ui.text.style.LineHeightStyle(
+                alignment = androidx.compose.ui.text.style.LineHeightStyle.Alignment.Center,
+                trim = androidx.compose.ui.text.style.LineHeightStyle.Trim.None,
+                mode = androidx.compose.ui.text.style.LineHeightStyle.Mode.Tight,
+            ),
+        )
+    } else if (body) {
+        copy(
+            platformStyle = androidx.compose.ui.text.PlatformTextStyle(includeFontPadding = false),
+            lineHeight = 23.sp,
+            lineHeightStyle = androidx.compose.ui.text.style.LineHeightStyle(
+                alignment = androidx.compose.ui.text.style.LineHeightStyle.Alignment.Center,
+                trim = androidx.compose.ui.text.style.LineHeightStyle.Trim.None,
+                mode = androidx.compose.ui.text.style.LineHeightStyle.Mode.Tight,
+            ),
+        )
+    } else {
+        copy(
+            platformStyle = androidx.compose.ui.text.PlatformTextStyle(includeFontPadding = false),
+            lineHeightStyle = androidx.compose.ui.text.style.LineHeightStyle(
+                alignment = androidx.compose.ui.text.style.LineHeightStyle.Alignment.Center,
+                trim = androidx.compose.ui.text.style.LineHeightStyle.Trim.Both,
+                mode = androidx.compose.ui.text.style.LineHeightStyle.Mode.Tight,
+            ),
+        )
+    }
+}

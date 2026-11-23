@@ -17,11 +17,31 @@ struct MobileShellView: View {
     @State private var sessionActionsOpen = false
     @State private var sidebarActionSession: ChatSession?
     @State private var bottomOverlayHeight: CGFloat = 0
+    @State private var appPresentation: AppPresentation?
+    @State private var settingsNavigation = SettingsNavigation()
+    @State private var settingsDeviceOwner: (id: String, epoch: UInt64)?
+
+    private enum AppPresentation: String, Identifiable {
+        case genUi, miniApps
+        var id: Self { self }
+    }
 
     var body: some View {
         GeometryReader { proxy in
             adaptiveSurface(viewportWidth: proxy.size.width, viewportHeight: proxy.size.height)
                 .environment(\.permissionMailboxMaxHeight, proxy.size.height * 0.4)
+        }
+        .background {
+            if showsWelcomeHome && !model.drawerOpen {
+                GeometryReader { geometry in
+                    if geometry.size.width < 600 {
+                        MobileDesignColors.welcomeDock
+                            .frame(height: geometry.safeAreaInsets.bottom)
+                            .frame(maxHeight: .infinity, alignment: .bottom)
+                            .offset(y: geometry.safeAreaInsets.bottom)
+                    }
+                }
+            }
         }
         .overlayPreferenceValue(SessionActionsAnchorKey.self) { anchor in
             GeometryReader { proxy in
@@ -103,6 +123,12 @@ struct MobileShellView: View {
             }
         }
         .animation(.easeOut(duration: 0.18), value: model.toastMessage)
+        .fullScreenCover(item: $appPresentation) { presentation in
+            switch presentation {
+            case .genUi: LocalGenUiView(model: model, local: model.localGenUi)
+            case .miniApps: MiniAppsView(model: model, local: model.localGenUi)
+            }
+        }
         .modifier(RuntimeDownloadPresentation(model: model, enabled: model.runtimeDeviceTools?.visible != true && model.filePreview == nil))
 
     }
@@ -169,7 +195,7 @@ struct MobileShellView: View {
         )
         let focusSplit = previewLayout.placement == FilePreviewPlacement.wideFocusSplit
         let triplePane = previewLayout.placement == FilePreviewPlacement.wideTriplePane
-        let sidebarVisible = wide && !wideSidebarCollapsed && !focusSplit
+        let sidebarVisible = wide && !wideSidebarCollapsed && !focusSplit && !showsWelcomeHome
         let sidebarWidth = triplePane
             ? CGFloat(previewLayout.masterPaneWidth)
             : CGFloat(geometry.masterPaneWidth)
@@ -195,7 +221,7 @@ struct MobileShellView: View {
                         value: model.drawerOpen
                     )
 
-                SidebarView(model: model)
+                SidebarView(model: model, openLocalGenUi: { appPresentation = .genUi }, openMiniApps: { appPresentation = .miniApps })
                     .frame(width: compactSidebarWidth)
                     .opacity(model.drawerOpen ? 1 : 0)
                     .offset(x: model.drawerOpen ? 0 : -compactSidebarWidth * 0.1)
@@ -209,6 +235,8 @@ struct MobileShellView: View {
                 if sidebarVisible {
                     SidebarView(
                         model: model,
+                        openLocalGenUi: { appPresentation = .genUi },
+                        openMiniApps: { appPresentation = .miniApps },
                         permanent: true,
                         onCollapse: { wideSidebarCollapsed = true },
                         onPermanentActions: { sidebarActionSession = $0 }
@@ -219,7 +247,7 @@ struct MobileShellView: View {
 
                 conversationSurface(
                     sidebarAction: sidebarVisible ? nil : {
-                        if wide {
+                        if wide && !showsWelcomeHome {
                             if focusSplit { model.dismissFilePreview() }
                             wideSidebarCollapsed = false
                         } else {
@@ -269,7 +297,23 @@ struct MobileShellView: View {
             isPresented: $model.settingsOpen,
             placement: settingsPlacement
         ) {
-            SettingsView(model: model)
+            SettingsView(model: model, navigation: $settingsNavigation, onClose: { model.settingsOpen = false })
+        }
+        .onChange(of: model.settingsOpen) { open in
+            if !open {
+                settingsNavigation = SettingsNavigation()
+                model.languagePickerOpen = false
+            }
+            updateSettingsDeviceOwner()
+        }
+        .onChange(of: settingsNavigation.modelDeviceID) { _ in updateSettingsDeviceOwner() }
+        .onChange(of: model.remoteTargetEpoch) { _ in updateSettingsDeviceOwner() }
+        .onChange(of: model.accountSelectedDeviceID) { selected in
+            if let deviceID = settingsNavigation.modelDeviceID, deviceID != selected {
+                settingsNavigation.modelDeviceID = nil
+                settingsNavigation.modelRole = nil
+            }
+            updateSettingsDeviceOwner()
         }
         .openBitFunAdaptiveModal(
             isPresented: $model.remoteViewSettingsOpen,
@@ -279,7 +323,8 @@ struct MobileShellView: View {
         }
         .openBitFunAdaptiveModal(
             isPresented: $model.devicePickerOpen,
-            placement: connectPlacement
+            placement: connectPlacement,
+            connectChrome: true
         ) {
             AccountDevicePickerSheet(model: model)
         }
@@ -311,6 +356,20 @@ struct MobileShellView: View {
     }
 
     @ViewBuilder
+    private func updateSettingsDeviceOwner() {
+        let deviceID = model.settingsOpen ? settingsNavigation.modelDeviceID : nil
+        let epoch = model.remoteTargetEpoch
+        if settingsDeviceOwner?.id == deviceID && (deviceID == nil || settingsDeviceOwner?.epoch == epoch) { return }
+
+        if let previous = settingsDeviceOwner, previous.epoch == epoch {
+            model.dispatchDeviceModels(RemoteSessionIntentCloseDeviceModelDefaults.shared, deviceID: previous.id)
+        }
+        settingsDeviceOwner = deviceID.map { ($0, epoch) }
+        if let deviceID {
+            model.dispatchDeviceModels(RemoteSessionIntentOpenDeviceModelDefaults.shared, deviceID: deviceID)
+        }
+    }
+
     private func conversationSurface(
         sidebarAction: (() -> Void)?,
         sidebarActionLabel: String
@@ -339,17 +398,10 @@ struct MobileShellView: View {
     ) -> some View {
         Group {
             if showsWelcomeHome {
-                WelcomeHomeView(model: model)
+                WelcomeHomeView(model: model, openSidebar: sidebarAction ?? { model.drawerOpen = true },
+                                openMiniApps: { appPresentation = .miniApps })
             } else if model.surface == .remote && !model.remoteSessionSelected {
-                VStack(spacing: 0) {
-                    ConversationHeader(
-                        model: model,
-                        actionsOpen: $sessionActionsOpen,
-                        sidebarAction: sidebarAction,
-                        sidebarActionLabel: sidebarActionLabel
-                    )
-                    RemoteConnectedHomeView(model: model, onBrowse: sidebarAction)
-                }
+                RemoteConnectedHomeView(model: model, onBrowse: sidebarAction)
             } else {
                 floatingConversation(
                     sidebarAction: sidebarAction,

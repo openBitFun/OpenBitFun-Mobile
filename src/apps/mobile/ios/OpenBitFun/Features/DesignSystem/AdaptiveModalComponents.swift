@@ -163,6 +163,7 @@ extension View {
         placement: SettingsPlacement,
         onDismiss: (() -> Void)? = nil,
         fitContent: Bool = false,
+        connectChrome: Bool = false,
         @ViewBuilder content: @escaping () -> ModalContent
     ) -> some View {
         modifier(
@@ -171,6 +172,7 @@ extension View {
                 placement: placement,
                 onDismiss: onDismiss,
                 fitContent: fitContent,
+                connectChrome: connectChrome,
                 modalContent: content
             )
         )
@@ -178,14 +180,14 @@ extension View {
 }
 
 /// Selects the native presentation lifecycle from the KMP placement decision.
-/// Compact devices keep a system sheet; side placements use a native full-screen
-/// cover containing a trailing paper surface so focus and VoiceOver are isolated
-/// from the covered conversation while the dimensions remain Harmony-compatible.
+/// Compact devices keep a system sheet. Centered and trailing panels use a
+/// full-screen cover so focus and VoiceOver stay within the presented surface.
 private struct OpenBitFunAdaptiveModalModifier<ModalContent: View>: ViewModifier {
     @Binding var isPresented: Bool
     let placement: SettingsPlacement
     let onDismiss: (() -> Void)?
     let fitContent: Bool
+    let connectChrome: Bool
     @State private var contentHeight: CGFloat = 280
     @ViewBuilder let modalContent: () -> ModalContent
 
@@ -194,7 +196,8 @@ private struct OpenBitFunAdaptiveModalModifier<ModalContent: View>: ViewModifier
         return false
     }
 
-    private var isSide: Bool { !fitContent && placement.mode == .side }
+    private var isCentered: Bool { placement.mode == .center }
+    private var isPlaced: Bool { !fitContent && (placement.mode == .side || isCentered) }
 
     private var compactDetent: PresentationDetent {
         fitContent ? .height(contentHeight) : placement.height > 0 ? .height(CGFloat(placement.height)) : .large
@@ -202,15 +205,15 @@ private struct OpenBitFunAdaptiveModalModifier<ModalContent: View>: ViewModifier
 
     private var compactPresented: Binding<Bool> {
         Binding(
-            get: { isPresented && !isSide && !(fitContent && supportsFittedCover) },
-            set: { if !$0 { isPresented = false } }
+            get: { isPresented && !isPlaced && !(fitContent && supportsFittedCover) },
+            set: { if !$0 && !isPlaced { isPresented = false } }
         )
     }
 
-    private var sidePresented: Binding<Bool> {
+    private var placedPresented: Binding<Bool> {
         Binding(
-            get: { isPresented && isSide },
-            set: { if !$0 { isPresented = false } }
+            get: { isPresented && isPlaced },
+            set: { if !$0 && isPlaced { isPresented = false } }
         )
     }
 
@@ -226,8 +229,8 @@ private struct OpenBitFunAdaptiveModalModifier<ModalContent: View>: ViewModifier
             .fullScreenCover(isPresented: fittedPresented, onDismiss: onDismiss) {
                 fittedCover
             }
-            .fullScreenCover(isPresented: sidePresented, onDismiss: onDismiss) {
-                sideCover
+            .fullScreenCover(isPresented: placedPresented, onDismiss: onDismiss) {
+                placedCover
             }
     }
 
@@ -302,40 +305,45 @@ private struct OpenBitFunAdaptiveModalModifier<ModalContent: View>: ViewModifier
     }
 
     @ViewBuilder
-    private var sideCover: some View {
-        let cover = ZStack(alignment: .trailing) {
-            OpenBitFunTheme.scrim
-                .ignoresSafeArea()
-                .contentShape(Rectangle())
-                .onTapGesture { isPresented = false }
-
-            modalContent()
-                .frame(
-                    width: CGFloat(placement.width),
-                    height: CGFloat(placement.height)
-                )
-                .background(OpenBitFunTheme.page)
-                .clipShape(
-                    RoundedRectangle(
-                        cornerRadius: MobileDesignGeometry.sheetSideRadius,
-                        style: .continuous
-                    )
-                )
-                .overlay(
-                    RoundedRectangle(
-                        cornerRadius: MobileDesignGeometry.sheetSideRadius,
-                        style: .continuous
-                    )
-                    .stroke(OpenBitFunTheme.line, lineWidth: 1)
-                )
-                .shadow(color: OpenBitFunTheme.shadowStrong, radius: 18, x: -5, y: 8)
-                .accessibilityAddTraits(.isModal)
+    private var placedCover: some View {
+        let cover = GeometryReader { geometry in
+            placedPanel(size: geometry.size)
         }
         if #available(iOS 16.4, *) {
             cover.presentationBackground(OpenBitFunTheme.transparent)
         } else {
             cover
         }
+    }
+
+    private func placedPanel(size: CGSize) -> some View {
+        let width = min(CGFloat(placement.width), max(0, size.width - (isCentered ? 32 : 0)))
+        let height = min(CGFloat(placement.height), max(0, size.height - (isCentered ? 32 : 0)))
+        let shape = RoundedRectangle(
+            cornerRadius: connectChrome ? MobileDesignGeometry.connectWidePanelRadius
+                : isCentered ? MobileDesignGeometry.settingsWidePanelRadius : MobileDesignGeometry.sheetSideRadius,
+            style: isCentered || connectChrome ? .circular : .continuous
+        )
+        return ZStack(alignment: isCentered ? .center : .trailing) {
+            OpenBitFunTheme.scrim
+                .ignoresSafeArea()
+                .contentShape(Rectangle())
+                .onTapGesture { isPresented = false }
+
+            modalContent()
+                .frame(width: width, height: height)
+                .background(OpenBitFunTheme.page)
+                .clipShape(shape)
+                .overlay { if !isCentered && !connectChrome { shape.stroke(OpenBitFunTheme.line, lineWidth: 1) } }
+                .shadow(
+                    color: connectChrome ? OpenBitFunTheme.shellScrim : OpenBitFunTheme.shadowStrong,
+                    radius: connectChrome ? MobileDesignGeometry.connectWidePanelShadowRadius : isCentered ? 0 : 18,
+                    x: isCentered || connectChrome ? 0 : -5,
+                    y: connectChrome ? MobileDesignGeometry.connectWidePanelShadowOffsetY : isCentered ? 0 : 8
+                )
+                .accessibilityAddTraits(.isModal)
+        }
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
     }
 }
 

@@ -11,6 +11,12 @@ const CIPHER_KEY: string = 'github_device_session_v1_cipher';
 const IV_KEY: string = 'github_device_session_v1_iv';
 const HUKS_ALIAS: string = HarmonyUpgradeIdentityContract.CLOUD_ACCOUNT_HUKS_ALIAS;
 
+function isUnavailableHuksKeyError(err: Object): boolean {
+  const message = OhosError.reason(err).toLowerCase();
+  return message.indexOf('12000011') >= 0 || message.indexOf('-13') >= 0 ||
+    message.indexOf('entity does not exist') >= 0 || message.indexOf('does not exist') >= 0;
+}
+
 export interface PersistedCloudAccountSession {
   relayUrl: string;
   username: string;
@@ -49,6 +55,24 @@ export class CloudAccountSessionStore {
   }
 
   private async loadOrCreateDeviceSecret(): Promise<Uint8Array> {
+    try {
+      return await this.loadOrCreateDeviceSecretWithKey();
+    } catch (err) {
+      if (!isUnavailableHuksKeyError(err)) throw err instanceof Error ? err : new Error(OhosError.reason(err));
+
+      // A signature change can leave Preferences encrypted with a HUKS alias
+      // that is no longer available to the new application identity. The old
+      // ciphertext cannot be recovered, so rotate only this account store and
+      // create a fresh device identity. Other app data remains untouched.
+      RemoteLogger.warn('cloud account HUKS key unavailable; rotating encrypted account store');
+      await this.recoverAfterHuksKeyLoss();
+      const secret = Encoding.randomBytes(32);
+      await this.writeSealed('device_private_key_v1_cipher', 'device_private_key_v1_iv', Encoding.bytesToBase64(secret));
+      return secret;
+    }
+  }
+
+  private async loadOrCreateDeviceSecretWithKey(): Promise<Uint8Array> {
     const value = await this.readSealed('device_private_key_v1_cipher', 'device_private_key_v1_iv');
     if (value) {
       const secret = Encoding.base64ToBytes(value);
@@ -72,13 +96,19 @@ export class CloudAccountSessionStore {
     return secret;
   }
 
+  private async recoverAfterHuksKeyLoss(): Promise<void> {
+    const store = this.requireStore();
+    await store.clear();
+    await store.flush();
+    await this.recreateKeyForFreshInstall();
+  }
+
   private async recreateKeyForFreshInstall(): Promise<void> {
     try {
       await huks.deleteKeyItem(HUKS_ALIAS, {});
     } catch (err) {
       const message = OhosError.reason(err);
-      if (message.indexOf('12000011') < 0 && message.indexOf('-13') < 0 &&
-        message.toLowerCase().indexOf('does not exist') < 0) {
+      if (!isUnavailableHuksKeyError(message)) {
         throw err instanceof Error ? err : new Error(OhosError.reason(err));
       }
     }
@@ -205,12 +235,10 @@ export class CloudAccountSessionStore {
     try {
       return await huks.isKeyItemExist(HUKS_ALIAS, {});
     } catch (err) {
-      const message = err instanceof Error ? err.message : JSON.stringify(err);
-      if (message.indexOf('12000011') >= 0 || message.indexOf('-13') >= 0 ||
-        message.toLowerCase().indexOf('does not exist') >= 0) {
+      if (isUnavailableHuksKeyError(err)) {
         return false;
       }
-      throw new Error(message || 'HUKS key lookup failed.');
+      throw new Error(OhosError.reason(err) || 'HUKS key lookup failed.');
     }
   }
 

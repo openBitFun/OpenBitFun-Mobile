@@ -700,10 +700,17 @@ internal fun ProjectCreateControl(
             tonalElevation = 0.dp,
             shadowElevation = 18.dp,
         ) {
-            HarnessProfile.entries.forEach { profile ->
+            if (supportsHarnessProfiles) {
+                HarnessProfile.entries.forEach { profile ->
+                    androidx.compose.material3.DropdownMenuItem(
+                        text = { HarnessProfileLabel(profile) },
+                        onClick = { onCreateAgent(profile.agentType) },
+                    )
+                }
+            } else {
                 androidx.compose.material3.DropdownMenuItem(
-                    text = { HarnessProfileLabel(profile) },
-                    onClick = { onCreateAgent(profile.agentType) },
+                    text = { Text(stringResource(R.string.sessions_filter_code), style = MaterialTheme.typography.titleSmall) },
+                    onClick = { onCreateAgent("code") },
                 )
             }
         }

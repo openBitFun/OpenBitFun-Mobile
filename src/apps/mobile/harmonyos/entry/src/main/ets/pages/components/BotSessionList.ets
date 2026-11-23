@@ -1,4 +1,4 @@
-import { MobileDesignTypography } from '../../generated/MobileDesignTokens';
+import { MobileDesignGeometry, MobileDesignTypography } from '../../generated/MobileDesignTokens';
 import { RemoteI18n } from '../../i18n/RemoteI18n';
 import { LocalGenUISession } from '../../services/local-genui/LocalGenUIModels';
 import { INK, LINE, MUTED, SIDEBAR_SELECTION, TRANSPARENT } from './Theme';
@@ -26,7 +26,8 @@ export struct BotSessionList {
       }
       ForEach(this.sessions, (session: LocalGenUISession, index: number) => {
         if (index > 0) {
-          Divider().strokeWidth(0.5).color(LINE).margin({ left: 12, right: 12 })
+          Divider().strokeWidth(0.5).color(LINE).margin({ left: MobileDesignGeometry.genuiHistoryHorizontalInset,
+            right: MobileDesignGeometry.genuiHistoryHorizontalInset })
         }
         this.SessionRow(session)
       }, (session: LocalGenUISession): string => `${session.id}:${session.title}:${session.updatedAt}`)
@@ -36,7 +37,7 @@ export struct BotSessionList {
   @Builder
   private SessionRow(session: LocalGenUISession) {
     Row({ space: 10 }) {
-      Column({ space: 3 }) {
+      Column({ space: MobileDesignGeometry.genuiHistoryLabelSpacing }) {
         Text(session.title || RemoteI18n.t('sidebar.untitled'))
           .fontSize(MobileDesignTypography.bodyMedium.size)
           .fontWeight(session.id === this.selectedSessionId ? FontWeight.Medium : FontWeight.Regular)
@@ -55,11 +56,12 @@ export struct BotSessionList {
       }
     }
     .width('100%')
-    .constraintSize({ minHeight: 56 })
-    .padding({ left: 12, right: 12, top: 8, bottom: 8 })
+    .constraintSize({ minHeight: MobileDesignGeometry.genuiHistoryRowHeight })
+    .padding({ left: MobileDesignGeometry.genuiHistoryHorizontalInset, right: MobileDesignGeometry.genuiHistoryHorizontalInset,
+      top: MobileDesignGeometry.genuiHistoryVerticalInset, bottom: MobileDesignGeometry.genuiHistoryVerticalInset })
     .alignItems(VerticalAlign.Center)
     .backgroundColor(session.id === this.selectedSessionId ? SIDEBAR_SELECTION : TRANSPARENT)
-    .borderRadius(10)
+    .borderRadius(MobileDesignGeometry.genuiHistoryRowRadius)
     .accessibilityText(session.title)
     .accessibilitySelected(session.id === this.selectedSessionId)
     .onClick(() => {
@@ -69,6 +71,7 @@ export struct BotSessionList {
       builder: (): void => this.SessionActions(session),
       placement: Placement.Bottom,
       enableArrow: false,
+      targetSpace: MobileDesignGeometry.genuiHistoryMenuGap,
       onStateChange: (event) => {
         if (!event.isVisible && this.actionSessionId === session.id) this.actionSessionId = '';
       }
@@ -89,7 +92,8 @@ export struct BotSessionList {
       Text(RemoteI18n.t('common.delete'))
         .fontSize(MobileDesignTypography.bodyMedium.size)
         .fontColor(INK)
-        .padding({ left: 20, right: 20, top: 12, bottom: 12 })
+        .constraintSize({ minHeight: MobileDesignGeometry.genuiHistoryMenuHeight })
+        .padding({ left: MobileDesignGeometry.genuiHistoryActionInset, right: MobileDesignGeometry.genuiHistoryActionInset })
         .onClick(() => {
           this.actionSessionId = '';
           this.onDeleteSession(session.id);

@@ -4,10 +4,17 @@ import OpenBitFunMobileCore
 
 @MainActor
 final class MobileAppModel: ObservableObject {
+    let localGenUi = LocalGenUiModel()
+    @Published var miniAppsShowList = false
+    @Published var miniAppsFocusedID: String?
     @Published var appLanguage: MobileLanguage = MobileLocalization.restoredLanguage()
     @Published var surface: MobileSurface = .remote
     @Published var sessions: [ChatSession]
     @Published var remoteSessions: [ChatSession] = []
+    @Published var deviceModelDefaults = DeviceModelDefaultsUiState(availability: .disconnected, operation: .idle, roles: [], activeRole: nil, hasModels: false)
+    #if DEBUG
+    var previewDeviceModelDispatch: ((RemoteSessionIntent) -> Void)?
+    #endif
     @Published var remoteQuery = ""
     @Published var remoteAgentFilter = "ALL"
     @Published var remoteViewAgentFilter = ""
@@ -28,6 +35,8 @@ final class MobileAppModel: ObservableObject {
     @Published var remoteTranscriptUnconfirmed = false
     @Published var messageQueue: MessageQueueUiState?
     @Published var permissionMailbox: PermissionMailboxUiState?
+    @Published var commandPalette = MobileCommandPaletteState()
+    @Published var rollbackDraft: MobileRollbackDraft? = nil
     @Published var remoteConversationLoading = false
     @Published var remotePermissionMode = "ASK"
     @Published var remotePermissionFailure: String?
@@ -97,6 +106,12 @@ final class MobileAppModel: ObservableObject {
     /// Account device picker. Native apps connect only through the signed-in
     /// account's device list; QR and link pairing belong to mobile web.
     @Published var devicePickerOpen = false
+    @Published var devicePickerSwitchingID: String?
+    @Published var devicePickerConnectionFailed = false
+    var devicePickerPreviousID: String?
+    #if DEBUG
+    var previewConnectPickerDevice: ((MobileAccountDevice) -> Void)?
+    #endif
     /// Session ids awaiting the authoritative delete result. The directory
     /// sidebar has its own cached projection, so it must be reconciled when a
     /// delete succeeds even if the deleted session was not the open one.
@@ -195,6 +210,13 @@ final class MobileAppModel: ObservableObject {
             onRemoteState: { [weak self] state, targetKey, epoch in
                 self?.apply(remoteState: state, targetKey: targetKey, epoch: epoch)
             },
+            onCommandPaletteState: { [weak self] state, targetKey, epoch in
+                self?.apply(commandPalette: state, targetKey: targetKey, epoch: epoch)
+            },
+            onDeviceModelDefaults: { [weak self] state, targetKey, epoch in
+                guard let self, remoteExpectedDeviceKey == targetKey, remoteTargetEpoch == epoch else { return }
+                deviceModelDefaults = state
+            },
             onRemoteConnectionPhase: { [weak self] phase, targetKey, epoch in
                 self?.apply(remoteConnectionPhase: phase, targetKey: targetKey, epoch: epoch)
             },
@@ -272,6 +294,7 @@ final class MobileAppModel: ObservableObject {
             accountSheetOpen = true
             return
         }
+        devicePickerConnectionFailed = false
         refreshRemoteDevices()
         devicePickerOpen = true
     }
@@ -305,7 +328,7 @@ final class MobileAppModel: ObservableObject {
             retryRemoteConnection()
             return
         }
-        guard let device = accountDevices.first(where: { $0.id == releasedID }) else {
+        guard let device = accountDevices.first(where: { $0.id == releasedID && $0.controllable }) else {
             refreshRemoteDevices()
             return
         }

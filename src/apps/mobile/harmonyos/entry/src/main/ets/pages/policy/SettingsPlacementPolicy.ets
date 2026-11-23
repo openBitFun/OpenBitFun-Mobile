@@ -77,8 +77,9 @@ export class SettingsPlacementPolicy {
   }
 
   static resolve(input: AdaptiveLayoutInput, kind: SettingsSheetKind): SettingsPlacement {
-    // Settings and profile are one continuous page. Keep that workflow on a
-    // full-width bottom sheet at every width, even when it crosses a fold.
+    // Settings and profile are one continuous page. Leave preferType unset so
+    // ArkUI uses its bottom presentation on compact windows and centers the
+    // paper on expanded windows, including across a vertical crease.
     if (kind === SettingsSheetKind.Settings) {
       return SettingsPlacementPolicy.bottomPlacement(kind);
     }

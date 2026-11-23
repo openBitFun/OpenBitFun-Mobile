@@ -5,6 +5,7 @@ import { ImageIcon } from "lucide-react";
 import { useEffect, useState } from "react";
 import { z } from "zod/v4";
 import { withBase } from "../base-path";
+import { localImageUrl } from "../localImageUrl";
 import { Glyph } from "./glyph";
 import { color, cx, fg, radius, radiusSchema, webUrl } from "./style";
 import { isAbortError, type GenUIAsyncRuntime } from "../../genUIAsyncCapabilities";
@@ -148,7 +149,7 @@ function Photo(props: PhotoProps) {
       {current ? (
         <img
           key={current}
-          src={current}
+          src={localImageUrl(current)}
           alt={alt}
           loading="lazy"
           referrerPolicy="no-referrer"

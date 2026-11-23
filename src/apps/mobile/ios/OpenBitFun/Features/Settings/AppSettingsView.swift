@@ -1,11 +1,17 @@
+import OpenBitFunMobileCore
 import SwiftUI
+
+struct SettingsNavigation {
+    var loginOpen = false
+    var modelDeviceID: String?
+    var modelRole: DeviceModelRole?
+}
 
 struct SettingsView: View {
     @ObservedObject var model: MobileAppModel
-    var onClose: (() -> Void)? = nil
-    @Environment(\.dismiss) private var dismiss
-    /// Sign-in stays its own step; the signed-in account is inline below.
-    @State private var loginOpen = false
+    @Binding var navigation: SettingsNavigation
+    let onClose: () -> Void
+    @AppStorage("local_genui_look") private var genUiLook = LocalGenUiLook.aurora
 
     private var appVersion: String {
         Bundle.main.object(forInfoDictionaryKey: "CFBundleShortVersionString") as? String ?? "1.0.0"
@@ -19,15 +25,30 @@ struct SettingsView: View {
     }
 
     var body: some View {
+        Group {
+            if let device = model.accountDevices.first(where: { $0.id == navigation.modelDeviceID && $0.selected }) {
+                DeviceModelSettingsView(
+                    model: model, deviceName: device.name, role: $navigation.modelRole,
+                    dispatch: { model.dispatchDeviceModels($0, deviceID: device.id) },
+                    onBack: { navigation.modelDeviceID = nil },
+                    onClose: onClose
+                )
+            } else {
+                settingsHome
+            }
+        }
+    }
+
+    private var settingsHome: some View {
         ZStack(alignment: .topTrailing) {
             VStack(spacing: 0) {
-                OpenBitFunModalHeader(title: "设置", onClose: { if let onClose { onClose() } else { dismiss() } })
+                OpenBitFunModalHeader(title: "设置", onClose: onClose)
                     .padding(.horizontal, MobileDesignGeometry.sheetHorizontalPadding)
                 Divider().overlay(OpenBitFunTheme.line)
 
                 ScrollView(showsIndicators: false) {
                     VStack(alignment: .leading, spacing: 0) {
-                        AccountIdentityCard(model: model, onSignIn: { loginOpen = true })
+                        AccountIdentityCard(model: model, onSignIn: { navigation.loginOpen = true })
 
                         if showsCurrentConnection {
                             currentConnectionSection
@@ -45,6 +66,15 @@ struct SettingsView: View {
                                 ).contentShape(Rectangle())
                             }
                             .buttonStyle(.plain)
+                            Divider().overlay(OpenBitFunTheme.line).padding(.horizontal, 26)
+                            Menu {
+                                ForEach(LocalGenUiLook.allCases) { look in
+                                    Button(model.localized(look.title)) { genUiLook = look }
+                                }
+                            } label: {
+                                SettingsValueRow(icon: "paintpalette", title: "小应用风格", value: model.localized(genUiLook.title), showsChevron: true)
+                                    .contentShape(Rectangle())
+                            }.buttonStyle(.plain)
                         }
                         SettingsGroup(title: "通知") {
                             Button {
@@ -61,7 +91,10 @@ struct SettingsView: View {
                             .buttonStyle(.plain)
                             .accessibilityIdentifier("settings.notifications")
                         }
-                        AccountDevicesSection(model: model)
+                        AccountDevicesSection(model: model) { deviceID in
+                            navigation.modelRole = nil
+                            navigation.modelDeviceID = deviceID
+                        }
                         SettingsGroup(title: "关于") {
                             VStack(spacing: 0) {
                                 SettingsValueRow(
@@ -87,8 +120,8 @@ struct SettingsView: View {
             if model.languagePickerOpen {
                 LanguagePickerSheet(model: model)
                     .transition(.move(edge: .trailing).combined(with: .opacity))
-            } else if loginOpen {
-                AccountLoginView(model: model, onClose: { loginOpen = false })
+            } else if navigation.loginOpen {
+                AccountLoginView(model: model, onClose: { navigation.loginOpen = false })
                     .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
                     .background(OpenBitFunTheme.page)
                     .transition(.move(edge: .trailing).combined(with: .opacity))
@@ -96,7 +129,7 @@ struct SettingsView: View {
         }
         .background(OpenBitFunTheme.page)
         .animation(.easeInOut(duration: 0.2), value: model.languagePickerOpen)
-        .animation(.easeInOut(duration: 0.2), value: loginOpen)
+        .animation(.easeInOut(duration: 0.2), value: navigation.loginOpen)
         .onAppear {
             if model.remoteConnected { model.refreshRemotePermissionMode() }
         }
@@ -105,7 +138,7 @@ struct SettingsView: View {
     }
 
     private func closeLoginWhenDone() {
-        if loginOpen && !AccountLoginView.isNeeded(model) { loginOpen = false }
+        if navigation.loginOpen && !AccountLoginView.isNeeded(model) { navigation.loginOpen = false }
     }
 
     private var showsCurrentConnection: Bool {

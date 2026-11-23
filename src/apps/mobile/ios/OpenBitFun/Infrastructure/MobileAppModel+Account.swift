@@ -3,12 +3,14 @@ import UIKit
 import OpenBitFunMobileCore
 
 extension MobileAppModel {
-    private func invalidateTerminalAccountAuthority() {
+    private func invalidateTerminalAccountAuthority(preserveAccountTarget: Bool = false) {
         invalidateTargetScopedFileTransfers()
         if let targetKey = coreAdapter?.currentRemoteTargetKey,
            targetKey.hasPrefix("account:") {
             let epoch = coreAdapter?.currentRemoteTargetEpoch ?? remoteTargetEpoch
-            _ = coreAdapter?.invalidateRemoteAuthority(ifTargetKey: targetKey, epoch: epoch)
+            _ = coreAdapter?.invalidateRemoteAuthority(
+                ifTargetKey: targetKey, epoch: epoch, preserveAccountTarget: preserveAccountTarget
+            )
         }
         clearInvalidatedRemoteAuthorityProjection(
             adapterEpoch: coreAdapter?.currentRemoteTargetEpoch ?? remoteTargetEpoch
@@ -38,6 +40,10 @@ extension MobileAppModel {
     }
 
     func selectRemoteDevice(_ device: MobileAccountDevice, preserveDrawer: Bool = false) {
+        guard device.controllable else {
+            showToast(localized(device.presenceKey))
+            return
+        }
         guard device.online else {
             showToast(localized("这台桌面设备当前离线"))
             return
@@ -79,6 +85,56 @@ extension MobileAppModel {
         coreAdapter?.selectAccountDevice(id: device.id)
     }
 
+    func connectPickerDevice(_ device: MobileAccountDevice) {
+        guard device.controllable, device.online, devicePickerSwitchingID == nil else { return }
+        let targetKey = "account:\(device.id)"
+        if accountSelectedDeviceID == device.id, connectionPhase == .connected {
+            finishDevicePickerConnection()
+            return
+        }
+        devicePickerConnectionFailed = false
+        devicePickerPreviousID = connectionPhase == .connected ? accountSelectedDeviceID : nil
+        devicePickerSwitchingID = device.id
+        #if DEBUG
+        if let previewConnectPickerDevice {
+            previewConnectPickerDevice(device)
+            return
+        }
+        #endif
+        if let adapter = coreAdapter, adapter.currentRemoteTargetKey == targetKey {
+            _ = adapter.invalidateRemoteAuthority(ifTargetKey: targetKey, epoch: adapter.currentRemoteTargetEpoch)
+        }
+        if remoteExpectedDeviceKey == targetKey { remoteExpectedDeviceKey = nil }
+        selectRemoteDevice(device)
+    }
+
+    func settleDevicePickerConnection(phase: OpenBitFunMobileCore.ConnectionPhase, targetKey: String) {
+        guard let switchingID = devicePickerSwitchingID, targetKey == "account:\(switchingID)" else { return }
+        switch phase.name {
+        case "CONNECTED":
+            devicePickerSwitchingID = nil
+            devicePickerPreviousID = nil
+            finishDevicePickerConnection()
+        case "FAILED", "DISCONNECTED":
+            devicePickerSwitchingID = nil
+            devicePickerConnectionFailed = true
+            let previousID = devicePickerPreviousID
+            devicePickerPreviousID = nil
+            if let previous = accountDevices.first(where: { $0.id == previousID && $0.online && $0.controllable }) {
+                selectRemoteDevice(previous)
+            }
+        default:
+            break
+        }
+    }
+
+    private func finishDevicePickerConnection() {
+        devicePickerOpen = false
+        surface = .remote
+        drawerOpen = false
+        remoteSessionSelected = false
+    }
+
     func refreshRemoteDevices() {
         guard accountUser != nil else { return }
         coreAdapter?.refreshAccountDevices()
@@ -86,6 +142,8 @@ extension MobileAppModel {
 
     func logoutAccount() {
         completionNotifier.reset()
+        devicePickerSwitchingID = nil
+        devicePickerPreviousID = nil
 
             invalidateTargetScopedFileTransfers()
 
@@ -233,7 +291,16 @@ extension MobileAppModel {
             openAccountAuthorization()
         }
         if let ready = state as? AccountUiStateReady {
+            if let switching = devicePickerSwitchingID, switching != ready.selectedDeviceId {
+                devicePickerSwitchingID = nil
+                devicePickerPreviousID = nil
+                devicePickerConnectionFailed = true
+            }
             let readyTargetKey = ready.selectedDeviceId.map { "account:\($0)" }
+            if let bound = coreAdapter?.currentRemoteTargetKey,
+               ready.devices.contains(where: { !$0.controllable && "account:\($0.id)" == bound }) {
+                invalidateTerminalAccountAuthority(preserveAccountTarget: true)
+            }
             if let adapterTargetKey = coreAdapter?.currentRemoteTargetKey,
                adapterTargetKey.hasPrefix("account:"),
                adapterTargetKey != readyTargetKey {
@@ -260,8 +327,9 @@ extension MobileAppModel {
                     id: device.id,
                     name: device.displayName,
                     online: device.online ||
-                        (targetKey == remoteExpectedDeviceKey && remoteConnected && remoteInitialSessionReady),
-                    selected: device.id == ready.selectedDeviceId
+                        (device.controllable && targetKey == remoteExpectedDeviceKey && remoteConnected && remoteInitialSessionReady),
+                    selected: device.id == ready.selectedDeviceId,
+                    controllable: device.controllable
                 )
             }
             accountDirectoryGeneration = coreAdapter?.syncDeviceDirectory(accountDevices) ?? (accountDirectoryGeneration &+ 1)
@@ -272,11 +340,17 @@ extension MobileAppModel {
             // the directory or has gone offline, recover to the first online
             // controllable device instead of leaving the user on the empty
             // "选择设备和工作区" gate indefinitely.
-            let selectedDeviceIsOnline = ready.selectedDeviceId.flatMap { selectedID in
-                ready.devices.first(where: { $0.id == selectedID })?.online
-            } ?? false
+            let selected = accountDevices.first(where: { $0.id == ready.selectedDeviceId })
+            if let selected, !selected.controllable {
+                connectionPhase = .disconnected
+                remoteConnected = false
+                coreErrorMessage = localized(selected.presenceKey)
+                settleDevicePickerConnection(phase: .failed, targetKey: "account:\(selected.id)")
+                return
+            }
+            let selectedDeviceIsOnline = selected?.online == true
             if !released, !selectedDeviceIsOnline,
-               let target = ready.devices.first(where: { $0.online }) {
+               let target = ready.devices.first(where: { $0.online && $0.controllable }) {
                 accountBusy = true
                 coreAdapter?.selectAccountDevice(id: target.id)
                 return
@@ -289,6 +363,11 @@ extension MobileAppModel {
             }
             surface = .remote
         } else if let failed = state as? AccountUiStateFailed {
+            if devicePickerSwitchingID != nil {
+                devicePickerSwitchingID = nil
+                devicePickerPreviousID = nil
+                devicePickerConnectionFailed = true
+            }
             accountBusy = false
             accountFailureStage = failed.stage.name
             accountFailureCanRetry = failed.canRetry
@@ -320,6 +399,8 @@ extension MobileAppModel {
 
             }
         } else if state is AccountUiStateSignedOut {
+            devicePickerSwitchingID = nil
+            devicePickerPreviousID = nil
             accountBusy = false
             accountFailureStage = nil
             accountFailureCanRetry = false
@@ -348,6 +429,7 @@ extension MobileAppModel {
         guard targetKey.hasPrefix(prefix), remoteConnected else { return }
         let deviceID = String(targetKey.dropFirst(prefix.count))
         guard let index = accountDevices.firstIndex(where: { $0.id == deviceID }),
+              accountDevices[index].controllable,
               !accountDevices[index].online else { return }
         let device = accountDevices[index]
         accountDevices[index] = MobileAccountDevice(

@@ -3,7 +3,7 @@ import { MiniAppShortcut } from '../../services/MiniAppShortcut';
 import { RemoteLogger } from '../../services/RemoteLogger';
 import { BusinessError } from '@kit.BasicServicesKit';
 import { LocalGenUIGalleryEntry } from '../../services/local-genui/LocalGenUIModels';
-import { MobileDesignGeometry, MobileDesignTypography } from '../../generated/MobileDesignTokens';
+import { MobileDesignGeometry, MobileDesignMotion, MobileDesignTypography } from '../../generated/MobileDesignTokens';
 import { MiniAppSummary } from '../../model/MiniAppModels';
 import { RemoteI18n } from '../../i18n/RemoteI18n';
 import { MiniAppState } from '../state/MiniAppState';
@@ -150,18 +150,19 @@ export struct MiniAppGallery {
     drag.hintVisible = drag.reduceMotion;
     drag.active = true;
     this.lifted = app;
-    this.getUIContext().animateToImmediately({ duration: drag.reduceMotion ? 0 : 300, curve: Curve.EaseOut }, () => {
-      drag.width = 56;
-      drag.height = 56;
-      drag.coverHeight = 56;
-      drag.offsetX = -28;
-      drag.offsetY = -28;
+    const iconSize = MobileDesignGeometry.miniappDragIconSize;
+    this.getUIContext().animateToImmediately({ duration: drag.reduceMotion ? 0 : MobileDesignMotion.miniappDragContract, curve: Curve.EaseOut }, () => {
+      drag.width = iconSize;
+      drag.height = iconSize;
+      drag.coverHeight = iconSize;
+      drag.offsetX = -iconSize / 2;
+      drag.offsetY = -iconSize / 2;
       drag.contracted = true;
     });
     if (drag.reduceMotion) return;
     this.hintTimer = setTimeout(() => {
-      this.getUIContext().animateTo({ duration: 150, curve: Curve.EaseOut }, () => { drag.hintVisible = true; });
-    }, 200);
+      this.getUIContext().animateTo({ duration: MobileDesignMotion.miniappDragHintFade, curve: Curve.EaseOut }, () => { drag.hintVisible = true; });
+    }, MobileDesignMotion.miniappDragHintDelay);
   }
 
   private endLift(): void {

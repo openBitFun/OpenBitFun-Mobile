@@ -5,11 +5,15 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.layout.widthIn
 import androidx.compose.material3.HorizontalDivider
+import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
 import com.openbitfun.mobile.app.ui.shell.WelcomeBrandFlow
 import com.openbitfun.mobile.app.ui.theme.generated.MobileDesignGeometry
 import com.openbitfun.mobile.core.feature.session.RecentSessionsPresentation
 import com.openbitfun.mobile.core.feature.session.RecentSessionUiState
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.heightIn
+import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Arrangement
@@ -37,6 +41,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
@@ -49,6 +54,7 @@ import com.openbitfun.mobile.core.feature.connection.ConnectionPhase
 import com.openbitfun.mobile.core.feature.layout.SettingsPlacement
 import com.openbitfun.mobile.core.feature.session.ConversationHeaderPresenter
 import com.openbitfun.mobile.core.feature.session.RemoteSessionUiState
+import com.openbitfun.mobile.core.feature.session.CommandPaletteUiState
 import com.openbitfun.mobile.core.feature.workspace.RemoteWorkspaceIntent
 import com.openbitfun.mobile.core.feature.workspace.RemoteWorkspaceUiState
 
@@ -56,6 +62,7 @@ import com.openbitfun.mobile.core.feature.workspace.RemoteWorkspaceUiState
 @Composable
 internal fun AccountRemoteScreen(
     remoteState: RemoteSessionUiState,
+    commandPalette: CommandPaletteUiState = CommandPaletteUiState.empty(),
     workspaceState: RemoteWorkspaceUiState,
     deviceId: String,
     deviceName: String,
@@ -85,6 +92,7 @@ internal fun AccountRemoteScreen(
 ) {
     RemoteConnectedScreen(
         remoteState = remoteState,
+        commandPalette = commandPalette,
         workspaceState = workspaceState,
         phase = phase,
         settingsPlacement = settingsPlacement,
@@ -116,6 +124,7 @@ internal fun AccountRemoteScreen(
 @Composable
 private fun RemoteConnectedScreen(
     remoteState: RemoteSessionUiState,
+    commandPalette: CommandPaletteUiState,
     workspaceState: RemoteWorkspaceUiState,
     phase: ConnectionPhase,
     settingsPlacement: SettingsPlacement,
@@ -154,6 +163,7 @@ private fun RemoteConnectedScreen(
     if (conversation != null) {
         ConversationView(
             state = conversation,
+            commandPalette = commandPalette,
             attachmentOwner = attachmentOwner,
             hostCapabilities = (workspaceState as? RemoteWorkspaceUiState.Ready)?.hostCapabilities.orEmpty(),
             phase = phase,
@@ -165,6 +175,10 @@ private fun RemoteConnectedScreen(
                 desktopName = desktopName,
                 workspaceBranch = (workspaceState as? RemoteWorkspaceUiState.Ready)
                     ?.selected?.gitBranch.orEmpty(),
+                workspacePath = (workspaceState as? RemoteWorkspaceUiState.Ready)
+                    ?.selected?.path.orEmpty(),
+                workspaceName = (workspaceState as? RemoteWorkspaceUiState.Ready)
+                    ?.selected?.name.orEmpty(),
             ),
             onOpenFile = { path, label ->
                 onWorkspaceIntent(
@@ -247,18 +261,26 @@ internal fun RemoteCompactHome(
     val recent = RecentSessionsPresentation.sessionIds(sessions.map {
         RecentSessionUiState(it.id, it.status, it.updatedAt, it.createdAt)
     }).mapNotNull { id -> sessions.firstOrNull { it.id == id } }
-    Column(modifier.fillMaxSize()) {
-        RemoteShellHeader(onOpenSidebar, desktopName, null)
+    BoxWithConstraints(modifier.fillMaxSize(), contentAlignment = Alignment.TopCenter) {
+        val viewportHeight = maxHeight
         Column(
-            Modifier.weight(1f).align(Alignment.CenterHorizontally)
-                .widthIn(max = MobileDesignGeometry.RecentHomeMaxWidth).fillMaxWidth()
-                .verticalScroll(rememberScrollState())
-                .padding(horizontal = MobileDesignGeometry.RecentHomeGutter, vertical = 24.dp),
+            Modifier.widthIn(max = MobileDesignGeometry.RecentHomeMaxWidth).fillMaxWidth()
+                .verticalScroll(rememberScrollState()).heightIn(min = viewportHeight)
+                .padding(horizontal = MobileDesignGeometry.RecentHomeGutter)
+                .padding(top = MobileDesignGeometry.RecentHomeTopPadding, bottom = 28.dp),
+            verticalArrangement = Arrangement.Center,
         ) {
             com.openbitfun.mobile.app.ui.shell.ColdStartHomeMark(Modifier.align(Alignment.CenterHorizontally).size(MobileDesignGeometry.RecentHomeMarkSize))
-            Text(stringResource(R.string.home_recent_title), fontSize = 25.sp,
-                fontWeight = FontWeight.Medium, textAlign = androidx.compose.ui.text.style.TextAlign.Center,
-                modifier = Modifier.fillMaxWidth().padding(top = 10.dp, bottom = 32.dp))
+            Box(Modifier.fillMaxWidth()
+                .padding(top = MobileDesignGeometry.RecentHomeHeroGap, bottom = MobileDesignGeometry.RecentHomeHeroBottom),
+                contentAlignment = Alignment.Center,
+            ) {
+                com.openbitfun.mobile.app.ui.shell.WelcomePhrase(
+                    wordSize = MobileDesignGeometry.RecentHomeTitleSize,
+                    longWordSize = MobileDesignGeometry.RecentHomeTitleSize,
+                    stageHeight = MobileDesignGeometry.RecentHomePhraseStageHeight,
+                )
+            }
             if (remoteState is RemoteSessionUiState.Loading) CircularProgressIndicator(Modifier.size(24.dp))
             if (remoteState is RemoteSessionUiState.Failed) {
                 Text(stringResource(R.string.sessions_failed), color = MaterialTheme.colorScheme.onSurfaceVariant)
@@ -274,12 +296,13 @@ internal fun RemoteCompactHome(
             recent.forEach { session ->
                 Column(Modifier.fillMaxWidth().clickable { onOpen(session.id) }
                     .padding(vertical = MobileDesignGeometry.RecentHomeRowPadding)) {
-                    Text(session.title, fontSize = 15.sp, maxLines = 2)
-                    val workspace = session.workspaceName?.takeIf { it.isNotBlank() }
-                        ?: session.workspacePath.orEmpty().trimEnd('/').substringAfterLast('/')
-                    Text(listOf(desktopName, workspace).filter { it.isNotBlank() }.joinToString(" · "),
-                        fontSize = 11.sp, color = MaterialTheme.colorScheme.onSurfaceVariant,
-                        modifier = Modifier.padding(top = 6.dp), maxLines = 1)
+                    Text(session.title, style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.Medium, maxLines = 2)
+                    val workspace = session.workspacePath?.takeIf { it.isNotBlank() }
+                        ?: session.workspaceName?.takeIf { it.isNotBlank() }
+                        ?: desktopName
+                    Text(workspace,
+                        style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        modifier = Modifier.padding(top = 4.dp), maxLines = 1)
                 }
                 HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
             }
@@ -287,6 +310,22 @@ internal fun RemoteCompactHome(
                 Text(stringResource(if (desktopName.isBlank()) R.string.home_recent_connect else R.string.home_recent_empty),
                     fontSize = 13.sp, color = MaterialTheme.colorScheme.onSurfaceVariant,
                     modifier = Modifier.padding(vertical = 18.dp))
+            }
+        }
+        if (onOpenSidebar != null) {
+            Box(Modifier.align(Alignment.TopStart).padding(start = 8.dp, top = 8.dp)) {
+                IconButton(
+                    onClick = onOpenSidebar,
+                    modifier = Modifier.size(MobileDesignGeometry.ControlTouchSize)
+                        .testTag(MENU_TEST_TAG),
+                ) {
+                    Icon(
+                        painter = painterResource(R.drawable.ic_symbol_menu_lines),
+                        contentDescription = stringResource(R.string.shell_open_sidebar),
+                        tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                        modifier = Modifier.size(width = 22.dp, height = 14.dp),
+                    )
+                }
             }
         }
     }

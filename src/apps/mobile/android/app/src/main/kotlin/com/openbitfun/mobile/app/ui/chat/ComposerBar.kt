@@ -161,6 +161,8 @@ internal fun ComposerBar(
     onStop: () -> Unit,
     onOpenModels: () -> Unit,
     onSelectModel: (String) -> Unit = {},
+    skillToken: String? = null,
+    onClearSkill: () -> Unit = {},
     modifier: Modifier,
 ) {
     val inputFocusRequester = remember { FocusRequester() }
@@ -189,7 +191,7 @@ internal fun ComposerBar(
         easing = OpenBitFunEaseOut,
     )
     val radius by animateDpAsState(
-        if (expanded || images.isNotEmpty()) {
+        if (expanded || images.isNotEmpty() || !skillToken.isNullOrBlank()) {
             MobileDesignGeometry.ComposerExpandedRadius
         } else {
             MobileDesignGeometry.ComposerCollapsedRadius
@@ -273,6 +275,9 @@ internal fun ComposerBar(
                     ),
                 ),
             ) {
+                if (!skillToken.isNullOrBlank()) {
+                    SkillTokenStrip(skillToken = skillToken, enabled = !busy, onClear = onClearSkill)
+                }
                 if (capabilities.supportsAttachments && images.isNotEmpty()) {
                     AttachmentStrip(
                         images = images,
@@ -375,6 +380,39 @@ internal fun ComposerBar(
                 }
             }
         }
+    }
+}
+
+@Composable
+private fun SkillTokenStrip(skillToken: String, enabled: Boolean, onClear: () -> Unit) {
+    Row(
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(5.dp),
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(start = 4.dp, end = 4.dp, top = 4.dp)
+            .height(28.dp),
+    ) {
+        Row(
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(5.dp),
+            modifier = Modifier
+                .clip(RoundedCornerShape(14.dp))
+                .background(MaterialTheme.colorScheme.surfaceVariant)
+                .clickable(enabled = enabled, onClick = onClear)
+                .padding(horizontal = 9.dp)
+                .height(28.dp),
+        ) {
+            Text("⚒", style = MaterialTheme.typography.labelSmall)
+            Text(
+                skillToken,
+                style = MaterialTheme.typography.labelSmall.copy(fontWeight = FontWeight.Medium),
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
+            )
+            Text("×", style = MaterialTheme.typography.labelSmall)
+        }
+        Box(Modifier.weight(1f))
     }
 }
 

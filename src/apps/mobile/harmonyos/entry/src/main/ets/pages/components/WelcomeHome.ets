@@ -63,7 +63,7 @@ export struct WelcomeHome {
           Row({ space: 48 }) {
             Column() { this.Hero() }.layoutWeight(1)
             Column() { this.Actions() }.layoutWeight(1)
-          }.width('100%').constraintSize({ maxWidth: 1000,
+          }.width('100%').constraintSize({ maxWidth: G.welcomeLandscapeWidth,
             minHeight: Math.max(400, this.pageHeight - G.welcomeHeaderHeight) })
             .padding({ left: 40, right: 40, bottom: 48 })
             .alignItems(VerticalAlign.Center)
@@ -96,7 +96,7 @@ export struct WelcomeHome {
   @Builder
   private Hero() {
     Column({ space: this.wide() ? 16 : 20 }) {
-      WelcomeBrandFlow({ markSize: this.landscape() ? 216 : this.wide() ? 184 : 156, sweep: true })
+      WelcomeBrandFlow({ markSize: this.landscape() ? G.welcomeLandscapeMarkSize : this.wide() ? G.welcomeWideMarkSize : G.welcomeMarkSize, sweep: true })
       WelcomePhrase()
     }.width('100%').margin({ bottom: this.wide() ? 32 : 0 })
   }
@@ -113,7 +113,7 @@ export struct WelcomeHome {
             .fontColor([this.wide() ? MUTED : $r('app.color.welcome_secondary')])
         }
       }.height(44).width('100%').backgroundColor(TRANSPARENT).onClick(this.onMiniApps)
-    }.width('100%').constraintSize({ maxWidth: this.wide() ? 400 : G.welcomeMaxWidth })
+    }.width('100%').constraintSize({ maxWidth: this.wide() ? G.welcomeWideActionWidth : G.welcomeMaxWidth })
       .padding({ left: G.welcomeGutter, right: G.welcomeGutter, top: this.wide() ? 0 : G.welcomeGutter,
         bottom: this.wide() ? 0 : this.insets.bottomPadding(G.welcomeDockBottom) })
       .backgroundColor(this.wide() ? TRANSPARENT : $r('app.color.welcome_dock'))

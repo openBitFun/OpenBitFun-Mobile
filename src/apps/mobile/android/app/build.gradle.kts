@@ -20,7 +20,10 @@ val allowUnsignedRelease = providers.gradleProperty("allowUnsignedRelease")
     .orElse(false)
     .get()
 android {
-    sourceSets.getByName("main").assets.srcDir(file("../../../../shared/terminal/webview/generated"))
+    sourceSets.getByName("main").assets.apply {
+        srcDir(file("../../../../shared/terminal/webview/generated"))
+        srcDir(file("../../../../shared/generative-ui/generated/mobile"))
+    }
     namespace = "com.openbitfun.mobile.app"
     compileSdk = libs.versions.androidCompileSdk.get().toInt()
 
@@ -85,6 +88,13 @@ dependencies {
     implementation(libs.androidx.lifecycle.viewmodel.compose)
     implementation(libs.androidx.lifecycle.runtime.compose)
     implementation(libs.androidx.window)
+    implementation(libs.androidx.camera.camera2)
+    implementation(libs.androidx.camera.lifecycle)
+    implementation(libs.androidx.camera.view)
+    implementation(libs.mlkit.pose)
+    implementation(libs.mlkit.document.scanner)
+    implementation(libs.mlkit.code.scanner)
+    implementation(libs.zxing.core)
 
     testImplementation("junit:junit:4.13.2")
 

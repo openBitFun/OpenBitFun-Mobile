@@ -31,6 +31,8 @@ struct SidebarWorkspaceCreateAnchorKey: PreferenceKey {
 
 struct SidebarView: View {
     @ObservedObject var model: MobileAppModel
+    let openLocalGenUi: () -> Void
+    let openMiniApps: () -> Void
     var permanent = false
     var onCollapse: (() -> Void)? = nil
     var onPermanentActions: ((ChatSession) -> Void)? = nil
@@ -70,7 +72,8 @@ struct SidebarView: View {
                 }
                 ScrollView(showsIndicators: false) {
                     VStack(alignment: .leading, spacing: 0) {
-                        MiniAppsButton(model: model, sidebar: true)
+                        LocalGenUiButton(model: model, onOpen: openLocalGenUi)
+                        MiniAppsButton(model: model, onOpen: openMiniApps, sidebar: true)
                         workspaceSection
                             .fixedSize(horizontal: false, vertical: true)
                             .padding(.bottom, 12)
@@ -357,11 +360,11 @@ struct SidebarView: View {
         return SidebarDeviceRow(
             name: device.name,
             current: current,
-            enabled: device.online || (current && model.connectionPhase == .disconnected),
+            enabled: device.controllable && (device.online || (current && model.connectionPhase == .disconnected)),
             loading: device.status == "LOADING",
-            statusColor: current ? activeConnectionColor :
+            statusColor: !device.controllable ? OpenBitFunTheme.statusDanger : current ? activeConnectionColor :
                 (device.online ? OpenBitFunTheme.statusSuccess : OpenBitFunTheme.sidebarMuted),
-            statusLabel: current ? activeConnectionLabel :
+            statusLabel: !device.controllable ? model.localized("客户端版本不兼容，无法互控。") : current ? activeConnectionLabel :
                 (device.online ? model.localized("在线") : model.localized("离线")),
             accessibilityID: "sidebar.device.\(device.id)",
             onSelect: { selectDirectoryDevice(device) }
@@ -389,6 +392,7 @@ struct SidebarView: View {
     }
 
     private func selectDirectoryDevice(_ device: MobileDeviceDirectoryEntry) {
+        guard device.controllable else { return }
         if isCurrentDevice(device), model.connectionPhase == .disconnected {
             model.reconnectRemote()
             return
@@ -797,7 +801,9 @@ struct SidebarView: View {
     private func createWorkspaceSession(_ workspace: MobileWorkspaceGroup, agentType: String) {
         if workspace.deviceKey == nil || normalizedDeviceKey(workspace.deviceKey) == normalizedDeviceKey(model.remoteExpectedDeviceKey) {
             model.createRemoteSession(in: workspace, agentType: agentType)
-        } else if let device = model.accountDevices.first(where: { normalizedDeviceKey($0.id) == normalizedDeviceKey(workspace.deviceKey) }) {
+        } else if let device = model.accountDevices.first(where: {
+            normalizedDeviceKey($0.id) == normalizedDeviceKey(workspace.deviceKey) && $0.controllable
+        }) {
             pendingWorkspaceCreate = NativeWorkspaceCreateTarget(workspace: workspace, agentType: agentType)
             model.selectRemoteDevice(device, preserveDrawer: true)
         }

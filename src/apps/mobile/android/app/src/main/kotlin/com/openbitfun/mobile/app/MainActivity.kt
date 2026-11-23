@@ -3,9 +3,6 @@ package com.openbitfun.mobile.app
 import android.content.Intent
 import android.os.Bundle
 import androidx.compose.foundation.layout.Box
-import androidx.compose.foundation.background
-import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
 import com.openbitfun.mobile.app.ui.shell.StartupBrandReveal
@@ -15,14 +12,12 @@ import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.Alignment
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.layout.onGloballyPositioned
 import androidx.compose.ui.layout.positionInRoot
 import androidx.compose.ui.semantics.hideFromAccessibility
 import androidx.compose.ui.semantics.semantics
-import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.unit.dp
+import androidx.compose.ui.platform.LocalConfiguration
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
@@ -33,6 +28,8 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.openbitfun.mobile.app.platform.LogcatCoreLog
 import com.openbitfun.mobile.app.ui.shell.MobileScreen
+import com.openbitfun.mobile.app.ui.miniapps.MiniAppsDialog
+import com.openbitfun.mobile.app.ui.miniapps.miniAppShortcutId
 import com.openbitfun.mobile.app.platform.StartupRevealPreference
 import com.openbitfun.mobile.app.platform.AppLocaleController
 import com.openbitfun.mobile.app.ui.preview.MessageQueuePreview
@@ -48,13 +45,15 @@ class MainActivity : ComponentActivity() {
     private var allowColdStart by mutableStateOf(false)
     private var showWelcomeNavigationProtection by mutableStateOf(true)
     private var authorizationCallbackPending = false
+    private var miniAppShortcut by mutableStateOf<String?>(null)
     override fun onCreate(savedInstanceState: Bundle?) {
         AppLocaleController.applySaved(this)
         super.onCreate(savedInstanceState)
         LogcatCoreLog.initialize(applicationContext)
         LogcatCoreLog.info("activity onCreate callback=${isAuthorizationCallbackIntent(intent)}")
         authorizationCallbackPending = isAuthorizationCallbackIntent(intent)
-        val coldStartCandidate = !processLaunchClaimed
+        miniAppShortcut = miniAppShortcutId(intent)
+        val coldStartCandidate = miniAppShortcut == null && !processLaunchClaimed
             && !intent.getBooleanExtra(DESIGN_PREVIEW_EXTRA, false)
         processLaunchClaimed = true
         showStartupBrand = coldStartCandidate && StartupRevealPreference.claim(this)
@@ -80,8 +79,9 @@ class MainActivity : ComponentActivity() {
                 AppThemeMode.DARK -> true
             }
             OpenBitFunTheme(dark = dark) {
-                LaunchedEffect(dark, showWelcomeNavigationProtection, showStartupBrand, showColdStart, allowColdStart) {
-                    val welcomeIsVisible = showWelcomeNavigationProtection &&
+                val compact = LocalConfiguration.current.screenWidthDp < 600
+                LaunchedEffect(dark, compact, showWelcomeNavigationProtection, showStartupBrand, showColdStart, allowColdStart) {
+                    val welcomeIsVisible = compact && showWelcomeNavigationProtection &&
                         !showStartupBrand && !showColdStart && !allowColdStart
                     WindowCompat.getInsetsController(window, window.decorView).isAppearanceLightNavigationBars =
                         !dark && !welcomeIsVisible
@@ -107,24 +107,11 @@ class MainActivity : ComponentActivity() {
                     if (showColdStart) {
                         ColdStartHomeTransition(bounds?.translate(-origin)) { showColdStart = false }
                     }
-                    // Android 15+ makes the gesture/navigation area part of an
-                    // edge-to-edge window. Keep the signed-out welcome dock's
-                    // dark surface behind that area at the Activity root; a
-                    // screen or Scaffold inset cannot paint over the system
-                    // region reliably on all API levels.
-                    if (showWelcomeNavigationProtection && !showStartupBrand && !showColdStart && !allowColdStart) {
-                        Box(
-                            Modifier
-                                .align(Alignment.BottomCenter)
-                                .fillMaxWidth()
-                                // Include the platform's divider inset above
-                                // the gesture area as well as the nav bar.
-                                .height(40.dp)
-                                .background(Color(23, 25, 23)),
-                        )
-                    }
                 }
-                if (!showStartupBrand && !showColdStart && !allowColdStart) {
+                miniAppShortcut?.let { id ->
+                    androidx.compose.runtime.key(id) { MiniAppsDialog(initialAppId = id) { miniAppShortcut = null } }
+                }
+                if (miniAppShortcut == null && !showStartupBrand && !showColdStart && !allowColdStart) {
                     com.openbitfun.mobile.app.ui.shell.NotificationOnboarding()
                 }
             }
@@ -145,6 +132,7 @@ class MainActivity : ComponentActivity() {
 
     override fun onNewIntent(intent: android.content.Intent) {
         super.onNewIntent(intent)
+        miniAppShortcutId(intent)?.let { miniAppShortcut = it }
         setIntent(intent)
         LogcatCoreLog.info("activity onNewIntent action=${intent.action} callback=${isAuthorizationCallbackIntent(intent)}")
         if (isAuthorizationCallbackIntent(intent)) accountModel().notifyAuthorizationCallback()

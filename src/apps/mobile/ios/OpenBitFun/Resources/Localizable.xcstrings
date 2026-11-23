@@ -1,6 +1,1092 @@
 {
   "sourceLanguage": "zh-Hans",
   "strings": {
+    "未配置时使用主力模型": {
+      "localizations": {
+        "en": { "stringUnit": { "state": "translated", "value": "Not set, falls back to primary" } },
+        "zh-Hans": { "stringUnit": { "state": "translated", "value": "未配置时使用主力模型" } }
+      }
+    },
+    "图片理解": {
+      "localizations": {
+        "en": { "stringUnit": { "state": "translated", "value": "Image understanding" } },
+        "zh-Hans": { "stringUnit": { "state": "translated", "value": "图片理解" } }
+      }
+    },
+    "该设备尚未配置任何模型": {
+      "localizations": {
+        "en": { "stringUnit": { "state": "translated", "value": "This device has no models configured yet" } },
+        "zh-Hans": { "stringUnit": { "state": "translated", "value": "该设备尚未配置任何模型" } }
+      }
+    },
+    "请先在该设备的 OpenBitFun 里添加模型，再回到这里设置角色默认值。": {
+      "localizations": {
+        "en": { "stringUnit": { "state": "translated", "value": "Add models in OpenBitFun on that device, then come back to set role defaults." } },
+        "zh-Hans": { "stringUnit": { "state": "translated", "value": "请先在该设备的 OpenBitFun 里添加模型，再回到这里设置角色默认值。" } }
+      }
+    },
+    "已更新为 %@ · 已重新读取该设备上的当前值": {
+      "localizations": {
+        "en": { "stringUnit": { "state": "translated", "value": "Updated to %@ · Re-read the current values on this device" } },
+        "zh-Hans": { "stringUnit": { "state": "translated", "value": "已更新为 %@ · 已重新读取该设备上的当前值" } }
+      }
+    },
+    "模型设置": {
+      "localizations": {
+        "en": { "stringUnit": { "state": "translated", "value": "Model settings" } },
+        "zh-Hans": { "stringUnit": { "state": "translated", "value": "模型设置" } }
+      }
+    },
+    "升级": {
+      "localizations": {
+        "en": { "stringUnit": { "state": "translated", "value": "Update" } },
+        "zh-Hans": { "stringUnit": { "state": "translated", "value": "升级" } }
+      }
+    },
+    "该设备上的 OpenBitFun 版本过旧，不支持配置模型默认值。请升级该设备上的 OpenBitFun 后继续。": {
+      "localizations": {
+        "en": { "stringUnit": { "state": "translated", "value": "The OpenBitFun app on this device is too old to configure model defaults. Update OpenBitFun on that device to continue." } },
+        "zh-Hans": { "stringUnit": { "state": "translated", "value": "该设备上的 OpenBitFun 版本过旧，不支持配置模型默认值。请升级该设备上的 OpenBitFun 后继续。" } }
+      }
+    },
+    "多模态模型": {
+      "localizations": {
+        "en": { "stringUnit": { "state": "translated", "value": "Multimodal model" } },
+        "zh-Hans": { "stringUnit": { "state": "translated", "value": "多模态模型" } }
+      }
+    },
+    "跟随主力": {
+      "localizations": {
+        "en": { "stringUnit": { "state": "translated", "value": "Follow the primary model" } },
+        "zh-Hans": { "stringUnit": { "state": "translated", "value": "跟随主力" } }
+      }
+    },
+    "这些默认值作用于该设备上的新会话，进行中的会话不受影响。": {
+      "localizations": {
+        "en": { "stringUnit": { "state": "translated", "value": "These defaults apply to new sessions on this device; sessions already running are unaffected." } },
+        "zh-Hans": { "stringUnit": { "state": "translated", "value": "这些默认值作用于该设备上的新会话，进行中的会话不受影响。" } }
+      }
+    },
+    "快速模型未配置时，跟随主力模型。": {
+      "localizations": {
+        "en": { "stringUnit": { "state": "translated", "value": "When the fast model is not set, it follows the primary model." } },
+        "zh-Hans": { "stringUnit": { "state": "translated", "value": "快速模型未配置时，跟随主力模型。" } }
+      }
+    },
+    "多模态模型只用于图片理解，不替换主力模型。": {
+      "localizations": {
+        "en": { "stringUnit": { "state": "translated", "value": "The multimodal model is used for image understanding only and does not replace the primary model." } },
+        "zh-Hans": { "stringUnit": { "state": "translated", "value": "多模态模型只用于图片理解，不替换主力模型。" } }
+      }
+    },
+    "未指定多模态模型时，图片理解相关能力不可用": {
+      "localizations": {
+        "en": { "stringUnit": { "state": "translated", "value": "Without a multimodal model, image understanding is unavailable" } },
+        "zh-Hans": { "stringUnit": { "state": "translated", "value": "未指定多模态模型时，图片理解相关能力不可用" } }
+      }
+    },
+    "该设备暂无可用于该角色的模型": {
+      "localizations": {
+        "en": { "stringUnit": { "state": "translated", "value": "No models on this device match this role yet" } },
+        "zh-Hans": { "stringUnit": { "state": "translated", "value": "该设备暂无可用于该角色的模型" } }
+      }
+    },
+    "正在读取模型默认值": {
+      "localizations": {
+        "en": { "stringUnit": { "state": "translated", "value": "Reading the device's model defaults" } },
+        "zh-Hans": { "stringUnit": { "state": "translated", "value": "正在读取模型默认值" } }
+      }
+    },
+    "正在保存模型默认值": {
+      "localizations": {
+        "en": { "stringUnit": { "state": "translated", "value": "Saving the device's model defaults" } },
+        "zh-Hans": { "stringUnit": { "state": "translated", "value": "正在保存模型默认值" } }
+      }
+    },
+    "已更新": {
+      "localizations": {
+        "en": { "stringUnit": { "state": "translated", "value": "Updated" } },
+        "zh-Hans": { "stringUnit": { "state": "translated", "value": "已更新" } }
+      }
+    },
+    "读取模型默认值失败，请重试。": {
+      "localizations": {
+        "en": { "stringUnit": { "state": "translated", "value": "Could not read the device's model defaults. Try again." } },
+        "zh-Hans": { "stringUnit": { "state": "translated", "value": "读取模型默认值失败，请重试。" } }
+      }
+    },
+    "保存模型默认值失败，请重试。": {
+      "localizations": {
+        "en": { "stringUnit": { "state": "translated", "value": "Could not save the device's model defaults. Try again." } },
+        "zh-Hans": { "stringUnit": { "state": "translated", "value": "保存模型默认值失败，请重试。" } }
+      }
+    },
+    "仅显示已启用且支持文本对话（text_chat）的模型 · 作用于 %@ 上的新会话": {
+      "localizations": {
+        "en": { "stringUnit": { "state": "translated", "value": "Only enabled models that support text chat (text_chat) are listed · Applies to new sessions on %@" } },
+        "zh-Hans": { "stringUnit": { "state": "translated", "value": "仅显示已启用且支持文本对话（text_chat）的模型 · 作用于 %@ 上的新会话" } }
+      }
+    },
+    "仅显示支持图片理解（image_understanding）的模型 · 作用于 %@ 上的新会话": {
+      "localizations": {
+        "en": { "stringUnit": { "state": "translated", "value": "Only models that support image understanding (image_understanding) are listed · Applies to new sessions on %@" } },
+        "zh-Hans": { "stringUnit": { "state": "translated", "value": "仅显示支持图片理解（image_understanding）的模型 · 作用于 %@ 上的新会话" } }
+      }
+    },
+    "还没有模型，先添加一个。": {
+      "localizations": {
+        "en": { "stringUnit": { "state": "translated", "value": "No models yet. Add a model to get started." } },
+        "zh-Hans": { "stringUnit": { "state": "translated", "value": "还没有模型，先添加一个。" } }
+      }
+    },
+    "可选，默认使用模型名称": {
+      "localizations": {
+        "en": { "stringUnit": { "state": "translated", "value": "Optional, uses the model name by default" } },
+        "zh-Hans": { "stringUnit": { "state": "translated", "value": "可选，默认使用模型名称" } }
+      }
+    },
+    "留空则保留已保存的密钥": {
+      "localizations": {
+        "en": { "stringUnit": { "state": "translated", "value": "Leave blank to keep the saved key" } },
+        "zh-Hans": { "stringUnit": { "state": "translated", "value": "留空则保留已保存的密钥" } }
+      }
+    },
+    "显示密钥": {
+      "localizations": {
+        "en": { "stringUnit": { "state": "translated", "value": "Show key" } },
+        "zh-Hans": { "stringUnit": { "state": "translated", "value": "显示密钥" } }
+      }
+    },
+    "隐藏密钥": {
+      "localizations": {
+        "en": { "stringUnit": { "state": "translated", "value": "Hide key" } },
+        "zh-Hans": { "stringUnit": { "state": "translated", "value": "隐藏密钥" } }
+      }
+    },
+    "删除模型": {
+      "localizations": {
+        "en": { "stringUnit": { "state": "translated", "value": "Delete model" } },
+        "zh-Hans": { "stringUnit": { "state": "translated", "value": "删除模型" } }
+      }
+    },
+    "请在另一台设备打开「发送图片到另一台设备」，然后在这里选择它。": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "On the other device, open “Send an image to another device”. Choose it here when it appears."
+          }
+        }
+      }
+    },
+    "正在查找附近设备…": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Looking for nearby devices…"
+          }
+        }
+      }
+    },
+    "请求已发送。请在另一台设备取材。": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Request sent. Choose an image on the other device."
+          }
+        }
+      }
+    },
+    "无法连接这台设备，请重试。": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Could not connect to this device. Try again."
+          }
+        }
+      }
+    },
+    "使用连接码": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Use a connection code"
+          }
+        }
+      }
+    },
+    "隐藏连接码": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Hide connection code"
+          }
+        }
+      }
+    },
+    "正在等待附近设备发来取材请求。": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Ready for a request from a nearby device."
+          }
+        }
+      }
+    },
+    "允许附近取材请求": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Allow nearby requests"
+          }
+        }
+      }
+    },
+    "%@。请核对两台设备显示的验证码。": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%@. Confirm that both devices show the same verification code."
+          }
+        }
+      }
+    },
+    "验证码一致": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Codes match"
+          }
+        }
+      }
+    },
+    "跨设备取材": {
+      "localizations": {
+        "en": { "stringUnit": { "state": "translated", "value": "Get an image from another device" } },
+        "zh-Hans": { "stringUnit": { "state": "translated", "value": "跨设备取材" } }
+      }
+    },
+    "两台设备连接同一网络。在另一台设备的「发送图片到另一台设备」中扫描二维码或输入连接码。": {
+      "localizations": {
+        "en": { "stringUnit": { "state": "translated", "value": "Connect both devices to the same network. On the other device, open Send an image to another device and scan or enter the code." } },
+        "zh-Hans": { "stringUnit": { "state": "translated", "value": "两台设备连接同一网络。在另一台设备的「发送图片到另一台设备」中扫描二维码或输入连接码。" } }
+      }
+    },
+    "发送图片到另一台设备": {
+      "localizations": {
+        "en": { "stringUnit": { "state": "translated", "value": "Send an image to another device" } },
+        "zh-Hans": { "stringUnit": { "state": "translated", "value": "发送图片到另一台设备" } }
+      }
+    },
+    "连接码": {
+      "localizations": {
+        "en": { "stringUnit": { "state": "translated", "value": "Connection code" } },
+        "zh-Hans": { "stringUnit": { "state": "translated", "value": "连接码" } }
+      }
+    },
+    "复制连接码": {
+      "localizations": {
+        "en": { "stringUnit": { "state": "translated", "value": "Copy connection code" } },
+        "zh-Hans": { "stringUnit": { "state": "translated", "value": "复制连接码" } }
+      }
+    },
+    "扫描连接码": {
+      "localizations": {
+        "en": { "stringUnit": { "state": "translated", "value": "Scan connection code" } },
+        "zh-Hans": { "stringUnit": { "state": "translated", "value": "扫描连接码" } }
+      }
+    },
+    "扫描文档": {
+      "localizations": {
+        "en": { "stringUnit": { "state": "translated", "value": "Scan a document" } },
+        "zh-Hans": { "stringUnit": { "state": "translated", "value": "扫描文档" } }
+      }
+    },
+    "从图库选择": {
+      "localizations": {
+        "en": { "stringUnit": { "state": "translated", "value": "Choose from photos" } },
+        "zh-Hans": { "stringUnit": { "state": "translated", "value": "从图库选择" } }
+      }
+    },
+    "发送选中的图片": {
+      "localizations": {
+        "en": { "stringUnit": { "state": "translated", "value": "Send selected image" } },
+        "zh-Hans": { "stringUnit": { "state": "translated", "value": "发送选中的图片" } }
+      }
+    },
+    "图片已送达。": {
+      "localizations": {
+        "en": { "stringUnit": { "state": "translated", "value": "Image delivered." } },
+        "zh-Hans": { "stringUnit": { "state": "translated", "value": "图片已送达。" } }
+      }
+    },
+    "无法打开相机或扫描器。": {
+      "localizations": {
+        "en": { "stringUnit": { "state": "translated", "value": "Could not open the camera or scanner." } },
+        "zh-Hans": { "stringUnit": { "state": "translated", "value": "无法打开相机或扫描器。" } }
+      }
+    },
+    "连接码无效。": {
+      "localizations": {
+        "en": { "stringUnit": { "state": "translated", "value": "The connection code is invalid." } },
+        "zh-Hans": { "stringUnit": { "state": "translated", "value": "连接码无效。" } }
+      }
+    },
+    "未确认送达。请检查网络和连接码。": {
+      "localizations": {
+        "en": { "stringUnit": { "state": "translated", "value": "Delivery could not be confirmed. Check the network and connection code." } },
+        "zh-Hans": { "stringUnit": { "state": "translated", "value": "未确认送达。请检查网络和连接码。" } }
+      }
+    },
+    "无法读取所选图片。": {
+      "localizations": {
+        "en": { "stringUnit": { "state": "translated", "value": "Could not read the selected image." } },
+        "zh-Hans": { "stringUnit": { "state": "translated", "value": "无法读取所选图片。" } }
+      }
+    },
+    "摄像头已开": {
+      "localizations": {
+        "en": { "stringUnit": { "state": "translated", "value": "Camera on" } },
+        "zh-Hans": { "stringUnit": { "state": "translated", "value": "摄像头已开" } }
+      }
+    },
+    "已添加日程（编号 %lld）": {
+      "localizations": {
+        "en": { "stringUnit": { "state": "translated", "value": "Calendar event added (ID %lld)" } },
+        "zh-Hans": { "stringUnit": { "state": "translated", "value": "已添加日程（编号 %lld）" } }
+      }
+    },
+    "已更新日程（编号 %lld）": {
+      "localizations": {
+        "en": { "stringUnit": { "state": "translated", "value": "Calendar event updated (ID %lld)" } },
+        "zh-Hans": { "stringUnit": { "state": "translated", "value": "已更新日程（编号 %lld）" } }
+      }
+    },
+    "已删除日程（编号 %lld）": {
+      "localizations": {
+        "en": { "stringUnit": { "state": "translated", "value": "Calendar event deleted (ID %lld)" } },
+        "zh-Hans": { "stringUnit": { "state": "translated", "value": "已删除日程（编号 %lld）" } }
+      }
+    },
+    "找到 %lld 个日程": {
+      "localizations": {
+        "en": { "stringUnit": { "state": "translated", "value": "%lld calendar events found" } },
+        "zh-Hans": { "stringUnit": { "state": "translated", "value": "找到 %lld 个日程" } }
+      }
+    },
+    "无法访问 OpenBitFun 日历。": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Could not access the OpenBitFun calendar."
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "无法访问 OpenBitFun 日历。"
+          }
+        }
+      }
+    },
+    "正在生成…": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Generating…"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "正在生成…"
+          }
+        }
+      }
+    },
+    "正在恢复上次的校验…": {
+      "localizations": {
+        "en": { "stringUnit": { "state": "translated", "value": "Resuming the app check…" } },
+        "zh-Hans": { "stringUnit": { "state": "translated", "value": "正在恢复上次的校验…" } }
+      }
+    },
+    "正在自动修正…": {
+      "localizations": {
+        "en": { "stringUnit": { "state": "translated", "value": "Fixing the app automatically…" } },
+        "zh-Hans": { "stringUnit": { "state": "translated", "value": "正在自动修正…" } }
+      }
+    },
+    "刚才的应用有点问题，正在自动修正": {
+      "localizations": {
+        "en": { "stringUnit": { "state": "translated", "value": "The last app had a problem; fixing it automatically" } },
+        "zh-Hans": { "stringUnit": { "state": "translated", "value": "刚才的应用有点问题，正在自动修正" } }
+      }
+    },
+    "正在准备": {
+      "localizations": {
+        "en": { "stringUnit": { "state": "translated", "value": "Getting ready" } },
+        "zh-Hans": { "stringUnit": { "state": "translated", "value": "正在准备" } }
+      }
+    },
+    "找不到这个应用了。": {
+      "localizations": {
+        "en": { "stringUnit": { "state": "translated", "value": "This app is no longer available." } },
+        "zh-Hans": { "stringUnit": { "state": "translated", "value": "找不到这个应用了。" } }
+      }
+    },
+    "新版本和已有数据不兼容，已保留原来的版本": {
+      "localizations": {
+        "en": { "stringUnit": { "state": "translated", "value": "The new version does not fit your saved data, so the previous version is kept" } },
+        "zh-Hans": { "stringUnit": { "state": "translated", "value": "新版本和已有数据不兼容，已保留原来的版本" } }
+      }
+    },
+    "开始创作": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Start creating"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "开始创作"
+          }
+        }
+      }
+    },
+    "GenUI.Conversation": {
+      "localizations": {
+        "en": { "stringUnit": { "state": "translated", "value": "Conversation" } },
+        "zh-Hans": { "stringUnit": { "state": "translated", "value": "对话" } }
+      }
+    },
+    "创作记录": {
+      "localizations": {
+        "en": { "stringUnit": { "state": "translated", "value": "Creation history" } },
+        "zh-Hans": { "stringUnit": { "state": "translated", "value": "创作记录" } }
+      }
+    },
+    "重命名": {
+      "localizations": {
+        "en": { "stringUnit": { "state": "translated", "value": "Rename" } },
+        "zh-Hans": { "stringUnit": { "state": "translated", "value": "重命名" } }
+      }
+    },
+    "还没有创作记录": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "No creations yet"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "还没有创作记录"
+          }
+        }
+      }
+    },
+    "添加桌面图标": {
+      "localizations": {
+        "en": { "stringUnit": { "state": "translated", "value": "Add Home Screen Icon" } },
+        "zh-Hans": { "stringUnit": { "state": "translated", "value": "添加桌面图标" } }
+      }
+    },
+    "拷贝链接并打开快捷指令": {
+      "localizations": {
+        "en": { "stringUnit": { "state": "translated", "value": "Copy Link and Open Shortcuts" } },
+        "zh-Hans": { "stringUnit": { "state": "translated", "value": "拷贝链接并打开快捷指令" } }
+      }
+    },
+    "在快捷指令中添加「打开 URL」操作，粘贴启动链接，再选择「添加到主屏幕」。": {
+      "localizations": {
+        "en": { "stringUnit": { "state": "translated", "value": "In Shortcuts, add an Open URLs action, paste the launch link, then choose Add to Home Screen." } },
+        "zh-Hans": { "stringUnit": { "state": "translated", "value": "在快捷指令中添加「打开 URL」操作，粘贴启动链接，再选择「添加到主屏幕」。" } }
+      }
+    },
+    "无法打开快捷指令": {
+      "localizations": {
+        "en": { "stringUnit": { "state": "translated", "value": "Couldn't Open Shortcuts" } },
+        "zh-Hans": { "stringUnit": { "state": "translated", "value": "无法打开快捷指令" } }
+      }
+    },
+    "启动链接已拷贝。可以在安装快捷指令后继续添加。": {
+      "localizations": {
+        "en": { "stringUnit": { "state": "translated", "value": "The launch link was copied. Install Shortcuts to finish adding the icon." } },
+        "zh-Hans": { "stringUnit": { "state": "translated", "value": "启动链接已拷贝。可以在安装快捷指令后继续添加。" } }
+      }
+    },
+    "拷贝启动链接": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Copy launch link"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "拷贝启动链接"
+          }
+        }
+      }
+    },
+    "获取模型列表": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Fetch model list"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "获取模型列表"
+          }
+        }
+      }
+    },
+    "正在获取模型…": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Fetching models…"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "正在获取模型…"
+          }
+        }
+      }
+    },
+    "服务未返回可选模型，可手动填写。": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "No models listed. Enter the model name manually."
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "服务未返回可选模型，可手动填写。"
+          }
+        }
+      }
+    },
+    "小应用风格": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Mini app style"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "小应用风格"
+          }
+        }
+      }
+    },
+    "原生": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Classic"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "原生"
+          }
+        }
+      }
+    },
+    "极光": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Aurora"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "极光"
+          }
+        }
+      }
+    },
+    "蓝图": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Blueprint"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "蓝图"
+          }
+        }
+      }
+    },
+    "青瓷": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Celadon"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "青瓷"
+          }
+        }
+      }
+    },
+    "创建小应用": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Create mini apps"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "创建小应用"
+          }
+        }
+      }
+    },
+    "新建创作会话": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "New creation session"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "新建创作会话"
+          }
+        }
+      }
+    },
+    "暂无创作会话": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "No creation sessions yet"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "暂无创作会话"
+          }
+        }
+      }
+    },
+    "描述你想创建的小应用。": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Describe the mini app you want to create."
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "描述你想创建的小应用。"
+          }
+        }
+      }
+    },
+    "描述你的小应用": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Describe your mini app"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "描述你的小应用"
+          }
+        }
+      }
+    },
+    "配置模型": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Configure model"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "配置模型"
+          }
+        }
+      }
+    },
+    "管理模型": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Manage models"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "管理模型"
+          }
+        }
+      }
+    },
+    "保存并使用": {
+      "localizations": {
+        "en": { "stringUnit": { "state": "translated", "value": "Save and use" } },
+        "zh-Hans": { "stringUnit": { "state": "translated", "value": "保存并使用" } }
+      }
+    },
+    "编辑模型": {
+      "localizations": {
+        "en": { "stringUnit": { "state": "translated", "value": "Edit model" } },
+        "zh-Hans": { "stringUnit": { "state": "translated", "value": "编辑模型" } }
+      }
+    },
+    "添加模型": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Add model"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "添加模型"
+          }
+        }
+      }
+    },
+    "显示名称": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Display name"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "显示名称"
+          }
+        }
+      }
+    },
+    "API 地址": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "API endpoint"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "API 地址"
+          }
+        }
+      }
+    },
+    "API 密钥": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "API key"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "API 密钥"
+          }
+        }
+      }
+    },
+    "无法读取或保存本机数据。": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "The local data could not be loaded or saved."
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "无法读取或保存本机数据。"
+          }
+        }
+      }
+    },
+    "请检查 API 地址、模型名称和 API 密钥。": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Check the API endpoint, model name, and API key."
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "请检查 API 地址、模型名称和 API 密钥。"
+          }
+        }
+      }
+    },
+    "请配置模型后继续。": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Configure a model to continue."
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "请配置模型后继续。"
+          }
+        }
+      }
+    },
+    "模型没有返回可用的小应用。": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "The model did not return a usable mini app."
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "模型没有返回可用的小应用。"
+          }
+        }
+      }
+    },
+    "小应用操作": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Mini app actions"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "小应用操作"
+          }
+        }
+      }
+    },
+    "添加到小应用": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Add to MiniApps"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "添加到小应用"
+          }
+        }
+      }
+    },
+    "从小应用移除": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Remove from MiniApps"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "从小应用移除"
+          }
+        }
+      }
+    },
+    "AI 生成的小应用": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "AI-generated mini app"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "AI 生成的小应用"
+          }
+        }
+      }
+    },
+    "模型服务拒绝了 API 密钥。": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "The provider rejected the API key."
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "模型服务拒绝了 API 密钥。"
+          }
+        }
+      }
+    },
+    "无法连接模型服务。": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Could not reach the provider."
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "无法连接模型服务。"
+          }
+        }
+      }
+    },
+    "探索小应用": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Explore MiniApps"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "探索小应用"
+          }
+        }
+      }
+    },
+    "切换为列表": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Show app list"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "切换为列表"
+          }
+        }
+      }
+    },
+    "切换为卡片": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Show app cards"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "切换为卡片"
+          }
+        }
+      }
+    },
+    "左右滑动浏览": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Swipe to browse"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "左右滑动浏览"
+          }
+        }
+      }
+    },
     "填入输入框": {
       "localizations": {
         "en": {
@@ -751,6 +1837,42 @@
             "value": "Online"
           }
         }
+      }
+    },
+    "全文": {
+      "localizations": {
+        "en": { "stringUnit": { "state": "translated", "value": "Full text" } },
+        "zh-Hans": { "stringUnit": { "state": "translated", "value": "全文" } }
+      }
+    },
+    "复制全文": {
+      "localizations": {
+        "en": { "stringUnit": { "state": "translated", "value": "Copy full text" } },
+        "zh-Hans": { "stringUnit": { "state": "translated", "value": "复制全文" } }
+      }
+    },
+    "复制（富文本）": {
+      "localizations": {
+        "en": { "stringUnit": { "state": "translated", "value": "Copy (rich text)" } },
+        "zh-Hans": { "stringUnit": { "state": "translated", "value": "复制（富文本）" } }
+      }
+    },
+    "复制纯文本": {
+      "localizations": {
+        "en": { "stringUnit": { "state": "translated", "value": "Copy plain text" } },
+        "zh-Hans": { "stringUnit": { "state": "translated", "value": "复制纯文本" } }
+      }
+    },
+    "可以使用": {
+      "localizations": {
+        "en": { "stringUnit": { "state": "translated", "value": "Ready to use" } },
+        "zh-Hans": { "stringUnit": { "state": "translated", "value": "可以使用" } }
+      }
+    },
+    "没有生成成功": {
+      "localizations": {
+        "en": { "stringUnit": { "state": "translated", "value": "Could not be created" } },
+        "zh-Hans": { "stringUnit": { "state": "translated", "value": "没有生成成功" } }
       }
     },
     "复制": {
@@ -4349,6 +5471,16 @@
           "stringUnit": {
             "state": "translated",
             "value": "Loading devices…"
+          }
+        }
+      }
+    },
+    "客户端版本不兼容，无法互控。": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Incompatible client — this device cannot be controlled here"
           }
         }
       }

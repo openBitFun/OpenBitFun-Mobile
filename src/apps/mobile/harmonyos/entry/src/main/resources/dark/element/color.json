@@ -89,6 +89,10 @@
       "value": "#44000000"
     },
     {
+      "name": "genui_model_scrim",
+      "value": "#33000000"
+    },
+    {
       "name": "shell_scrim",
       "value": "#24000000"
     },

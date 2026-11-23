@@ -5,6 +5,7 @@ import { HarmonyUpgradeIdentityContract } from '../HarmonyUpgradeIdentityContrac
 import { LocalGenUIAppPort } from './LocalGenUIOwner';
 import {
   LocalGenUIAppRecord,
+  LocalGenUIAppStatus,
   LocalGenUIGalleryEntry,
   LocalGenUIIds,
   LocalGenUIMessage,
@@ -132,6 +133,13 @@ export class LocalGenUIRepository implements LocalGenUIAppPort, LocalGenUICalend
       if (record) ids.push(record.appId);
     });
     return ids;
+  }
+
+  async pendingAppOfSession(sessionId: string): Promise<LocalGenUIAppRecord | undefined> {
+    const rows = await this.queryPayloads(
+      'SELECT payload FROM local_genui_apps WHERE session_id = ? AND status = ? ORDER BY updated_at DESC LIMIT 1',
+      [sessionId, LocalGenUIAppStatus.Candidate]);
+    return rows.length > 0 ? LocalGenUIRepository.parse<LocalGenUIAppRecord>(rows[0]) : undefined;
   }
 
   async listGallery(): Promise<LocalGenUIGalleryEntry[]> {

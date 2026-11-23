@@ -48,5 +48,22 @@
         <string>UIInterfaceOrientationLandscapeLeft</string>
         <string>UIInterfaceOrientationLandscapeRight</string>
     </array>
+  <key>NSCameraUsageDescription</key>
+  <string>OpenBitFun uses the camera for mini app gestures, connection codes and images you choose to capture.</string>
+  <key>NSCalendarsUsageDescription</key>
+  <string>OpenBitFun creates events in a separate local calendar when you request them in a mini app.</string>
+  <key>NSCalendarsFullAccessUsageDescription</key>
+  <string>OpenBitFun uses calendar access to manage its own local calendar and add events you request.</string>
+  <key>NSLocalNetworkUsageDescription</key>
+  <string>OpenBitFun connects to local model servers you configure and transfers images you choose to nearby devices.</string>
+  <key>NSBonjourServices</key>
+  <array>
+    <string>_obf-img-v2._tcp</string>
+  </array>
+  <key>NSAppTransportSecurity</key>
+  <dict>
+    <key>NSAllowsLocalNetworking</key>
+    <true/>
+  </dict>
 </dict>
 </plist>

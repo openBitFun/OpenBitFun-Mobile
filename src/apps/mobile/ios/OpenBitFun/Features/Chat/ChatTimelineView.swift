@@ -208,6 +208,7 @@ struct ChatTimelineView: View {
     private func timelineRow(_ row: MobileConversationRow, identity: String? = nil) -> some View {
         ConversationRowView(row: row, model: model, language: model.appLanguage.rawValue)
             .equatable().id(identity ?? row.id)
+            .opacity(isWithdrawn(row) ? 0.42 : 1)
             .environment(\.streamingRowIdentity, row.id)
             .background(TimelineRowProbe(controller: scrollController, rowID: row.id))
             .background {
@@ -217,6 +218,13 @@ struct ChatTimelineView: View {
                         value: [row.id: geometry.frame(in: .named("chat-timeline"))])
                 }
             }
+    }
+
+    private func isWithdrawn(_ row: MobileConversationRow) -> Bool {
+        guard let target = model.rollbackDraft,
+              let targetIndex = model.timelineRows.firstIndex(where: { $0.turnID == target.turnID }),
+              let rowIndex = model.timelineRows.firstIndex(where: { $0.id == row.id }) else { return false }
+        return rowIndex >= targetIndex
     }
 }
 
@@ -339,6 +347,16 @@ private struct ConversationRowView: View, Equatable {
         }
         .frame(maxWidth: .infinity, alignment: .trailing)
         .padding(.vertical, 2)
+        .contextMenu {
+            if let turnID = row.turnID, !turnID.isEmpty,
+               !model.busy, model.remoteHostCapabilities.contains("session_rollback_v1") {
+                Button {
+                    model.stageRollback(for: row)
+                } label: {
+                    Label(model.localized("回退到此消息"), systemImage: "arrow.uturn.backward")
+                }
+            }
+        }
     }
 
     private var assistantRow: some View {
@@ -405,7 +423,7 @@ private struct ConversationRowView: View, Equatable {
     }
 }
 
-private struct IntrinsicWidthCapLayout: Layout {
+struct IntrinsicWidthCapLayout: Layout {
     let maxWidth: CGFloat
 
     func sizeThatFits(
@@ -506,17 +524,19 @@ private struct SubagentBlock: View {
     private var failed: Bool { MobileSubagentPresentation.failed(status) }
     private var processBlocks: [MobileTimelineBlock] { MobileSubagentPresentation.blocks(children, running: running) }
     private var hasDetails: Bool { !processBlocks.isEmpty || !text.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty }
+    private var displayTitle: String { title.isEmpty ? model.localized("子任务") : title }
+    private var statusLabel: String { model.localized(running ? "运行中" : (failed ? "失败" : "已完成")) }
 
     var body: some View {
         VStack(alignment: .leading, spacing: 8) {
             Button { withAnimation(.easeOut(duration: 0.18)) { expanded.toggle() } } label: {
                 HStack(spacing: 7) {
                     Image(systemName: "person.2.fill").font(.system(size: 12, weight: .medium))
-                    Text(title.isEmpty ? model.localized("子任务") : title)
+                    Text(displayTitle)
                         .font(MobileDesignTypography.labelMedium.font).lineLimit(1)
                     Spacer()
                     if running { ProgressView().controlSize(.mini) }
-                    Text(model.localized(running ? "运行中" : (failed ? "失败" : "已完成")))
+                    Text(statusLabel)
                         .font(MobileDesignTypography.labelSmall.font)
                     if hasDetails {
                         Image(systemName: expanded ? "chevron.up" : "chevron.down")
@@ -529,6 +549,11 @@ private struct SubagentBlock: View {
             }
             .buttonStyle(.plain)
             .accessibilityIdentifier("subagent.toggle.\(id)")
+            // SwiftUI otherwise exposes only the first text child as the
+            // button's accessibility label. Keep the live/failed state in the
+            // label as well, so a subtask that settles with a host failure is
+            // announced the same way it is painted in the header.
+            .accessibilityLabel(Text("\(displayTitle) · \(statusLabel)"))
             .disabled(!hasDetails)
             if expanded && hasDetails {
                 // The parent content is often the Task summary, not another output.
@@ -711,15 +736,21 @@ private struct StreamingMarkdownRevealView: View {
 struct MarkdownMessageView: View {
     let text: String
     let model: MobileAppModel
+    var openExternalLinksOnly = false
 
     var body: some View {
         let projection = MarkdownProjectionCache.shared.projection(for: text)
         VStack(alignment: .leading, spacing: 9) {
             ForEach(projection.blocks, id: \.id) { MarkdownBlockView(block: $0) }
-            ForEach(projection.references, id: \.id) { FileReferenceCard(reference: $0, model: model) }
+            if !openExternalLinksOnly {
+                ForEach(projection.references, id: \.id) { FileReferenceCard(reference: $0, model: model) }
+            }
         }
         .frame(maxWidth: .infinity, alignment: .leading)
         .environment(\.openURL, OpenURLAction { url in
+            if openExternalLinksOnly {
+                return ["http", "https"].contains(url.scheme?.lowercased() ?? "") ? .systemAction : .discarded
+            }
             if url.scheme == nil || ["computer", "file", "openbitfun"].contains(url.scheme?.lowercased() ?? "") {
                 model.openRemoteFile(reference: url.absoluteString, label: url.lastPathComponent)
                 return .handled

@@ -53,10 +53,10 @@ export struct RecentRemoteHome {
               this.coldStartGeometry.targetY = Number(area.globalPosition.y) + Number(area.height) / 2;
               this.coldStartGeometry.targetSize = Number(area.width);
             })
-            .margin({ top: 0, bottom: 16 })
+            .margin({ top: 0, bottom: MobileDesignGeometry.recentHomeHeroGap })
           WelcomePhrase({ fontSize: MobileDesignGeometry.recentHomeTitleSize,
-            longWordFontSize: MobileDesignGeometry.recentHomeTitleSize, stageHeight: 28 })
-          }.width('100%').margin({ bottom: 48 })
+            longWordFontSize: MobileDesignGeometry.recentHomeTitleSize, stageHeight: MobileDesignGeometry.recentHomePhraseStageHeight })
+          }.width('100%').margin({ bottom: MobileDesignGeometry.recentHomeHeroBottom })
         if (this.busy) {
           LoadingProgress().width(24).height(24).color(MUTED).margin({ bottom: 16 })
         }
@@ -98,7 +98,7 @@ export struct RecentRemoteHome {
           .constraintSize({ minHeight: this.viewportHeight, maxWidth: MobileDesignGeometry.recentHomeMaxWidth })
           .justifyContent(FlexAlign.Center)
           .padding({ left: MobileDesignGeometry.recentHomeGutter, right: MobileDesignGeometry.recentHomeGutter,
-            top: 56, bottom: 28 })
+            top: MobileDesignGeometry.recentHomeTopPadding, bottom: 28 })
       }.width('100%').height('100%').align(Alignment.Top).scrollBar(BarState.Off)
         .onAreaChange((_old: Area, area: Area) => { this.viewportHeight = Number(area.height); })
       if (this.showSidebarButton) {

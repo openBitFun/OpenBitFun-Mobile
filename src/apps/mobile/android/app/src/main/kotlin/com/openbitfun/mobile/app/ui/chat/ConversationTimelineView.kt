@@ -38,6 +38,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.runtime.snapshotFlow
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
@@ -86,6 +87,13 @@ internal class HistoryPageArrivalTracker {
     fun cancelArrival() { consumed = true }
 }
 
+private data class TimelineAnchor(val key: String, val offset: Int)
+
+private class TimelineAnchorHolder(initialRows: List<ConversationRow>) {
+    var previousRows: List<ConversationRow> = initialRows
+    var pending: TimelineAnchor? = null
+}
+
 /** Timeline renderer over feature-owned presentation rows; session routing stays above it. */
 @Composable
 internal fun ConversationTimelineView(
@@ -105,6 +113,9 @@ internal fun ConversationTimelineView(
     onAnswerTool: (String, String) -> Unit,
     onAnswerToolStructured: (String, List<QuestionAnswer>) -> Unit,
     onRetry: (ConversationRow) -> Unit,
+    onRollback: (String) -> Unit = {},
+    rollbackTargetTurnId: String? = null,
+    rollbackEnabled: Boolean = false,
     onOpenFile: (String, String) -> Unit,
     previewingRemotePath: String,
     previewLoading: Boolean,
@@ -122,11 +133,13 @@ internal fun ConversationTimelineView(
     bottomInset: Dp = 0.dp,
 ) {
     val listState = rememberLazyListState()
+    val anchorHolder = remember { TimelineAnchorHolder(rows) }
     var stickToBottom by rememberSaveable { mutableStateOf(true) }
     val atBottom by remember(listState) { derivedStateOf { !listState.canScrollForward } }
     // One header slot holds both leading rows, so the scroll policy counts an
     // item, not a row.
     val hasLeadingItem = hasMoreMessages || transcriptUnconfirmed
+    val currentUser = rows.lastOrNull { it.kind == com.openbitfun.mobile.core.feature.session.ConversationRowKind.USER }
 
     val historyArrival = remember { HistoryPageArrivalTracker() }
     var userDragging by remember { mutableStateOf(false) }
@@ -148,7 +161,7 @@ internal fun ConversationTimelineView(
                 )
             }
     }
-    LaunchedEffect(rows, stickToBottom, hasLeadingItem) {
+    LaunchedEffect(rows, stickToBottom, hasLeadingItem, topInset, bottomInset) {
         if (ConversationScrollPolicy.shouldScrollToBottom(stickToBottom, rows.isNotEmpty())) {
             // A large offset positions the item's bottom at the viewport tail directly;
             // unlike scrollToItem(index), it does not briefly expose the item's top.
@@ -157,6 +170,34 @@ internal fun ConversationTimelineView(
                 scrollOffset = Int.MAX_VALUE,
             )
         }
+    }
+
+    // Capture the first visible message before LazyColumn lays out a newly
+    // prepended page. The stable message key lets the next layout put that
+    // same row back at the exact pixel offset the reader was looking at.
+    val rowsChanged = anchorHolder.previousRows !== rows
+    androidx.compose.runtime.SideEffect {
+        if (rowsChanged) {
+            val oldRows = anchorHolder.previousRows
+            if (rows.size > oldRows.size) {
+                val oldCurrentUser = oldRows.lastOrNull {
+                    it.kind == com.openbitfun.mobile.core.feature.session.ConversationRowKind.USER
+                }
+                val oldKeys = oldRows.mapTo(HashSet(oldRows.size)) { rowKey(it, oldCurrentUser) }
+                anchorHolder.pending = listState.layoutInfo.visibleItemsInfo
+                    .firstOrNull { item -> item.key.toString() in oldKeys }
+                    ?.let { TimelineAnchor(it.key.toString(), it.offset) }
+            }
+            anchorHolder.previousRows = rows
+        }
+    }
+    LaunchedEffect(rows, hasLeadingItem) {
+        val anchor = anchorHolder.pending ?: return@LaunchedEffect
+        val rowIndex = rows.indexOfFirst { rowKey(it, currentUser) == anchor.key }
+        if (rowIndex >= 0) {
+            listState.scrollToItem(rowIndex + if (hasLeadingItem) 1 else 0, anchor.offset)
+        }
+        anchorHolder.pending = null
     }
 
     // Reaching the start of the loaded transcript asks for the next page by
@@ -194,7 +235,7 @@ internal fun ConversationTimelineView(
                 top = topInset,
                 bottom = if (bottomInset > 0.dp) bottomInset else 12.dp,
             ),
-            verticalArrangement = Arrangement.spacedBy(12.dp),
+            verticalArrangement = Arrangement.spacedBy(12.dp, Alignment.Bottom),
         ) {
             if (hasLeadingItem) {
                 item(key = "load-older-messages") {
@@ -240,8 +281,9 @@ internal fun ConversationTimelineView(
                     }
                 }
             }
-            val currentUser = rows.lastOrNull { it.kind == com.openbitfun.mobile.core.feature.session.ConversationRowKind.USER }
-            items(rows, key = { if (it === currentUser) "current-user" else "message:${it.id}" }) { row ->
+            items(rows, key = { rowKey(it, currentUser) }) { row ->
+                val targetIndex = rows.indexOfFirst { it.turnId == rollbackTargetTurnId }
+                val rowIndex = rows.indexOf(row)
                 ChatMessageBubble(
                     row = row,
                     enabled = enabled,
@@ -251,13 +293,15 @@ internal fun ConversationTimelineView(
                     onAnswerTool = onAnswerTool,
                     onAnswerToolStructured = onAnswerToolStructured,
                     onRetry = onRetry,
+                    onRollback = onRollback,
+                    rollbackEnabled = rollbackEnabled,
                     onOpenLink = onOpenFile,
                     previewingRemotePath = previewingRemotePath,
                     previewLoading = previewLoading,
                     download = download,
                     onDownloadFile = onDownloadFile,
                     downloadEnabled = downloadEnabled,
-                    modifier = Modifier,
+                    modifier = Modifier.alpha(if (targetIndex >= 0 && rowIndex >= targetIndex) 0.42f else 1f),
                 )
             }
         }
@@ -284,3 +328,10 @@ internal fun ConversationTimelineView(
         }
     }
 }
+
+private fun rowKey(row: ConversationRow): String = "message:${row.id}"
+
+private fun rowKey(
+    row: ConversationRow,
+    currentUser: ConversationRow?,
+): String = if (row === currentUser) "current-user" else rowKey(row)

@@ -37,6 +37,7 @@ kotlin {
             // converters the surrounding app installs on its own client.
             implementation(libs.ktor.client.core)
             implementation(libs.ktor.client.websockets)
+            implementation(libs.ktor.network)
             implementation(libs.socketio.codec)
         }
         commonTest.dependencies {

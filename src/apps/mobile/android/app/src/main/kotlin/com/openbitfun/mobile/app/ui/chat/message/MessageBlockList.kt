@@ -39,8 +39,10 @@ import com.openbitfun.mobile.app.ui.chat.MarkdownContent
 import com.openbitfun.mobile.app.ui.chat.tool.ToolStatusList
 import com.openbitfun.mobile.app.ui.chat.tool.ToolDisclosure
 import com.openbitfun.mobile.app.ui.chat.tool.LocalToolDisclosure
+import com.openbitfun.mobile.app.ui.chat.tool.ToolSummaryIcon
 import com.openbitfun.mobile.core.feature.session.MessageBlock
 import com.openbitfun.mobile.core.feature.session.QuestionAnswer
+import com.openbitfun.mobile.core.feature.session.ToolOperation
 import com.openbitfun.mobile.core.feature.workspace.RemoteFileDownloadUiState
 
 internal const val SUBAGENT_GROUP_TEST_TAG: String = "subagent-group"
@@ -90,11 +92,20 @@ internal fun MessageBlockList(
                     if (group.summarized) {
                         Row(Modifier.fillMaxWidth().height(32.dp).clickable { expanded = !expanded },
                             verticalAlignment = Alignment.CenterVertically) {
+                            ToolSummaryIcon(
+                                readCount = group.tools.count { it.operation == ToolOperation.READ_FILE },
+                                searchCount = group.tools.count {
+                                    it.operation == ToolOperation.SEARCH_CODE ||
+                                        it.operation == ToolOperation.SEARCH_WEB ||
+                                        it.operation == ToolOperation.OPEN_WEB
+                                },
+                                modifier = Modifier,
+                            )
                             Text(stringResource(R.string.tool_group_summary, group.tools.size),
                                 style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant,
                                 modifier = Modifier.weight(1f))
                             androidx.compose.material3.Icon(androidx.compose.ui.res.painterResource(
-                                if (expanded) R.drawable.ic_symbol_chevron_down else R.drawable.ic_symbol_chevron_right),
+                                if (expanded) R.drawable.ic_symbol_chevron_up else R.drawable.ic_symbol_chevron_down),
                                 contentDescription = null, modifier = Modifier.width(16.dp))
                         }
                     }

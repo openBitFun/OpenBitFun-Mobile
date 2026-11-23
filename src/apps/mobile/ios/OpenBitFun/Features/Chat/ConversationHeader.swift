@@ -20,6 +20,14 @@ struct ConversationHeader: View {
         if let contextTitle, !contextTitle.isEmpty { return contextTitle }
         if model.surface == .local && model.localSessionSelected { return model.localized("本地会话") }
         if model.remoteConnected {
+            if let workspacePath = model.selectedSession?.workspacePath?.trimmingCharacters(in: .whitespacesAndNewlines),
+               !workspacePath.isEmpty {
+                return workspacePath
+            }
+            if let workspaceName = model.selectedSession?.workspaceName?.trimmingCharacters(in: .whitespacesAndNewlines),
+               !workspaceName.isEmpty {
+                return workspaceName
+            }
             return model.accountDeviceName
 
                 ?? model.localized("已连接桌面端")
@@ -37,9 +45,6 @@ struct ConversationHeader: View {
                                 width: conversationHeaderActionSurfaceSize,
                                 height: conversationHeaderActionSurfaceSize
                             )
-                            .background(OpenBitFunTheme.card)
-                            .clipShape(Circle())
-                            .shadow(color: OpenBitFunTheme.shadowSubtle, radius: 15, y: 4)
                             .frame(
                                 width: MobileDesignGeometry.controlTouchSize,
                                 height: MobileDesignGeometry.controlTouchSize
@@ -95,7 +100,10 @@ struct ConversationHeader: View {
             .padding(.horizontal, MobileDesignGeometry.contentGutter)
 
             if editing {
-                renameEditor
+                ConversationTitleEditor(model: model, draft: $renameDraft, onSave: {
+                    model.renameSelectedSession(renameDraft)
+                    editing = false
+                }, onCancel: { editing = false })
             }
         }
         .background(OpenBitFunTheme.page)
@@ -116,9 +124,6 @@ struct ConversationHeader: View {
                     width: conversationHeaderActionSurfaceSize,
                     height: conversationHeaderActionSurfaceSize
                 )
-                .background(OpenBitFunTheme.card)
-                .clipShape(Circle())
-                .shadow(color: OpenBitFunTheme.shadowSubtle, radius: 15, y: 4)
                 .frame(
                     width: MobileDesignGeometry.controlTouchSize,
                     height: MobileDesignGeometry.controlTouchSize
@@ -129,9 +134,17 @@ struct ConversationHeader: View {
         .anchorPreference(key: SessionActionsAnchorKey.self, value: .bounds) { $0 }
     }
 
-    private var renameEditor: some View {
+}
+
+struct ConversationTitleEditor: View {
+    @ObservedObject var model: MobileAppModel
+    @Binding var draft: String
+    let onSave: () -> Void
+    let onCancel: () -> Void
+
+    var body: some View {
         HStack(spacing: 8) {
-            TextField(model.localized("会话标题"), text: $renameDraft)
+            TextField(model.localized("会话标题"), text: $draft)
                 .font(.system(size: 14))
                 .foregroundStyle(OpenBitFunTheme.ink)
                 .padding(.horizontal, 12)
@@ -142,14 +155,10 @@ struct ConversationHeader: View {
                         .stroke(OpenBitFunTheme.line, lineWidth: 1)
                 )
                 .clipShape(RoundedRectangle(cornerRadius: 14))
+                .accessibilityIdentifier("conversation-rename-title")
 
-            editorButton("保存", primary: true, enabled: !renameDraft.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty) {
-                model.renameSelectedSession(renameDraft)
-                editing = false
-            }
-            editorButton("取消", primary: false, enabled: true) {
-                editing = false
-            }
+            editorButton("保存", primary: true, enabled: !draft.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty, action: onSave)
+            editorButton("取消", primary: false, enabled: true, action: onCancel)
         }
         .padding(.leading, MobileDesignGeometry.contentGutter)
         .padding(.trailing, MobileDesignGeometry.contentGutter)
@@ -191,6 +200,8 @@ struct SessionActionsAnchorKey: PreferenceKey {
 struct ConversationActionsPopover: View {
     @ObservedObject var model: MobileAppModel
     let onDismiss: () -> Void
+    var creationHistory: (() -> Void)?
+    var deleteSession: (() -> Void)?
 
     var body: some View {
         VStack(alignment: .leading, spacing: 0) {
@@ -199,10 +210,17 @@ struct ConversationActionsPopover: View {
                 .foregroundStyle(OpenBitFunTheme.muted)
                 .frame(height: 28)
                 .padding(.leading, 8)
-            action("已上传文件", icon: "cloud", perform: model.showUploadedFiles)
-            if model.isSending && model.remoteConnected && model.connectionPhase == .connected {
-                Divider().overlay(OpenBitFunTheme.line).padding(.vertical, 8)
-                action("停止", icon: "gearshape", perform: model.stopSending)
+            if let creationHistory {
+                action("创作记录", icon: "folder", perform: creationHistory)
+                if let deleteSession {
+                    action("删除", icon: "trash", perform: deleteSession)
+                }
+            } else {
+                action("已上传文件", icon: "cloud", perform: model.showUploadedFiles)
+                if model.isSending && model.remoteConnected && model.connectionPhase == .connected {
+                    Divider().overlay(OpenBitFunTheme.line).padding(.vertical, 8)
+                    action("停止", icon: "gearshape", perform: model.stopSending)
+                }
             }
         }
         .openBitFunPopoverSurface()

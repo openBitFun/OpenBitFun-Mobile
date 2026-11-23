@@ -69,6 +69,11 @@ test('a message of 361 characters cuts at 360 and appends the ellipsis', () => {
   assert.equal(UserMessageTruncationPolicy.truncatedPreview(text), `${'a'.repeat(360)}...`);
 });
 
+test('the character limit never splits a surrogate pair', () => {
+  const prefix = 'a'.repeat(359);
+  assert.equal(UserMessageTruncationPolicy.truncatedPreview(`${prefix}😀 tail`), `${prefix}...`);
+});
+
 test('the character limit binds before the line limit on a single long line', () => {
   const text = 'x'.repeat(900);
   const preview = UserMessageTruncationPolicy.truncatedPreview(text);
