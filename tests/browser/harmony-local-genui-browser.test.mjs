@@ -168,6 +168,7 @@ test('the standalone Harmony GenUI bundle boots and renders at phone and foldabl
     assert.equal(inputState.gameMarker, 'true');
     assert.equal(inputState.moveTouchAction, 'none');
     assert.equal(inputState.activePointers, 1);
+    assert.equal(await page.$eval('iframe.gen-ui-oi-html', frame => getComputedStyle(frame).touchAction), 'none');
 
     await mountHtml('<h1>Static chart</h1><div style="height:1600px">Chart details</div>', 10);
     const chart = await waitForHtmlFrame('h1');
