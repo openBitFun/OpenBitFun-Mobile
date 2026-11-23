@@ -127,6 +127,7 @@ private fun MessageBlockView(block: MessageBlock, callbacks: MessageBlockCallbac
                 onOpenLink = callbacks.onOpenLink,
                 modifier = Modifier,
                 streaming = block.streaming,
+                streamKey = block.id,
             )
             FileReferenceCards(
                 text = block.text,

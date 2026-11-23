@@ -2,7 +2,7 @@ package com.openbitfun.mobile.core.domain
 
 /** Message-only interpretations of the relay's raw status value. */
 internal object MessageStatusSemantics {
-    fun isStreaming(status: String): Boolean = status.normalized() == "active"
+    fun isStreaming(status: String): Boolean = status.normalized() in STREAMING_STATUSES
 
     fun isFinalizing(status: String): Boolean = status.normalized() == "completed"
 
@@ -10,6 +10,19 @@ internal object MessageStatusSemantics {
 
     fun shouldHoldCompletedTurn(status: String): Boolean =
         status.normalized() in setOf("completed", "done", "success")
+
+    private val STREAMING_STATUSES = setOf(
+        "active",
+        "inprogress",
+        "starting",
+        "running",
+        "streaming",
+        "thinking",
+        "tool_calling",
+        "pending_confirmation",
+        "capability_required",
+        "finishing",
+    )
 }
 
 /** Tool-only ordering used to reject stale snapshots. */

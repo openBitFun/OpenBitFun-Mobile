@@ -23,8 +23,12 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
@@ -54,7 +58,10 @@ import com.openbitfun.mobile.core.feature.markdown.MarkdownBlock
 import com.openbitfun.mobile.core.feature.markdown.MarkdownInline
 import com.openbitfun.mobile.core.feature.markdown.MarkdownListItem
 import com.openbitfun.mobile.core.feature.markdown.MarkdownParser
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
+import kotlin.math.ceil
+import kotlin.math.min
 
 internal const val MARKDOWN_TEST_TAG: String = "markdown"
 
@@ -80,6 +87,63 @@ internal fun MarkdownContent(
     onOpenLink: (String, String) -> Unit,
     modifier: Modifier,
     streaming: Boolean = false,
+    streamKey: String = "",
+) {
+    if (streaming) {
+        StreamingMarkdownContent(text, onOpenLink, modifier, streamKey)
+        return
+    }
+    MarkdownContentBody(text, onOpenLink, modifier, copyFullText = null)
+}
+
+private val streamingMarkdownCache = mutableMapOf<String, String>()
+
+@Composable
+private fun StreamingMarkdownContent(
+    text: String,
+    onOpenLink: (String, String) -> Unit,
+    modifier: Modifier,
+    streamKey: String,
+) {
+    val key = streamKey.ifBlank { "default" }
+    var visible by remember(key) { mutableStateOf(streamingMarkdownCache[key].orEmpty()) }
+    var target by remember(key) { mutableStateOf(visible) }
+
+    LaunchedEffect(key, text) {
+        if (!text.startsWith(visible) || !text.startsWith(target)) {
+            visible = text
+            target = text
+            streamingMarkdownCache[key] = text
+            return@LaunchedEffect
+        }
+        target = text
+        while (visible != target) {
+            delay(40)
+            if (!text.startsWith(visible)) {
+                visible = text
+                target = text
+                break
+            }
+            val visiblePoints = visible.codePointCount(0, visible.length)
+            val targetPoints = target.codePointCount(0, target.length)
+            val remaining = targetPoints - visiblePoints
+            val step = maxOf(1, ceil(remaining.toDouble() / 35.0).toInt())
+            val nextPoints = min(targetPoints, visiblePoints + step)
+            visible = target.substring(0, target.offsetByCodePoints(0, nextPoints))
+            streamingMarkdownCache[key] = visible
+        }
+        streamingMarkdownCache[key] = visible
+    }
+
+    MarkdownContentBody(visible, onOpenLink, modifier, copyFullText = target)
+}
+
+@Composable
+private fun MarkdownContentBody(
+    text: String,
+    onOpenLink: (String, String) -> Unit,
+    modifier: Modifier,
+    copyFullText: String?,
 ) {
     val blocks = remember(text) { MarkdownParser.parse(text) }
     Column(
@@ -90,7 +154,7 @@ internal fun MarkdownContent(
             MarkdownBlockView(
                 block = block,
                 onOpenLink = onOpenLink,
-                copyFullText = if (streaming) text else null,
+                copyFullText = copyFullText,
             )
         }
     }

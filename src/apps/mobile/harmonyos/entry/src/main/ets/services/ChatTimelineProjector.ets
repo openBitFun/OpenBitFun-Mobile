@@ -91,15 +91,23 @@ export class ChatTimelineProjector {
 
   private static activeTurnItem(activeTurn: ChatMessage): ChatTimelineItem {
     const turnKey = ChatTimelineProjector.activeTurnKey(activeTurn);
+    const status = (activeTurn.status || '').toLowerCase();
     const item: ChatTimelineItem = {
       id: `active-${turnKey}`,
       type: 'assistant_live_turn',
       message: activeTurn,
-      isStreaming: (activeTurn.status || '').toLowerCase() === 'active',
-      isFinalizing: (activeTurn.status || '').toLowerCase() === 'completed',
+      isStreaming: ChatTimelineProjector.isStreamingStatus(status),
+      isFinalizing: status === 'completed',
       showRetryAction: false
     };
     return item;
+  }
+
+  private static isStreamingStatus(status: string): boolean {
+    return [
+      'active', 'inprogress', 'starting', 'running', 'streaming', 'thinking',
+      'tool_calling', 'pending_confirmation', 'capability_required', 'finishing'
+    ].indexOf(status) >= 0;
   }
 
   private static markLatestFailedMessageRetryable(items: ChatTimelineItem[]): void {

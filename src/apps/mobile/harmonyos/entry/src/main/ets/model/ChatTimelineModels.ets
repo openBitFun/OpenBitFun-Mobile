@@ -138,8 +138,11 @@ export class ChatTimelineRevisionTracker {
       `${message ? ChatTimelineRevisionTracker.textSignature(message.text) : ''}:` +
       `${message && message.error ? ChatTimelineRevisionTracker.textSignature(message.error) : ''}:` +
       `${message && message.thinking ? ChatTimelineRevisionTracker.textSignature(message.thinking) : ''}:` +
+      `${message && message.detail ? ChatTimelineRevisionTracker.textSignature(message.detail) : ''}:` +
       `${message && message.appCard ? JSON.stringify(message.appCard) : ''}:` +
-      `${message && message.items ? message.items.length : 0}:${message && message.tools ? message.tools.length : 0}`;
+      `${message && message.items ? JSON.stringify(message.items) : ''}:` +
+      `${message && message.tools ? JSON.stringify(message.tools) : ''}:` +
+      `${message && message.images ? JSON.stringify(message.images) : ''}`;
   }
 
   update(items: ChatTimelineItem[]): number {

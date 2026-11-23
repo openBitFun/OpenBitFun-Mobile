@@ -549,7 +549,7 @@ export struct ChatMessageBubble {
   }
 
   private shouldShowTypingDots(item: ConversationUiMessage): boolean {
-    if (item.role === 'user' || (item.status || '').toLowerCase() !== 'active') {
+    if (item.role === 'user' || (!this.isStreaming && (item.status || '').toLowerCase() !== 'active')) {
       return false;
     }
     return this.visibleMessageText(item).length === 0 &&

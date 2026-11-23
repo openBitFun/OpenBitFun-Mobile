@@ -759,7 +759,8 @@ export class ChatTimelineStore {
       return fallback === 'sending' ? 'sending' : 'idle';
     }
     const status = (activeTurn.status || '').toLowerCase();
-    if (status === 'active') {
+    if (['active', 'inprogress', 'starting', 'running', 'streaming', 'thinking',
+      'tool_calling', 'pending_confirmation', 'capability_required', 'finishing'].indexOf(status) >= 0) {
       return 'streaming';
     }
     if (status === 'completed') {

@@ -117,7 +117,17 @@ internal fun ChatMessageBubble(
                     downloadEnabled = downloadEnabled,
                 ),
             )
+            if (row.typing) ChatTypingDots(Modifier)
             MessageImageGallery(images = row.images, userStyle = false)
+        }
+
+        if (row.showRetry) {
+            ChatMessageRetryAction(
+                fromUser = fromUser,
+                enabled = enabled,
+                onRetry = { onRetry(row) },
+                modifier = Modifier,
+            )
         }
 
         row.timestampMs?.let { timestamp ->
@@ -130,19 +140,6 @@ internal fun ChatMessageBubble(
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                 modifier = Modifier.testTag("chat-message-timestamp"),
             )
-        }
-
-        // Two mutually exclusive footnotes about delivery: nothing has arrived
-        // yet, or the send was refused.
-        when {
-            row.showRetry -> ChatMessageRetryAction(
-                fromUser = fromUser,
-                enabled = enabled,
-                onRetry = { onRetry(row) },
-                modifier = Modifier,
-            )
-
-            row.typing -> ChatTypingDots(Modifier)
         }
     }
 }
@@ -172,6 +169,7 @@ private fun AssistantContent(row: ConversationRow, callbacks: MessageBlockCallba
             onOpenLink = callbacks.onOpenLink,
             modifier = Modifier,
             streaming = row.streaming,
+            streamKey = row.id,
         )
         FileReferenceCards(
             text = row.text,
