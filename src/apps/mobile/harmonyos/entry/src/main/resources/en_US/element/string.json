@@ -3389,6 +3389,10 @@
       "value": "The last app had a problem; fixing it automatically"
     },
     {
+      "name": "localGenui_recovering",
+      "value": "Resuming the app check…"
+    },
+    {
       "name": "localGenui_truncated",
       "value": "The reply was too long to finish. Send it again, or ask for something simpler."
     },
@@ -3411,6 +3415,14 @@
     {
       "name": "localGenui_manageModels",
       "value": "Manage models"
+    },
+    {
+      "name": "localGenui_configureModel",
+      "value": "Configure model"
+    },
+    {
+      "name": "localGenui_saveAndUseModel",
+      "value": "Save and use"
     },
     {
       "name": "localGenui_addModel",

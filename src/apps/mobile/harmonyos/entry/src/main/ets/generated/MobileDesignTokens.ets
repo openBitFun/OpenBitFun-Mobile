@@ -33,6 +33,7 @@ export class MobileDesignColors {
   static readonly connectHeroSurface: MobileColorPair = new MobileColorPair("#F8FAFF", "#252522");
   static readonly connectScanAccent: MobileColorPair = new MobileColorPair("#FFD021", "#FFD021");
   static readonly scrim: MobileColorPair = new MobileColorPair("#44000000", "#44000000");
+  static readonly genuiModelScrim: MobileColorPair = new MobileColorPair("#33000000", "#33000000");
   static readonly shellScrim: MobileColorPair = new MobileColorPair("#24000000", "#24000000");
   static readonly mediaBackground: MobileColorPair = new MobileColorPair("#FF000000", "#FF000000");
   static readonly mediaScrim: MobileColorPair = new MobileColorPair("#B8000000", "#B8000000");
@@ -157,12 +158,56 @@ export class MobileDesignTypography {
 }
 
 export class MobileDesignGeometry {
+  static readonly genuiModelFieldHeight: number = 52;
+  static readonly genuiModelActionHeight: number = 50;
+  static readonly genuiModelFieldPadding: number = 14;
+  static readonly genuiModelChipRadius: number = 14;
+  static readonly genuiModelListSpacing: number = 10;
+  static readonly genuiModelEditorSpacing: number = 12;
+  static readonly genuiModelPanelWidth: number = 480;
+  static readonly genuiModelPanelHeight: number = 560;
+  static readonly genuiHistoryRowHeight: number = 56;
+  static readonly genuiHistoryRowRadius: number = 10;
+  static readonly genuiHistoryHorizontalInset: number = 12;
+  static readonly genuiHistoryVerticalInset: number = 8;
+  static readonly genuiHistoryLabelSpacing: number = 3;
+  static readonly genuiHistoryActionInset: number = 20;
+  static readonly genuiHistoryMenuHeight: number = 40;
+  static readonly genuiHistoryMenuGap: number = 2;
+  static readonly genuiAppControlSize: number = 40;
+  static readonly genuiAppControlTopInset: number = 8;
+  static readonly genuiAppControlSideInset: number = 12;
+  static readonly genuiAppStatusHeight: number = 32;
+  static readonly genuiAppStatusMaxWidth: number = 240;
+  static readonly genuiAppStatusHorizontalPadding: number = 12;
+  static readonly genuiCameraShortEdge: number = 96;
+  static readonly genuiCameraLongEdge: number = 128;
+  static readonly genuiCameraCompactShortEdge: number = 60;
+  static readonly genuiCameraCompactLongEdge: number = 80;
+  static readonly genuiCameraCompactHeightThreshold: number = 480;
+  static readonly genuiCameraRadius: number = 16;
+  static readonly genuiCameraCompactRadius: number = 12;
+  static readonly genuiCameraSideInset: number = 12;
+  static readonly genuiCameraBottomInset: number = 16;
+  static readonly genuiCameraLabelInset: number = 6;
+  static readonly genuiCameraCompactLabelInset: number = 4;
+  static readonly genuiCameraLabelVerticalPadding: number = 2;
+  static readonly genuiCameraLabelRadius: number = 8;
   static readonly conversationHeaderHeight: number = 56;
   static readonly conversationHeaderCompactHeight: number = 56;
   static readonly controlTouchSize: number = 48;
   static readonly navigationBackIconSize: number = 18;
   static readonly messageActionIconSize: number = 14;
   static readonly messageActionTouchSize: number = 32;
+  static readonly messageAppPreviewSize: number = 76;
+  static readonly messageAppPreviewRadius: number = 16;
+  static readonly messageAppCardRadius: number = 20;
+  static readonly messageAppCardPadding: number = 12;
+  static readonly messageAppBadgeSize: number = 20;
+  static readonly messageAppBadgeInset: number = 5;
+  static readonly messageAppOpenRadius: number = 16;
+  static readonly messageAppOpenHorizontalPadding: number = 14;
+  static readonly messageAppOpenVerticalPadding: number = 6;
   static readonly contentGutter: number = 16;
   static readonly connectionStripHeight: number = 48;
   static readonly timelineTopPadding: number = 22;
@@ -174,6 +219,7 @@ export class MobileDesignGeometry {
   static readonly messageBubbleVerticalPadding: number = 11;
   static readonly messageBubbleRadius: number = 17;
   static readonly composerActionSize: number = 48;
+  static readonly composerPrimarySurfaceSize: number = 32;
   static readonly composerInputHeight: number = 44;
   static readonly composerExpandedInputHeight: number = 58;
   static readonly composerCollapsedHeight: number = 56;
@@ -220,6 +266,12 @@ export class MobileDesignGeometry {
   static readonly settingsSectionGap: number = 20;
   static readonly settingsIconSize: number = 18;
   static readonly settingsContentMaxWidth: number = 560;
+  static readonly settingsWidePanelWidth: number = 480;
+  static readonly settingsWidePanelHeight: number = 560;
+  static readonly settingsWidePanelRadius: number = 32;
+  static readonly connectWidePanelRadius: number = 30;
+  static readonly connectWidePanelShadowRadius: number = 30;
+  static readonly connectWidePanelShadowOffsetY: number = 12;
   static readonly settingsProminentCardRadius: number = 20;
   static readonly modelCurrentRowHeight: number = 64;
   static readonly modelSourceRowHeight: number = 62;
@@ -239,13 +291,22 @@ export class MobileDesignGeometry {
   static readonly welcomeButtonGap: number = 11;
   static readonly welcomeDockRadius: number = 30;
   static readonly welcomeDockBottom: number = 39;
-  static readonly welcomeMarkSize: number = 92;
-  static readonly welcomeWordSize: number = 34;
-  static readonly welcomeStageHeight: number = 220;
+  static readonly welcomeMarkSize: number = 156;
+  static readonly welcomeWideMarkSize: number = 184;
+  static readonly welcomeLandscapeMarkSize: number = 216;
+  static readonly welcomeWideActionWidth: number = 400;
+  static readonly welcomeLandscapeWidth: number = 1000;
+  static readonly welcomeWordSize: number = 30;
+  static readonly welcomeLongWordSize: number = 25;
+  static readonly welcomeStageHeight: number = 48;
   static readonly welcomeHeaderWordSize: number = 17;
   static readonly recentHomeGutter: number = 24;
   static readonly recentHomeMarkSize: number = 160;
   static readonly recentHomeTitleSize: number = 22;
+  static readonly recentHomePhraseStageHeight: number = 28;
+  static readonly recentHomeTopPadding: number = 56;
+  static readonly recentHomeHeroGap: number = 16;
+  static readonly recentHomeHeroBottom: number = 48;
   static readonly recentHomeMaxWidth: number = 560;
   static readonly recentHomeRowPadding: number = 12;
   static readonly sidebarRefreshIconSize: number = 16;
@@ -269,6 +330,10 @@ export class MobileDesignGeometry {
   static readonly miniappListCoverSize: number = 140;
   static readonly miniappListRadius: number = 20;
   static readonly miniappListGap: number = 16;
+  static readonly miniappDragIconSize: number = 56;
+  static readonly miniappDragIconRadius: number = 14;
+  static readonly miniappDragGlowHeight: number = 72;
+  static readonly miniappDragTargetExtraHeight: number = 86;
 }
 
 export class MobileDesignBreakpoints {
@@ -282,4 +347,7 @@ export class MobileDesignMotion {
   static readonly structure: number = 220;
   static readonly startupBrand: number = 6800;
   static readonly coldStartHome: number = 2400;
+  static readonly miniappDragContract: number = 300;
+  static readonly miniappDragHintDelay: number = 200;
+  static readonly miniappDragHintFade: number = 150;
 }

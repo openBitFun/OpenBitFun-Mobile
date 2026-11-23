@@ -1,4 +1,5 @@
 import index from './vendor/fluent-emoji-animated-index.json';
+import { localImageUrl } from './localImageUrl';
 
 /**
  * Animated Fluent Emoji (Microsoft, MIT) for cover pictures, served by the
@@ -16,5 +17,5 @@ export function fluentEmojiAnimatedUrl(emoji: string): string | undefined {
     .map(character => (character.codePointAt(0) ?? 0).toString(16))
     .join('-');
   const path = ASSETS[key];
-  return path ? ASSET_ROOT + path.split('/').map(encodeURIComponent).join('/') : undefined;
+  return path ? localImageUrl(ASSET_ROOT + path.split('/').map(encodeURIComponent).join('/')) : undefined;
 }

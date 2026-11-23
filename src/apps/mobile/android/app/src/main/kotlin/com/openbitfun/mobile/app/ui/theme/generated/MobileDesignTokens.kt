@@ -31,6 +31,7 @@ internal object MobileDesignColors {
         val ConnectHeroSurface = Color(0xFFF8FAFF)
         val ConnectScanAccent = Color(0xFFFFD021)
         val Scrim = Color(0x44000000)
+        val GenuiModelScrim = Color(0x33000000)
         val ShellScrim = Color(0x24000000)
         val MediaBackground = Color(0xFF000000)
         val MediaScrim = Color(0xB8000000)
@@ -95,6 +96,7 @@ internal object MobileDesignColors {
         val ConnectHeroSurface = Color(0xFF252522)
         val ConnectScanAccent = Color(0xFFFFD021)
         val Scrim = Color(0x44000000)
+        val GenuiModelScrim = Color(0x33000000)
         val ShellScrim = Color(0x24000000)
         val MediaBackground = Color(0xFF000000)
         val MediaScrim = Color(0xB8000000)
@@ -179,12 +181,56 @@ internal object MobileTextScale {
 }
 
 internal object MobileDesignGeometry {
+    val GenuiModelFieldHeight = 52.dp
+    val GenuiModelActionHeight = 50.dp
+    val GenuiModelFieldPadding = 14.dp
+    val GenuiModelChipRadius = 14.dp
+    val GenuiModelListSpacing = 10.dp
+    val GenuiModelEditorSpacing = 12.dp
+    val GenuiModelPanelWidth = 480.dp
+    val GenuiModelPanelHeight = 560.dp
+    val GenuiHistoryRowHeight = 56.dp
+    val GenuiHistoryRowRadius = 10.dp
+    val GenuiHistoryHorizontalInset = 12.dp
+    val GenuiHistoryVerticalInset = 8.dp
+    val GenuiHistoryLabelSpacing = 3.dp
+    val GenuiHistoryActionInset = 20.dp
+    val GenuiHistoryMenuHeight = 40.dp
+    val GenuiHistoryMenuGap = 2.dp
+    val GenuiAppControlSize = 40.dp
+    val GenuiAppControlTopInset = 8.dp
+    val GenuiAppControlSideInset = 12.dp
+    val GenuiAppStatusHeight = 32.dp
+    val GenuiAppStatusMaxWidth = 240.dp
+    val GenuiAppStatusHorizontalPadding = 12.dp
+    val GenuiCameraShortEdge = 96.dp
+    val GenuiCameraLongEdge = 128.dp
+    val GenuiCameraCompactShortEdge = 60.dp
+    val GenuiCameraCompactLongEdge = 80.dp
+    val GenuiCameraCompactHeightThreshold = 480.dp
+    val GenuiCameraRadius = 16.dp
+    val GenuiCameraCompactRadius = 12.dp
+    val GenuiCameraSideInset = 12.dp
+    val GenuiCameraBottomInset = 16.dp
+    val GenuiCameraLabelInset = 6.dp
+    val GenuiCameraCompactLabelInset = 4.dp
+    val GenuiCameraLabelVerticalPadding = 2.dp
+    val GenuiCameraLabelRadius = 8.dp
     val ConversationHeaderHeight = 56.dp
     val ConversationHeaderCompactHeight = 56.dp
     val ControlTouchSize = 48.dp
     val NavigationBackIconSize = 18.dp
     val MessageActionIconSize = 14.dp
     val MessageActionTouchSize = 32.dp
+    val MessageAppPreviewSize = 76.dp
+    val MessageAppPreviewRadius = 16.dp
+    val MessageAppCardRadius = 20.dp
+    val MessageAppCardPadding = 12.dp
+    val MessageAppBadgeSize = 20.dp
+    val MessageAppBadgeInset = 5.dp
+    val MessageAppOpenRadius = 16.dp
+    val MessageAppOpenHorizontalPadding = 14.dp
+    val MessageAppOpenVerticalPadding = 6.dp
     val ContentGutter = 16.dp
     val ConnectionStripHeight = 48.dp
     val TimelineTopPadding = 22.dp
@@ -196,6 +242,7 @@ internal object MobileDesignGeometry {
     val MessageBubbleVerticalPadding = 11.dp
     val MessageBubbleRadius = 17.dp
     val ComposerActionSize = 48.dp
+    val ComposerPrimarySurfaceSize = 32.dp
     val ComposerInputHeight = 44.dp
     val ComposerExpandedInputHeight = 58.dp
     val ComposerCollapsedHeight = 56.dp
@@ -242,6 +289,12 @@ internal object MobileDesignGeometry {
     val SettingsSectionGap = 20.dp
     val SettingsIconSize = 18.dp
     val SettingsContentMaxWidth = 560.dp
+    val SettingsWidePanelWidth = 480.dp
+    val SettingsWidePanelHeight = 560.dp
+    val SettingsWidePanelRadius = 32.dp
+    val ConnectWidePanelRadius = 30.dp
+    val ConnectWidePanelShadowRadius = 30.dp
+    val ConnectWidePanelShadowOffsetY = 12.dp
     val SettingsProminentCardRadius = 20.dp
     val ModelCurrentRowHeight = 64.dp
     val ModelSourceRowHeight = 62.dp
@@ -261,13 +314,22 @@ internal object MobileDesignGeometry {
     val WelcomeButtonGap = 11.dp
     val WelcomeDockRadius = 30.dp
     val WelcomeDockBottom = 39.dp
-    val WelcomeMarkSize = 92.dp
-    val WelcomeWordSize = 34.dp
-    val WelcomeStageHeight = 220.dp
+    val WelcomeMarkSize = 156.dp
+    val WelcomeWideMarkSize = 184.dp
+    val WelcomeLandscapeMarkSize = 216.dp
+    val WelcomeWideActionWidth = 400.dp
+    val WelcomeLandscapeWidth = 1000.dp
+    val WelcomeWordSize = 30.dp
+    val WelcomeLongWordSize = 25.dp
+    val WelcomeStageHeight = 48.dp
     val WelcomeHeaderWordSize = 17.dp
     val RecentHomeGutter = 24.dp
     val RecentHomeMarkSize = 160.dp
     val RecentHomeTitleSize = 22.dp
+    val RecentHomePhraseStageHeight = 28.dp
+    val RecentHomeTopPadding = 56.dp
+    val RecentHomeHeroGap = 16.dp
+    val RecentHomeHeroBottom = 48.dp
     val RecentHomeMaxWidth = 560.dp
     val RecentHomeRowPadding = 12.dp
     val SidebarRefreshIconSize = 16.dp
@@ -291,6 +353,10 @@ internal object MobileDesignGeometry {
     val MiniappListCoverSize = 140.dp
     val MiniappListRadius = 20.dp
     val MiniappListGap = 16.dp
+    val MiniappDragIconSize = 56.dp
+    val MiniappDragIconRadius = 14.dp
+    val MiniappDragGlowHeight = 72.dp
+    val MiniappDragTargetExtraHeight = 86.dp
 }
 
 internal object MobileDesignBreakpoints {
@@ -304,4 +370,7 @@ internal object MobileDesignMotion {
     const val Structure: Int = 220
     const val StartupBrand: Int = 6800
     const val ColdStartHome: Int = 2400
+    const val MiniappDragContract: Int = 300
+    const val MiniappDragHintDelay: Int = 200
+    const val MiniappDragHintFade: Int = 150
 }

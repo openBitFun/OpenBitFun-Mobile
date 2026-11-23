@@ -31,6 +31,9 @@ JAVA_HOME='/Applications/Android Studio.app/Contents/jbr/Contents/Home' ./gradle
 
 ## Focused Verification
 
+Run `pnpm run prepare:assets` from the repository root to stage the local GenUI
+document before building a clean checkout or after its source changes.
+
 Run commands from `src/apps/mobile/android` unless a command says otherwise.
 
 ```bash

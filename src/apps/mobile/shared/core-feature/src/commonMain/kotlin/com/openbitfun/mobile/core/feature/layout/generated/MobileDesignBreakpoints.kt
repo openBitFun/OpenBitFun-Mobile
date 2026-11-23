@@ -6,3 +6,8 @@ public object MobileDesignBreakpoints {
     public const val ExtraWide: Int = 840
     public const val Xl: Int = 1440
 }
+
+internal object MobileDesignLayoutGeometry {
+    const val SettingsWidePanelWidth: Int = 480
+    const val SettingsWidePanelHeight: Int = 560
+}

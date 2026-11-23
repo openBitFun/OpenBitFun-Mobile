@@ -1,5 +1,7 @@
 package com.openbitfun.mobile.core.feature.layout
 
+import com.openbitfun.mobile.core.feature.layout.generated.MobileDesignLayoutGeometry
+
 /** A horizontal hinge crossing the window, in density-independent units. */
 public data class HorizontalWindowCrease(
     val top: Int,
@@ -21,6 +23,7 @@ public data class AdaptiveLayoutInput(
 
 public enum class SettingsPlacementMode {
     BOTTOM,
+    CENTER,
     SIDE,
     FOLD_OPERATE,
 }
@@ -30,6 +33,7 @@ public enum class SettingsSheetKind {
     CONNECT,
     SESSION_DETAILS,
     REMOTE_VIEW_SETTINGS,
+    USER_MESSAGE_FULL_TEXT,
 }
 
 public data class SettingsPlacement(
@@ -61,10 +65,40 @@ public object SettingsPlacementPolicy {
     public fun compactBottom(kind: SettingsSheetKind): SettingsPlacement = bottomPlacement(kind)
 
     public fun resolve(input: AdaptiveLayoutInput, kind: SettingsSheetKind): SettingsPlacement {
-        if (input.isHoverOperate) return hoverPlacement(input, kind)
+        if (kind == SettingsSheetKind.SETTINGS) {
+            // The settings sheet uses ArkUI's default placement. Its wide presentation is
+            // centered across the unfolded window, including over a vertical crease.
+            if (input.viewportWidth < ConversationLayoutPolicy.MD_MIN_WIDTH) return bottomPlacement(kind)
+            return centeredArkUiPlacement(input)
+        }
+        val horizontal = if (input.isHoverOperate) {
+            input.horizontalCreases
+                .filter { it.top > 0 && it.height >= 0 && it.top + it.height < input.viewportHeight }
+                .minByOrNull { it.top }
+        } else {
+            null
+        }
+        if (horizontal != null) return foldOperatePlacement(input, kind, horizontal)
+        if (kind == SettingsSheetKind.CONNECT && input.isExpandedFoldable &&
+            !input.isFolded && canUseSideSheet(input)
+        ) {
+            return centeredArkUiPlacement(input)
+        }
+        if (input.isHoverOperate) return creaseFreeOrSidePlacement(input, kind)
         if (input.isFolded) return bottomPlacement(kind)
         return creaseFreeOrSidePlacement(input, kind)
     }
+
+    // ArkUI renders its standard 480 by 560 centered sheet for both Settings
+    // and Connect. The latter supplies nominal width and height to bindSheet,
+    // which the reference runtime replaces with these centered bounds.
+    private fun centeredArkUiPlacement(input: AdaptiveLayoutInput): SettingsPlacement =
+        SettingsPlacement(
+            SettingsPlacementMode.CENTER,
+            MobileDesignLayoutGeometry.SettingsWidePanelWidth,
+            minOf(input.viewportHeight.coerceAtLeast(0), MobileDesignLayoutGeometry.SettingsWidePanelHeight),
+            0,
+        )
 
     /** The leading coordinate of ArkUI/Compose/SwiftUI's trailing side sheet. */
     public fun sheetLeft(
@@ -93,24 +127,18 @@ public object SettingsPlacementPolicy {
         return left < creaseRight && right > crease.left
     }
 
-    private fun hoverPlacement(
+    private fun foldOperatePlacement(
         input: AdaptiveLayoutInput,
         kind: SettingsSheetKind,
+        horizontal: HorizontalWindowCrease,
     ): SettingsPlacement {
-        val horizontal = input.horizontalCreases
-            .filter { it.top > 0 && it.height >= 0 && it.top + it.height < input.viewportHeight }
-            .sortedBy { it.top }
-            .firstOrNull()
-        if (horizontal != null) {
-            val maxHeight = maxOf(0, input.viewportHeight - horizontal.top - horizontal.height)
-            return SettingsPlacement(
-                mode = SettingsPlacementMode.FOLD_OPERATE,
-                width = 0,
-                height = kindOperateHeight(maxHeight, kind),
-                maxHeight = maxHeight,
-            )
-        }
-        return creaseFreeOrSidePlacement(input, kind)
+        val maxHeight = maxOf(0, input.viewportHeight - horizontal.top - horizontal.height)
+        return SettingsPlacement(
+            mode = SettingsPlacementMode.FOLD_OPERATE,
+            width = 0,
+            height = kindOperateHeight(maxHeight, kind),
+            maxHeight = maxHeight,
+        )
     }
 
     private fun creaseFreeOrSidePlacement(

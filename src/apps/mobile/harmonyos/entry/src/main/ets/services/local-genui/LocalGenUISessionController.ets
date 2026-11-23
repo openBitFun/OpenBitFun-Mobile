@@ -56,7 +56,7 @@ export interface LocalGenUIControllerListener {
   messagesChanged(sessionId: string, messages: LocalGenUIMessage[]): void;
   streamingText(sessionId: string, text: string): void;
   appChanged(app: LocalGenUIAppView | undefined): void;
-  busyChanged(busy: boolean): void;
+  busyChanged(busy: boolean, turnSerial: number): void;
   notice(text: string): void;
   /** Models plus the model the current (or next new) session uses. */
   modelsChanged(models: LocalGenUIModelProfile[], currentId: string, missing: boolean): void;
@@ -66,6 +66,12 @@ export interface LocalGenUIControllerListener {
 
 export interface LocalGenUIPresentationSource {
   presentation(): LocalGenUIPresentation;
+}
+
+export interface LocalGenUIComposerSend {
+  isCurrent: () => boolean;
+  onAccepted: () => void;
+  onModelRequired: () => void;
 }
 
 const PROBE_TIMEOUT_MS: number = 4000;
@@ -258,6 +264,12 @@ export class LocalGenUISessionController {
     this.messages = await this.repository.loadMessages(sessionId);
     this.listener.messagesChanged(sessionId, this.messages.slice());
     await this.refreshSessions();
+    const pending = await this.repository.pendingAppOfSession(sessionId);
+    if (this.activeSessionId !== sessionId) return;
+    if (pending) {
+      await this.openApp(pending.appId);
+      return;
+    }
     // Reopen shows the latest app of the session from the owner.
     for (let i = this.messages.length - 1; i >= 0; i--) {
       if (this.messages[i].appId.length > 0) {
@@ -276,11 +288,13 @@ export class LocalGenUISessionController {
     if (!session || next.length === 0) {
       return;
     }
-    session.title = next.slice(0, 60);
+    session.title = next.slice(0, 60).replace(/[\uD800-\uDBFF]$/, '');
+    if (session.title.length === 0) return;
     session.titleFromApp = true;
     await this.repository.upsertSession(session);
     if (this.activeSession && this.activeSession.id === sessionId) {
       this.activeSession.title = session.title;
+      this.activeSession.titleFromApp = true;
     }
     await this.refreshSessions();
   }
@@ -307,6 +321,29 @@ export class LocalGenUISessionController {
   /** Mount the runnable revision of an app read from the owner. */
   async openApp(appId: string): Promise<void> {
     let record = await this.repository.loadApp(appId);
+    if (record?.status === LocalGenUIAppStatus.Candidate) {
+      if (this.turnActive) return;
+      const checkpoint = record;
+      const serial = ++this.turnSerial;
+      this.turnActive = true;
+      this.listener.busyChanged(true, serial);
+      const recovering = this.viewOf(record, false, '');
+      recovering.status = 'recovering';
+      this.listener.appChanged(recovering);
+      try {
+        record = await this.verify(record, serial);
+        if (serial === this.turnSerial) await this.finalizeRecoveredMessage(checkpoint, record);
+      } catch (error) {
+        this.setMountedApp('');
+        this.bridge.unmount();
+        this.listener.appChanged(undefined);
+        throw new Error(String(error));
+      } finally {
+        this.turnActive = false;
+        this.listener.busyChanged(false, serial);
+      }
+      if (serial !== this.turnSerial) return;
+    }
     if (record && record.status === LocalGenUIAppStatus.Failed && !this.turnActive) {
       // Checked by an older renderer: verify again with this one before showing it.
       const reconsidered = await this.owner.reconsiderFailure(appId);
@@ -343,6 +380,24 @@ export class LocalGenUISessionController {
       stateJson: runnable.stateJson
     }).then(() => this.backfillThumbnail(appId));
     this.listener.appChanged(this.viewOf(record, false, ''));
+  }
+
+  private async finalizeRecoveredMessage(checkpoint: LocalGenUIAppRecord, record: LocalGenUIAppRecord): Promise<void> {
+    const messages = await this.repository.loadMessages(record.sessionId);
+    const existing = messages.find((item: LocalGenUIMessage) => item.id === record.messageId);
+    if (existing && existing.status !== LocalGenUIAppStatus.Candidate) return;
+    const message = existing ?? this.message(record.sessionId, LocalGenUIMessageRole.Assistant, '', checkpoint.updatedAt);
+    message.id = record.messageId;
+    message.type = 'genui';
+    message.appId = record.appId;
+    message.appTitle = record.title;
+    message.status = record.status;
+    if (!existing) await this.titleSessionAfterApp(record.sessionId, record.title);
+    if (record.sessionId === this.activeSessionId) {
+      await this.appendMessage(message);
+    } else {
+      await this.repository.upsertMessage(message);
+    }
   }
 
   // Models
@@ -428,30 +483,42 @@ export class LocalGenUISessionController {
     }
     // Let fonts and the first layout settle before the snapshot.
     await new Promise<void>((resolve: () => void) => { setTimeout(resolve, 900); });
-    await this.captureThumbnail(appId);
-    await this.refreshGallery();
+    if (this.thumbnails.existing(appId).length === 0) {
+      await this.captureThumbnail(appId);
+    }
   }
 
   thumbnailFor(appId: string): string {
     return this.thumbnails.existing(appId);
   }
 
-  /** Preview of the app as it is rendered now; only for the mounted live app. */
-  private async captureThumbnail(appId: string): Promise<void> {
+  /** Capture the mounted live app and report whether the gallery was updated. */
+  private async captureThumbnail(appId: string): Promise<boolean> {
     const mount = this.bridge.currentMount();
     if (!mount || mount.identity.appId !== appId || mount.mode !== 'live' || mount.streaming) {
       RemoteLogger.info('local genui thumbnail skipped: app is not the mounted live app');
-      return;
+      return false;
     }
     const pixels = await this.bridge.snapshot();
+    if (pixels && this.bridge.currentMount() !== mount) {
+      void pixels.release();
+      return false;
+    }
     const path = pixels ? await this.thumbnails.save(appId, pixels) : '';
     RemoteLogger.info(`local genui thumbnail ${path.length > 0 ? 'saved' : 'unavailable'}`);
     // A new preview follows every accepted revision; cards on the home screen
     // pick up its title and image here.
     await this.syncDesktopCards(appId);
-    // Repaint the conversation's app card with the new preview.
-    if (path.length > 0 && this.messages.some((item: LocalGenUIMessage) => item.appId === appId)) {
+    if (path.length === 0) return false;
+    if (this.messages.some((item: LocalGenUIMessage) => item.appId === appId)) {
       this.listener.messagesChanged(this.activeSessionId, this.messages.slice());
+    }
+    try {
+      await this.refreshGallery();
+      return true;
+    } catch (error) {
+      RemoteLogger.warn(`local genui gallery preview refresh failed: ${String(error)}`);
+      return false;
     }
   }
 
@@ -461,10 +528,9 @@ export class LocalGenUISessionController {
       return;
     }
     await this.repository.addToGallery({ appId, sessionId: record.sessionId, title: record.title, addedAt: new Date().toISOString() });
-    if (this.thumbnails.existing(appId).length === 0) {
-      await this.captureThumbnail(appId);
+    if (this.thumbnails.existing(appId).length > 0 || !(await this.captureThumbnail(appId))) {
+      await this.refreshGallery();
     }
-    await this.refreshGallery();
   }
 
   async removeFromGallery(appId: string): Promise<void> {
@@ -517,24 +583,26 @@ export class LocalGenUISessionController {
    * `modelPrompt` replaces the visible text for host-generated turns.
    * `repairBase` is the failed source a repair patch applies to.
    */
-  async send(text: string, targetAppId: string = '', modelPrompt: string = '', repairBase: string = ''): Promise<void> {
+  async send(text: string, targetAppId: string = '', modelPrompt: string = '', repairBase: string = '',
+    composer?: LocalGenUIComposerSend): Promise<void> {
     const prompt = text.trim();
     if (prompt.length === 0 || this.turnActive) {
       return;
     }
+    const sessionIdAtSend = this.activeSessionId;
     const choice = await this.modelChoice();
-    if (choice.missing) {
-      this.listener.notice(RemoteI18n.t('localGenui.modelMissing'));
-      return;
-    }
-    if (!choice.model || !(await this.provider.isConfigured(choice.model.id))) {
-      this.listener.notice(RemoteI18n.t('localGenui.modelNotConfigured'));
+    const configured = choice.model !== undefined && await this.provider.isConfigured(choice.model.id);
+    if (this.turnActive || this.activeSessionId !== sessionIdAtSend || (composer && !composer.isCurrent())) return;
+    if (!choice.model || !configured) {
+      if (composer) composer.onModelRequired();
+      else this.listener.notice(RemoteI18n.t(choice.missing ? 'localGenui.modelMissing' : 'localGenui.modelNotConfigured'));
       return;
     }
     const modelId = choice.model.id;
     this.turnActive = true;
     const serial = ++this.turnSerial;
-    this.listener.busyChanged(true);
+    this.listener.busyChanged(true, serial);
+    composer?.onAccepted();
     try {
       const sessionId = await this.ensureSession(prompt, modelId);
       const now = new Date().toISOString();
@@ -553,7 +621,7 @@ export class LocalGenUISessionController {
       this.listener.notice(String(err instanceof Error ? err.message : err));
     } finally {
       this.turnActive = false;
-      this.listener.busyChanged(false);
+      this.listener.busyChanged(false, serial);
     }
     const repair = this.pendingRepair;
     this.pendingRepair = undefined;
@@ -664,11 +732,8 @@ export class LocalGenUISessionController {
     assistant.status = record.status;
     await this.appendMessage(assistant);
     const failedSource = record.sourceContent;
-    const verified = await this.verify(record);
-    // The reopen probe left the accepted revision mounted live: refresh its preview.
-    if (verified.status !== 'failed' && verified.status !== 'state_migration_required') {
-      await this.captureThumbnail(verified.appId);
-    }
+    const verified = await this.verify(record, serial);
+    if (serial !== this.turnSerial) return;
     await this.queueRepair(verified, failedSource);
     assistant.status = verified.status;
     await this.appendMessage(assistant);
@@ -699,7 +764,7 @@ export class LocalGenUISessionController {
   }
 
   /** Local acceptance: checker-mode probe, owner readback, then live reopen probe. */
-  private async verify(record: LocalGenUIAppRecord): Promise<LocalGenUIAppRecord> {
+  private async verify(record: LocalGenUIAppRecord, serial: number = this.turnSerial): Promise<LocalGenUIAppRecord> {
     if (record.status !== 'candidate') {
       return record;
     }
@@ -712,6 +777,7 @@ export class LocalGenUISessionController {
     this.setMountedApp(record.appId);
     const checkerOk = await this.withTimeout(checkerReady, READY_TIMEOUT_MS);
     const checkerProbe = checkerOk ? await this.bridge.probe(PROBE_TIMEOUT_MS) : undefined;
+    if (serial !== this.turnSerial) return record;
     // The runtime's measured canvas scale is the recorded truth.
     const presentation: LocalGenUIPresentation = {
       posture: host.posture, deviceWidth: host.deviceWidth, deviceHeight: host.deviceHeight,
@@ -726,6 +792,7 @@ export class LocalGenUISessionController {
       (await Encoding.sha256(readback.stateJson)) === stateHash;
     let reopenProbe: LocalProbeReport | undefined = undefined;
     if (readback && readbackMatches) {
+      if (serial !== this.turnSerial) return record;
       const liveReady = this.bridge.mountApp({
         identity, mode: 'live', source: readback.sourceContent, streaming: false,
         sourceRevision: readback.sourceRevision, stateRevision: readback.stateRevision, stateJson: readback.stateJson
@@ -734,6 +801,7 @@ export class LocalGenUISessionController {
         reopenProbe = await this.bridge.probe(PROBE_TIMEOUT_MS);
       }
     }
+    if (serial !== this.turnSerial) return record;
     const checks = evaluateLocalAcceptance({
       probe: checkerProbe,
       reopenProbe,
@@ -794,6 +862,18 @@ export class LocalGenUISessionController {
         this.bridge.sendCalendarReceipts(mount.identity.appId, mount.sourceRevision, rows.map((row: string): Object => JSON.parse(row) as Object));
       } catch (error) {
         this.listener.notice(String(error));
+      }
+      return;
+    }
+    if (message.type === 'preview_ready') {
+      if (!mount || mount.mode !== 'live' || mount.streaming || message.appId !== mount.identity.appId ||
+        message.sourceRevision !== mount.sourceRevision) return;
+      const record = await this.repository.loadApp(mount.identity.appId);
+      const runnable = record ? LocalGenUIOwner.runnableRevision(record) : undefined;
+      // The live reopen probe can finish painting before the candidate has been accepted.
+      if (runnable && LocalGenUIOwner.isDisplayableStatus(runnable.status) &&
+        runnable.sourceRevision === mount.sourceRevision && this.bridge.currentMount() === mount) {
+        await this.captureThumbnail(mount.identity.appId);
       }
       return;
     }

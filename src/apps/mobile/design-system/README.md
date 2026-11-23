@@ -155,43 +155,23 @@ available, and check a background/foreground cycle during the reveal.
 
 ## Signed-out welcome home
 
-The disconnected, signed-out home uses the A welcome composition with the C
-staggered-slide phrase animation: a fixed brand mark, desktop-derived localized
-short phrases, and equally weighted sign-in and scan actions in a dark dock.
-This is the signed-out home itself, not an onboarding layer before another
-landing page. Compact and wide hosts use the same entry on all three platforms:
-without a control target, show the welcome composition; account identity only
-changes its primary action from sign-in to connect. Connect opens the existing
-device chooser and scan opens the existing scanner. With a retained target,
-disconnect/reconnect preserves session context and retry controls instead of
-returning to welcome. An account reset can leave HarmonyOS disconnected rather
-than idle; either state leads to welcome once the control target is cleared.
-`welcome_*` geometry tokens own the compact dimensions and a 520-unit wide
-content cap. The four dedicated welcome colors keep the dark dock and white
-buttons stable in both appearance modes; normal page/action tokens invert or
-change surfaces and cannot express this fixed brand treatment.
+The signed-out welcome home spans the available window. Its top row contains
+the brand wordmark and a sidebar restore control. The primary action opens
+sign-in, and **Explore MiniApps** opens the offline gallery. A retained remote
+target keeps its session context and reconnect controls.
 
-Each phrase enters with 55 ms per-glyph staggering and an 800 ms cubic ease-out,
-then leaves over 650 ms. Reduced motion renders a static wordmark. Background
-or invisible hosts suspend presentation work. Native safe-area and accessibility
-behavior remain platform-owned; these are logical layout units, not a promise
-of identical font rasterization on different systems.
+Compact windows place the actions in a dark dock. Windows at least 600 logical
+units wide center the brand and constrain the actions to 400 units. At widths of
+at least 840 units and a width/height ratio of 1.2 or more, the brand and actions
+sit side by side in a composition capped at 1000 units. The mark measures 156,
+184, or 216 units in those respective layouts. Native safe areas, system text
+scaling, and scrolling follow each platform.
 
-HarmonyOS exposes the bundled MiniApp destination. Android and iOS preserve the
-reserved footer area until they own that capability, rather than presenting an
-inert MiniApp action. QR actions still use the existing account-device protocol;
-this UI change does not add guest credentials or bypass server authorization.
-HarmonyOS can render the isolated surface with the existing design-preview
-launch parameter `openbitfunDesignPreview=welcome-home`, without logging out an
-active account or loading its connection state.
-
-The welcome and startup marks share the desktop AboutBrandMark contour geometry:
-15 rounded hexagonal paths with three low-opacity highlights traveling around
-each contour over 18 seconds. `assets/welcome-brand-contours.json` records the
-256-unit paths and lengths; native renderers own their drawing and lifecycle.
-The startup keeps its existing entrance choreography; the welcome mark stays
-in place while the highlights and short phrases loop. Reduced motion keeps the
-contours static. No microphone or voice-service dependency is introduced.
+The mark uses the same contour geometry and diagonal sweep as recent home.
+Phrases enter with 55 ms per-glyph staggering and an 800 ms cubic ease-out,
+then leave over 650 ms. Reduced motion renders a static wordmark. Native
+renderers use `assets/welcome-brand-contours.json` for the shared geometry.
+HarmonyOS can render the isolated welcome via `openbitfunDesignPreview=welcome-home`.
 
 ### Recent-conversation home
 
@@ -205,11 +185,9 @@ the welcome page. Loading and offline states never erase retained sessions.
 The mark uses a five-second diagonal highlight sweep; reduced motion uses a
 static contour. Native hosts retain their own lifecycle and adaptive layout.
 
-The recent-home brand and headline are centered above the leading-aligned session list. The mark retains its original silhouette and uses the same diagonal sweep across native surfaces. HarmonyOS uses a 156vp mark and 21fp headline for its optical balance; other hosts use the shared geometry.
-
-HarmonyOS welcome occupies the full window when signed out without an active remote target. It suppresses the workspace sidebar without changing retained selection. At 600vp and above, the brand, phrase and constrained action group are centered without the compact dock; smaller windows retain the stacked dock. The welcome mark is 156vp compact and 184vp wide, using the diagonal sweep. Size changes update this layout in place.
-
-For HarmonyOS welcome windows at least 840vp wide with width/height at least 1.2, a centered composition capped at 1000vp places the brand and actions side by side. This follows available window geometry rather than a device model or fold count.
+The recent-home mark and animated phrase are centered above the leading-aligned
+session list. The mark, type scale, phrase stage, and vertical spacing use the
+`recent_home_*` tokens.
 
 ### Authenticated cold-start home transition
 

@@ -2,7 +2,7 @@ import { TemplateIcon } from './TemplateIcon';
 import { ConnectionErrorPolicy } from '../../services/ConnectionErrorPolicy';
 import { MobileDesignGeometry, MobileDesignTypography } from '../../generated/MobileDesignTokens';
 import { RemoteI18n } from '../../i18n/RemoteI18n';
-import { accountDeviceDisplayName, CloudAccountDevice } from '../../services/CloudAccountClient';
+import { accountDeviceDisplayName, CloudAccountDevice, isDeviceControllable } from '../../services/CloudAccountClient';
 import { ACCENT, CARD, STATUS_SUCCESS, INK, LINE, MUTED, PAGE_BG, STATUS_DANGER, SOFT } from './Theme';
 import { AccountDeviceSelectionPolicy } from '../policy/AccountDeviceSelectionPolicy';
 import { DeviceDirectoryEntry, DeviceDirectoryState } from '../state/DeviceDirectoryState';
@@ -101,7 +101,7 @@ export struct ConnectAccountDevicePage {
           ForEach(this.desktopDevices(), (device: CloudAccountDevice) => {
             this.AccountConnectDeviceRow(device)
           }, (device: CloudAccountDevice): string =>
-            `${device.deviceId}:${device.online ? 'online' : 'offline'}:${device.lastSeenAt || 0}:${accountDeviceDisplayName(device)}`)
+            `${device.deviceId}:${device.online ? 'online' : 'offline'}:${device.lastSeenAt || 0}:${accountDeviceDisplayName(device)}:${isDeviceControllable(device.compatible)}`)
         }
         .width('100%')
       }
@@ -135,7 +135,7 @@ export struct ConnectAccountDevicePage {
           .fontSize(MobileDesignTypography.bodyMedium.size).fontWeight(FontWeight.Medium).fontColor(INK)
           .maxLines(1).textOverflow({ overflow: TextOverflow.Ellipsis })
         Text(this.accountDeviceStatus(device))
-          .fontSize(MobileDesignTypography.bodySmall.size).fontColor(device.online ? STATUS_SUCCESS : MUTED)
+          .fontSize(MobileDesignTypography.bodySmall.size).fontColor(device.online && isDeviceControllable(device.compatible) ? STATUS_SUCCESS : MUTED)
       }
       .layoutWeight(1)
       .alignItems(HorizontalAlign.Start)
@@ -147,7 +147,7 @@ export struct ConnectAccountDevicePage {
           .fontSize(MobileDesignTypography.bodyMedium.size).fontColor(INK)
           .padding({ left: 10, right: 10, top: 6, bottom: 6 })
           .backgroundColor(SOFT).borderRadius(14)
-      } else if (device.online) {
+      } else if (device.online && isDeviceControllable(device.compatible)) {
         SymbolGlyph($r('sys.symbol.chevron_right'))
           .fontSize(13).fontColor([MUTED]).opacity(0.44)
       }
@@ -188,12 +188,15 @@ export struct ConnectAccountDevicePage {
   }
 
   private canSelectAccountDevice(device: CloudAccountDevice): boolean {
-    return AccountDeviceSelectionPolicy.canSelectOnline(
+    return isDeviceControllable(device.compatible) && AccountDeviceSelectionPolicy.canSelectOnline(
       device.online, device.deviceId, this.deviceId, this.switchingDeviceId
     );
   }
 
   private accountDeviceStatus(device: CloudAccountDevice): string {
+    if (!isDeviceControllable(device.compatible)) {
+      return RemoteI18n.t('remote.settings.deviceIncompatible');
+    }
     if (device.deviceId === this.switchingDeviceId) {
       return RemoteI18n.t('remote.settings.deviceConnecting');
     }

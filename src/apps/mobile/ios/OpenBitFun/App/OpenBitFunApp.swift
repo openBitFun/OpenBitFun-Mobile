@@ -9,6 +9,7 @@ struct OpenBitFunApp: App {
     @State private var showColdStart = false
     @State private var coldStartConsumed = false
     @State private var notificationOnboardingOpen = false
+    @State private var miniAppLaunch: MiniAppLaunch?
     @StateObject private var model = MobileLaunchConfiguration.makeModel()
     @Environment(\.scenePhase) private var scenePhase
     private let designPreviewScenario = MobileLaunchConfiguration.designPreviewScenario()
@@ -59,7 +60,22 @@ struct OpenBitFunApp: App {
                         if phase == .background { Self.coldStartProcessClaimed = true; coldStartConsumed = true; showStartupBrand = false; showColdStart = false }
                         model.handleScenePhase(phase)
                     }
+                    .fullScreenCover(item: $miniAppLaunch) { launch in
+                        if launch.isGenerated {
+                            LocalGenUiView(model: model, local: model.localGenUi, initialAppId: launch.id)
+                        } else {
+                            MiniAppsView(model: model, local: model.localGenUi, initialAppID: launch.id)
+                        }
+                    }
                     .onOpenURL { url in
+                        if let launch = MiniAppLaunch(url: url) {
+                            showStartupBrand = false
+                            showColdStart = false
+                            coldStartConsumed = true
+                            notificationOnboardingOpen = false
+                            miniAppLaunch = launch
+                            return
+                        }
                         // The auth page redirects to this scheme after the
                         // browser completes. The shared account poller is
                         // already waiting; opening the URL brings this scene

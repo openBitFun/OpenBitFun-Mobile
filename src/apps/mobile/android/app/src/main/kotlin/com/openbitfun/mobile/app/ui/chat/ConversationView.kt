@@ -77,11 +77,18 @@ import com.openbitfun.mobile.core.feature.session.RemoteSessionIntent.AnswerStru
 import com.openbitfun.mobile.core.feature.session.QuestionAnswer
 import com.openbitfun.mobile.core.feature.session.RemoteSessionIntent
 import com.openbitfun.mobile.core.feature.session.RemoteSessionUiState
+import com.openbitfun.mobile.core.feature.session.CommandPaletteUiState
 import com.openbitfun.mobile.core.feature.session.conversationRows
 import com.openbitfun.mobile.core.feature.session.modelOptions
 import com.openbitfun.mobile.core.feature.session.selectedModelOption
 import com.openbitfun.mobile.core.feature.session.transcriptUnconfirmed
 import com.openbitfun.mobile.core.feature.workspace.RemoteFileDownloadUiState
+
+internal data class RollbackDraft(
+    val turnId: String,
+    val preview: String,
+    val composerSnapshot: String,
+)
 
 internal const val CONVERSATION_TEST_TAG: String = "conversation"
 internal const val CONVERSATION_BACK_TEST_TAG: String = "conversation-back"
@@ -129,6 +136,7 @@ internal fun mergeComposerDraft(existing: String, spoken: String): String =
 @Composable
 internal fun ConversationView(
     state: RemoteSessionUiState.Ready,
+    commandPalette: CommandPaletteUiState = CommandPaletteUiState.empty(),
     phase: ConnectionPhase,
     settingsPlacement: SettingsPlacement,
     onBack: () -> Unit,
@@ -185,6 +193,7 @@ internal fun ConversationView(
     // voice, and send all round-trip through `state.draft` so a half-written
     // message survives session switches and process restarts via DraftStore.
     var submittedDraft by rememberSaveable(attachmentOwner, state.selectedSessionId) { mutableStateOf<String?>(null) }
+    var rollbackTarget by remember(sessionId) { mutableStateOf<RollbackDraft?>(null) }
     val draft = if (submittedDraft == state.draft) "" else state.draft
     val focusManager = LocalFocusManager.current
     val keyboard = LocalSoftwareKeyboardController.current
@@ -294,6 +303,14 @@ internal fun ConversationView(
                         onDownloadFile = onDownloadFile,
                         onOpenFile = onOpenFile,
                         onIntent = onIntent,
+                        onStageRollback = { turnId ->
+                            visibleRows.firstOrNull { it.turnId == turnId }?.let { row ->
+                                rollbackTarget = RollbackDraft(turnId, row.text, state.draft)
+                                onIntent(RemoteSessionIntent.UpdateDraft(row.text))
+                            }
+                        },
+                        rollbackTargetTurnId = rollbackTarget?.turnId,
+                        rollbackEnabled = "session_rollback_v1" in hostCapabilities && !state.busy,
                         topInset = topInset,
                         bottomInset = bottomInset,
                     )
@@ -306,7 +323,7 @@ internal fun ConversationView(
                     .fillMaxWidth()
                     .onSizeChanged { topInset = with(density) { it.height.toDp() } },
             ) {
-                Column(modifier = Modifier.fillMaxWidth().background(overlayFill())) {
+                Column(modifier = Modifier.fillMaxWidth().background(conversationOverlayFill())) {
             ConversationHeader(
                 title = state.sessions.firstOrNull { it.id == sessionId }?.title.orEmpty(),
                 contextTitle = contextTitle,
@@ -341,13 +358,35 @@ internal fun ConversationView(
                     // short of that leaves a line of text sitting crisp and
                     // legible beside the pill after it has already faded out
                     // higher up.
-                    .background(bottomOverlayFade())
+                    .background(conversationBottomOverlayFade())
                     .padding(bottom = navigationBottom),
             ) {
                 if (attachmentDraft.failed.value) {
                     TextButton(onClick = { attachmentDraft.retry() }) {
                         Text(stringResource(R.string.chat_attachment_recovery_failed))
                     }
+                }
+                if (sessionId.isNotEmpty()) {
+                    rollbackTarget?.let { target ->
+                        RollbackStagingBar(
+                            target = target,
+                            onConfirm = {
+                                onIntent(RemoteSessionIntent.RollbackSession(sessionId, target.turnId))
+                                rollbackTarget = null
+                            },
+                            onClose = {
+                                onIntent(RemoteSessionIntent.UpdateDraft(target.composerSnapshot))
+                                rollbackTarget = null
+                            },
+                        )
+                    }
+                    CommandPaletteRow(
+                        palette = commandPalette,
+                        sessionId = sessionId,
+                        draft = draft,
+                        busy = state.busy,
+                        onIntent = onIntent,
+                    )
                 }
                 val queueMatchesSession = state.messageQueue.sessionId == state.selectedSessionId
                 if (queueMatchesSession) MessageQueuePanel(state.messageQueue, onIntent)
@@ -391,21 +430,38 @@ internal fun ConversationView(
                             }) pickerOwner = null
                     },
                     onVoice = voiceInput,
-                    onSend = {
+                        onSend = {
+                        if (draft.trim() == "/goal") return@ComposerBar
                         submittedDraft = draft
                         keyboard?.hide()
                         focusManager.clearFocus(force = true)
-                        onIntent(
-                            RemoteSessionIntent.SendMessage(
-                                sessionId,
-                                draft,
-                                images.takeIf { it.isNotEmpty() },
-                            ),
-                        )
+                        val skillToken = commandPalette.skillLabel.trim().takeIf { it.isNotEmpty() }?.let { "[$" + it + "]" }.orEmpty()
+                        val trimmedDraft = draft.trim()
+                        val outgoingContent = if (skillToken.isBlank()) {
+                            draft
+                        } else if (trimmedDraft.contains(skillToken)) {
+                            trimmedDraft
+                        } else if (trimmedDraft == "/goal" || trimmedDraft.startsWith("/goal ")) {
+                            "$trimmedDraft $skillToken"
+                        } else {
+                            "$skillToken $trimmedDraft"
+                        }
+                        val outgoingImages = images.takeIf { it.isNotEmpty() }
+                        if (rollbackTarget != null) {
+                            onIntent(RemoteSessionIntent.RollbackAndSend(sessionId, rollbackTarget!!.turnId, outgoingContent, outgoingImages))
+                            rollbackTarget = null
+                        } else {
+                            onIntent(RemoteSessionIntent.SendMessage(sessionId, outgoingContent, outgoingImages))
+                        }
+                        if (commandPalette.skillId.isNotBlank()) {
+                            onIntent(RemoteSessionIntent.ClearCommandPaletteSkill)
+                        }
                     },
                     onStop = {
                         onIntent(RemoteSessionIntent.CancelTurn(sessionId, activeTurn?.turnId))
                     },
+                    skillToken = commandPalette.skillLabel.trim().takeIf { it.isNotEmpty() }?.let { "[$" + it + "]" },
+                    onClearSkill = { onIntent(RemoteSessionIntent.ClearCommandPaletteSkill) },
                 )
             }
         }
@@ -447,8 +503,11 @@ private fun ConversationTimelineViewHost(
     onDownloadFile: (String, String) -> Unit,
     onOpenFile: (String, String) -> Unit,
     onIntent: (RemoteSessionIntent) -> Unit,
+    onStageRollback: (String) -> Unit,
     topInset: Dp,
     bottomInset: Dp,
+    rollbackTargetTurnId: String? = null,
+    rollbackEnabled: Boolean = false,
 ) {
     ConversationTimelineView(
         rows = visibleRows,
@@ -484,6 +543,9 @@ private fun ConversationTimelineViewHost(
             }
             onIntent(RemoteSessionIntent.SendMessage(sessionId, row.text, retryImages))
         },
+        onRollback = onStageRollback,
+        rollbackTargetTurnId = rollbackTargetTurnId,
+        rollbackEnabled = rollbackEnabled,
         onOpenFile = onOpenFile,
         previewingRemotePath = previewingRemotePath,
         previewLoading = previewLoading,
@@ -507,22 +569,22 @@ private fun ConversationTimelineViewHost(
  * composer. Matches the gradient HarmonyOS paints behind the same layer.
  */
 @Composable
-private fun bottomOverlayFade(): Brush = Brush.verticalGradient(
+internal fun conversationBottomOverlayFade(): Brush = Brush.verticalGradient(
     // The page colour at zero alpha rather than a bare transparent: a gradient
     // run to plain transparent interpolates through grey and leaves a smudge
     // over the transcript.
-    0f to overlayFill().copy(alpha = 0f),
-    0.45f to overlayFill(),
-    1f to overlayFill(),
+    0f to conversationOverlayFill().copy(alpha = 0f),
+    0.45f to conversationOverlayFill(),
+    1f to conversationOverlayFill(),
 )
 
 /**
  * Carries the header's opaque band down into the transcript, so a line of text
  * is not cut in half at its edge. The bottom layer needs no strip of its own —
- * its whole background is [bottomOverlayFade].
+ * its whole background is [conversationBottomOverlayFade].
  */
 @Composable
-private fun ConversationTopEdgeFade() {
+internal fun ConversationTopEdgeFade() {
     val page = MaterialTheme.colorScheme.background
     Box(
         modifier = Modifier
@@ -539,7 +601,7 @@ private fun ConversationTopEdgeFade() {
  * whatever is passing.
  */
 @Composable
-private fun overlayFill(): Color = MaterialTheme.colorScheme.background.copy(alpha = 0.94f)
+internal fun conversationOverlayFill(): Color = MaterialTheme.colorScheme.background.copy(alpha = 0.94f)
 
 @Composable
 private fun ConversationLoadingState(modifier: Modifier) {

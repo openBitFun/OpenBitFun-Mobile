@@ -9,7 +9,7 @@
  * under rawfile/genui/runtime is generated and verified by the HAP build.
  */
 import { execFileSync } from 'node:child_process';
-import { copyFileSync, existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
+import { copyFileSync, cpSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { createRequire } from 'node:module';
@@ -54,4 +54,15 @@ if (process.argv.includes('--check')) {
   const manifest = JSON.parse(readFileSync(manifestPath, 'utf8'));
   writeFileSync(buildInfoPath, JSON.stringify({ catalogHash: manifest.catalogHash, rendererRevision: manifest.rendererRevision }, null, 2) + '\n');
   console.log('Built Harmony Local GenUI runtime for ' + manifest.rendererRevision);
+  if (process.argv.includes('--stage-mobile-document')) {
+    // Native shells package the existing product-owned OpenUI document. They
+    // retain their own views, permission boundaries and WebView lifecycle.
+    const output = path.join(root, 'src/shared/generative-ui/generated/mobile');
+    mkdirSync(output, { recursive: true });
+    cpSync(runtimeDir, path.join(output, 'genui/runtime'), { recursive: true });
+    writeFileSync(path.join(output, 'genui/runtime/index.html'), HTML.replace('img-src data: blob:', 'img-src data: blob: openbitfun-genui:'));
+    for (const file of ['runtime-manifest.json', 'harmony-prompt.txt', 'local-tool-schema.json', 'catalog.json']) {
+      copyFileSync(path.join(genuiDir, file), path.join(output, 'genui', file));
+    }
+  }
 }

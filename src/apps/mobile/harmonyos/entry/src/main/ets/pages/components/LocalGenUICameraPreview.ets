@@ -1,5 +1,5 @@
 import { RemoteI18n } from '../../i18n/RemoteI18n';
-import { MobileDesignTypography } from '../../generated/MobileDesignTokens';
+import { MobileDesignGeometry, MobileDesignTypography } from '../../generated/MobileDesignTokens';
 import {
   LOCAL_GESTURE_SURFACE_HEIGHT,
   LOCAL_GESTURE_SURFACE_WIDTH
@@ -17,16 +17,29 @@ export struct LocalGenUICameraPreview {
   @Param compact: boolean = false;
   /** Match the floating preview to the current window orientation. */
   @Param landscape: boolean = false;
+  @Param active: boolean = false;
   @Event onSurface: (surfaceId: string) => void = (_surfaceId: string) => {};
   @Event onSurfaceGone: () => void = () => {};
   private controller: XComponentController = new XComponentController();
 
   private previewWidth(): number {
-    return this.landscape ? (this.compact ? 80 : 128) : (this.compact ? 60 : 96);
+    return this.landscape ? this.longEdge() : this.shortEdge();
   }
 
   private previewHeight(): number {
-    return this.landscape ? (this.compact ? 60 : 96) : (this.compact ? 80 : 128);
+    return this.landscape ? this.shortEdge() : this.longEdge();
+  }
+
+  private shortEdge(): number {
+    return this.compact ? MobileDesignGeometry.genuiCameraCompactShortEdge : MobileDesignGeometry.genuiCameraShortEdge;
+  }
+
+  private longEdge(): number {
+    return this.compact ? MobileDesignGeometry.genuiCameraCompactLongEdge : MobileDesignGeometry.genuiCameraLongEdge;
+  }
+
+  private labelInset(): number {
+    return this.compact ? MobileDesignGeometry.genuiCameraCompactLabelInset : MobileDesignGeometry.genuiCameraLabelInset;
   }
 
   aboutToDisappear(): void {
@@ -49,22 +62,28 @@ export struct LocalGenUICameraPreview {
         .width(this.landscape ? this.previewHeight() : this.previewWidth())
         .height(this.landscape ? this.previewWidth() : this.previewHeight())
         .rotate({ angle: this.landscape ? -90 : 0 })
-      Text(RemoteI18n.t('localGenui.cameraOn'))
-        .fontSize(MobileDesignTypography.labelSmall.size)
-        .fontColor(CONTENT_ON_ACTION)
-        .backgroundColor(TOAST_BACKGROUND)
-        .padding({ left: this.compact ? 4 : 6, right: this.compact ? 4 : 6, top: 2, bottom: 2 })
-        .borderRadius(8)
-        .maxLines(1)
-        .textOverflow({ overflow: TextOverflow.Clip })
-        .margin({ bottom: this.compact ? 4 : 6 })
+      if (this.active) {
+        Text(RemoteI18n.t('localGenui.cameraOn'))
+          .fontSize(MobileDesignTypography.labelSmall.size)
+          .fontColor(CONTENT_ON_ACTION)
+          .backgroundColor(TOAST_BACKGROUND)
+          .padding({
+            left: this.labelInset(), right: this.labelInset(),
+            top: MobileDesignGeometry.genuiCameraLabelVerticalPadding,
+            bottom: MobileDesignGeometry.genuiCameraLabelVerticalPadding
+          })
+          .borderRadius(MobileDesignGeometry.genuiCameraLabelRadius)
+          .maxLines(1)
+          .textOverflow({ overflow: TextOverflow.Clip })
+          .margin({ bottom: this.labelInset() })
+      }
     }
     .width(this.previewWidth())
     .height(this.previewHeight())
-    .borderRadius(this.compact ? 12 : 16)
+    .borderRadius(this.compact ? MobileDesignGeometry.genuiCameraCompactRadius : MobileDesignGeometry.genuiCameraRadius)
     .clip(true)
     .backgroundColor(MEDIA_BACKGROUND)
     .border({ width: 1, color: LINE })
-    .accessibilityText(RemoteI18n.t('localGenui.cameraOn'))
+    .accessibilityText(this.active ? RemoteI18n.t('localGenui.cameraOn') : '')
   }
 }

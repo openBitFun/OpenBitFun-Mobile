@@ -11,6 +11,50 @@ enum MobileSurface: String {
     case remote
 }
 
+struct MobileCommandPaletteSkill: Identifiable, Equatable {
+    let id: String
+    let name: String
+    let description: String
+    let group: String
+    let source: String
+}
+
+struct MobileCommandPaletteUsageRow: Identifiable, Equatable {
+    let labelKey: String
+    let value: String
+    let valueKey: String
+    var id: String { "\(labelKey):\(value):\(valueKey)" }
+}
+
+struct MobileCommandPaletteUsageSection: Identifiable, Equatable {
+    let id: String
+    let titleKey: String
+    let rows: [MobileCommandPaletteUsageRow]
+}
+
+struct MobileCommandPaletteState: Equatable {
+    var catalogStatus = "IDLE"
+    var catalogError = ""
+    var skills: [MobileCommandPaletteSkill] = []
+    var runningCommand = ""
+    var noticeKind = ""
+    var noticeLabelKey = ""
+    var noticeDetail = ""
+    var noticeRetryAction = ""
+    var usageStatus = "IDLE"
+    var usageSections: [MobileCommandPaletteUsageSection] = []
+    var usagePartial = false
+    var usageError = ""
+    var skillID = ""
+    var skillLabel = ""
+}
+
+struct MobileRollbackDraft: Equatable {
+    let turnID: String
+    let preview: String
+    let composerSnapshot: String
+}
+
 struct ChatMessage: Identifiable, Equatable {
     let id: UUID
     let role: Role
@@ -186,12 +230,13 @@ final class MobileConversationRow: Identifiable, Equatable {
     let typing: Bool
     let showRetry: Bool
     let error: String?
+    let turnID: String?
     let live: Bool
     let timestamp: Date?
 
     init(id: String, kind: String, text: String, thinking: String?, images: [MobileTimelineImage],
          tools: [MobileTimelineTool], blocks: [MobileTimelineBlock], streaming: Bool, typing: Bool,
-         showRetry: Bool, error: String?, live: Bool = false, timestamp: Date? = nil) {
+         showRetry: Bool, error: String?, turnID: String? = nil, live: Bool = false, timestamp: Date? = nil) {
         self.id = nativeTimelineString(id)
         self.kind = nativeTimelineString(kind)
         self.text = nativeTimelineString(text)
@@ -203,6 +248,7 @@ final class MobileConversationRow: Identifiable, Equatable {
         self.typing = typing
         self.showRetry = showRetry
         self.error = error.map(nativeTimelineString)
+        self.turnID = turnID.map(nativeTimelineString)
         self.live = live
         self.timestamp = timestamp
     }
@@ -214,7 +260,7 @@ final class MobileConversationRow: Identifiable, Equatable {
         return id == other.id && kind == other.kind && text == other.text && thinking == other.thinking &&
         images == other.images && tools == other.tools && blocks == other.blocks &&
         streaming == other.streaming && typing == other.typing &&
-        showRetry == other.showRetry && error == other.error && live == other.live && timestamp == other.timestamp
+        showRetry == other.showRetry && error == other.error && turnID == other.turnID && live == other.live && timestamp == other.timestamp
     }
 
     static func reconcile(_ incoming: [MobileConversationRow], with current: [MobileConversationRow]) -> [MobileConversationRow] {
@@ -431,6 +477,12 @@ struct MobileAccountDevice: Identifiable, Equatable {
     let name: String
     let online: Bool
     let selected: Bool
+    var controllable = true
+
+    var presenceKey: String {
+        if !controllable { return "客户端版本不兼容，无法互控。" }
+        return online ? "在线" : "离线"
+    }
 }
 
 struct MobileDeviceDirectoryEntry: Identifiable, Equatable {
@@ -443,6 +495,7 @@ struct MobileDeviceDirectoryEntry: Identifiable, Equatable {
     let sessions: [ChatSession]
     var catalogSource: String? = nil
     var recentWorkspaces: [MobileWorkspaceGroup]? = nil
+    var controllable = true
 }
 
 struct MobileWorkspaceGroup: Identifiable, Equatable {

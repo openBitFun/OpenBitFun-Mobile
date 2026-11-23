@@ -543,6 +543,61 @@ class AccountStoreTest {
     }
 
     @Test
+    fun confirmedIncompatibleDevicesStayListedAndNeverBecomeControlTargets() = runTest {
+        val first = AccountDeviceUi("desktop-1", "Old desktop", true, null, compatible = false)
+        val second = AccountDeviceUi("desktop-2", "Desktop", true, null)
+        val backend = FakeAccountBackend().apply { deviceSnapshot = listOf(first, second) }
+        val secure = MemorySecureStore()
+        val store = AccountStore.create(this, backend, secure, "phone-1", "Android")
+
+        store.dispatch(AccountIntent.Login)
+        advanceUntilIdle()
+        val ready = assertIs<AccountUiState.Ready>(store.state.value)
+        assertEquals(listOf(first, second), ready.devices)
+        assertEquals(second.id, ready.selectedDeviceId)
+        val saved = secure.read("github_device_session_v1")!!
+
+        store.dispatch(AccountIntent.SelectDevice(first.id))
+        assertEquals(ready, store.state.value)
+        assertContentEquals(saved, secure.read("github_device_session_v1"))
+        assertNull(store.createSessionStore(this, first.id))
+        assertNull(store.createWorkspaceStore(this, first.id))
+        assertTrue(backend.transportTargets.isEmpty())
+
+        assertTrue(store.createSessionStore(this) != null)
+        assertEquals(listOf(second.id), backend.transportTargets)
+    }
+
+    @Test
+    fun persistedTargetSurvivesCompatibilityRevocationAndRefreshAfterAnUpgrade() = runTest {
+        val compatible = AccountDeviceUi("desktop-1", "Desktop", true, null, compatible = true)
+        val backend = FakeAccountBackend().apply { deviceSnapshot = listOf(compatible) }
+        val secure = MemorySecureStore()
+        val initial = AccountStore.create(this, backend, secure, "phone-1", "Android")
+        initial.dispatch(AccountIntent.Login)
+        advanceUntilIdle()
+        initial.stop()
+        val saved = secure.read("github_device_session_v1")!!
+
+        backend.deviceSnapshot = listOf(compatible.copy(compatible = false))
+        val restored = AccountStore.create(this, backend, secure, "phone-1", "Android")
+        restored.dispatch(AccountIntent.Restore)
+        advanceUntilIdle()
+        assertEquals(compatible.id, assertIs<AccountUiState.Ready>(restored.state.value).selectedDeviceId)
+        assertNull(restored.createSessionStore(this))
+        assertNull(restored.createWorkspaceStore(this))
+        assertTrue(backend.transportTargets.isEmpty())
+        assertContentEquals(saved, secure.read("github_device_session_v1"))
+
+        backend.deviceSnapshot = listOf(compatible)
+        restored.dispatch(AccountIntent.RefreshDevices)
+        advanceUntilIdle()
+        assertTrue(restored.createSessionStore(this) != null)
+        assertTrue(restored.createWorkspaceStore(this) != null)
+        assertEquals(listOf(compatible.id, compatible.id), backend.transportTargets)
+    }
+
+    @Test
     fun invalidRestoreKeepsOpaqueRecordAndCanBeRetried() = runTest {
         val secure = MemorySecureStore()
         val raw = "not-a-session-record".encodeToByteArray()
@@ -886,6 +941,7 @@ private class FakeAccountBackend : AccountBackend {
     var listThrowable: Throwable? = null
     var desktop1Online: Boolean = true
     var desktop2Online: Boolean = false
+    var deviceSnapshot: List<AccountDeviceUi>? = null
     var deviceAliases: Map<String, String> = emptyMap()
     var settings: String? = null
     val transportTargets = mutableListOf<String>()
@@ -917,6 +973,7 @@ private class FakeAccountBackend : AccountBackend {
         beforeList?.invoke()
         listThrowable?.let { throw it }
         listFailure?.let { throw CloudAccountException(it) }
+        deviceSnapshot?.let { return it }
         // The shape the live account returns: this device, one of the user's
         // other phones, and the desktops that are the only real targets.
         return listOf(

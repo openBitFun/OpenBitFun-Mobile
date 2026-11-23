@@ -52,7 +52,7 @@ export class ConversationHeaderPolicy {
       sessionTitle,
       '',
       'app.title',
-      false,
+      surface === ChatSurface.Local && hasTimeline && sessionTitle.length > 0,
       hasTimeline
     );
   }

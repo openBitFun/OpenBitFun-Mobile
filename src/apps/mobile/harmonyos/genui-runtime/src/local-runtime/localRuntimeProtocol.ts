@@ -36,12 +36,12 @@ export interface LocalRuntimeIdentity {
 }
 
 export type LocalHostMessage =
-  | { type: 'collaboration_availability'; appId: string; sourceRevision: number; available: boolean; reason: string }
+  | { type: 'collaboration_availability'; appId: string; sourceRevision: number; available: boolean; reason: string; mode?: 'invite' }
   | ({ type: 'collaboration_result'; appId: string; sourceRevision: number; requestId: string } & GenUICollaborationResult)
   | { type: 'calendar_receipts'; appId: string; sourceRevision: number; params: Record<string, unknown>[] }
   | { type: 'calendar_result'; appId: string; sourceRevision: number; requestId: string; ok: boolean }
   /** `base` makes `source` an edit patch (OpenUI edit mode) applied on top of it. */
-  | { type: 'init'; manifest: LocalRuntimeManifest; identity: LocalRuntimeIdentity; mode: LocalRuntimeMode; source: string; base?: string; streaming: boolean; sourceRevision: number; stateRevision: number; state: GenUIAppState; scheme: 'light' | 'dark'; look?: string; locale?: string }
+  | { type: 'init'; manifest: LocalRuntimeManifest; identity: LocalRuntimeIdentity; mode: LocalRuntimeMode; source: string; base?: string; streaming: boolean; sourceRevision: number; stateRevision: number; state: GenUIAppState; scheme: 'light' | 'dark'; look?: string; locale?: string; imageSearchAvailable?: boolean }
   /** Owner request: the program an edit patch produces on its base. */
   | { type: 'merge'; requestId: string; base: string; patch: string }
   | { type: 'source_reset'; appId: string; text: string; streaming: boolean; sourceRevision: number }
@@ -54,7 +54,7 @@ export type LocalHostMessage =
   | { type: 'probe'; requestId: string }
   /** A gesture subscription fired. */
   | { type: 'capability_event'; subscriptionId: string; gesture: string }
-  | { type: 'capability_status'; subscriptionId: string; status: 'starting' | 'active' | 'paused' | 'denied' | 'unavailable' };
+  | { type: 'capability_status'; subscriptionId: string; status: 'starting' | 'active' | 'paused' | 'denied' | 'unavailable' | 'failed' };
 
 export interface LocalProbeReport {
   requestId: string;
@@ -87,6 +87,7 @@ export type LocalRuntimeMessage =
   /** The receive hook is installed; the host may now send `init`. */
   | { type: 'boot'; rendererRevision: string }
   | { type: 'ready'; rendererRevision: string; catalogHash: string; contractOk: boolean; reason?: string }
+  | { type: 'preview_ready'; appId: string; sourceRevision: number }
   | { type: 'state'; appId: string; sourceRevision: number; baseStateRevision: number; state: GenUIAppState }
   | { type: 'action'; appId: string; sourceRevision: number; action: string; message: string; params: Record<string, unknown>; requestId?: string }
   | { type: 'query'; appId: string; capability: string; status: 'unsupported' }
@@ -94,7 +95,7 @@ export type LocalRuntimeMessage =
   | { type: 'probe_result'; report: LocalProbeReport }
   | { type: 'merge_result'; requestId: string; source: string; error?: string }
   /** Device capability requests; the host decides whether and how to serve them. */
-  | { type: 'capability'; appId: string; op: 'subscribe' | 'unsubscribe'; subscriptionId: string; capability: 'gesture'; gesture?: string }
+  | { type: 'capability'; appId: string; sourceRevision: number; op: 'subscribe' | 'unsubscribe'; subscriptionId: string; capability: 'gesture'; gesture?: string }
   | { type: 'haptic'; appId: string; kind: string }
   | { type: 'orientation'; appId: string; sourceRevision: number; orientation: 'auto' | 'portrait' | 'landscape' };
 
@@ -141,6 +142,7 @@ export interface LocalRuntimeSnapshot {
   look?: string;
   scheme: 'light' | 'dark';
   locale?: string;
+  imageSearchAvailable?: boolean;
   nextSeq: number;
 }
 
@@ -178,6 +180,7 @@ export function reduceHostMessage(snapshot: LocalRuntimeSnapshot, message: Local
         scheme: message.scheme,
         look: message.look,
         locale: message.locale,
+        imageSearchAvailable: message.imageSearchAvailable,
       };
       return { snapshot: next, outbound: [{ type: 'ready', rendererRevision: build.rendererRevision, catalogHash: build.catalogHash, contractOk: !manifestError, reason }] };
     }

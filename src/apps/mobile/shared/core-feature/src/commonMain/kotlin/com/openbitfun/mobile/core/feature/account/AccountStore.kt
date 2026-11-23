@@ -218,7 +218,7 @@ public class AccountStore internal constructor(
      */
     private fun authorizedDeviceId(deviceId: String): String? {
         val target = deviceId.trim().takeIf(String::isNotBlank) ?: return null
-        return controllableDevices.firstOrNull { it.id == target }?.id
+        return controllableDevices.firstOrNull { it.id == target && it.controllable }?.id
     }
 
     public fun stop() {

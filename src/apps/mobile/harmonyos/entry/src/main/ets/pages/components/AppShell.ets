@@ -210,12 +210,12 @@ export struct AppShell {
     }
     .width('100%')
     .height('100%')
-    .borderRadius(this.usesWideSheetChrome(this.connectPlacement) ? WIDE_SHEET_RADIUS : 0)
+    .borderRadius(this.usesWideSheetChrome(this.connectPlacement) ? MobileDesignGeometry.connectWidePanelRadius : 0)
     .clip(this.usesWideSheetChrome(this.connectPlacement))
     .shadow({
-      radius: this.usesWideSheetChrome(this.connectPlacement) ? 30 : 0,
+      radius: this.usesWideSheetChrome(this.connectPlacement) ? MobileDesignGeometry.connectWidePanelShadowRadius : 0,
       color: this.usesWideSheetChrome(this.connectPlacement) ? SHELL_SCRIM : TRANSPARENT,
-      offsetY: this.usesWideSheetChrome(this.connectPlacement) ? 12 : 0
+      offsetY: this.usesWideSheetChrome(this.connectPlacement) ? MobileDesignGeometry.connectWidePanelShadowOffsetY : 0
     })
   }
 

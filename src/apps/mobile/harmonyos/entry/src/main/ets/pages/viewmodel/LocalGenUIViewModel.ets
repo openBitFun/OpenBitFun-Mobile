@@ -66,6 +66,7 @@ export class LocalGenUIViewModel implements LocalGenUIControllerListener, LocalG
   private foreground: boolean = true;
   private appOnScreen: boolean = false;
   private streaming: string = '';
+  private activeTurnSerial: number = 0;
   private readonly orientation: LocalGenUIOrientation;
   private preferredOrientation: string = 'auto';
 
@@ -90,15 +91,20 @@ export class LocalGenUIViewModel implements LocalGenUIControllerListener, LocalG
     },
     conversation: (intent: ConversationIntent): void => this.dispatch(intent),
     openModelManager: (): void => {
+      if (this.state.currentModelId.length === 0) {
+        this.openModelSetup();
+        return;
+      }
+      this.state.editorOpen = false;
       this.state.showModelManager = true;
-      this.state.editorOpen = false;
     },
-    closeModelManager: (): void => {
-      this.state.showModelManager = false;
-      this.state.editorOpen = false;
-    },
+    closeModelManager: (): void => this.closeModelManager(),
     editModel: (modelId: string): void => this.editModel(modelId),
-    closeEditor: (): void => { this.state.editorOpen = false; },
+    useModel: (modelId: string): void => { void this.useModelForSetup(modelId); },
+    closeEditor: (): void => {
+      if (this.state.configuringModel && this.state.models.length === 0) this.closeModelManager();
+      else this.state.editorOpen = false;
+    },
     saveModel: (input: LocalGenUIModelEditorInput): void => { void this.saveModel(input); },
     removeModel: (modelId: string): void => {
       this.state.editorOpen = false;
@@ -188,18 +194,17 @@ export class LocalGenUIViewModel implements LocalGenUIControllerListener, LocalG
     this.state.standalone = false;
     this.appOnScreen = false;
     this.syncDeviceVisibility();
-    this.state.showModelManager = false;
+    this.closeModelManager();
   }
 
   /** Returns true when the back gesture was consumed inside the surface. */
   back(): boolean {
     if (!this.state.visible) return false;
-    if (this.state.editorOpen) {
-      this.state.editorOpen = false;
-      return true;
-    }
     if (this.state.showModelManager) {
-      this.state.showModelManager = false;
+      if (!this.state.editorSaving) {
+        if (this.state.editorOpen) this.actions.closeEditor();
+        else this.closeModelManager();
+      }
       return true;
     }
     if (this.state.view === 'app' && !this.state.standalone) {
@@ -286,7 +291,7 @@ export class LocalGenUIViewModel implements LocalGenUIControllerListener, LocalG
   streamingText(_sessionId: string, text: string): void {
     this.streaming = text;
     if (this.state.conversation.isBusy) {
-      this.timeline.setActiveTurn(LocalGenUIConversationProjection.activeTurn(text));
+      this.timeline.setActiveTurn(LocalGenUIConversationProjection.activeTurn(this.activeTurnSerial, text));
     }
     this.syncTimeline();
   }
@@ -312,10 +317,11 @@ export class LocalGenUIViewModel implements LocalGenUIControllerListener, LocalG
     if (app.streaming && this.state.view !== 'sessions') this.state.view = 'app';
   }
 
-  busyChanged(busy: boolean): void {
+  busyChanged(busy: boolean, turnSerial: number): void {
     this.state.conversation.setBusy(busy);
     if (busy) {
-      this.timeline.setActiveTurn(LocalGenUIConversationProjection.activeTurn(this.streaming));
+      this.activeTurnSerial = turnSerial;
+      this.timeline.setActiveTurn(LocalGenUIConversationProjection.activeTurn(turnSerial, this.streaming));
     } else {
       this.streaming = '';
       this.timeline.clearActiveTurn();
@@ -342,6 +348,42 @@ export class LocalGenUIViewModel implements LocalGenUIControllerListener, LocalG
     this.state.gallery = entries;
   }
 
+  private openModelSetup(): void {
+    if (!this.state.visible || this.state.view !== 'chat' ||
+      this.state.showModelManager || this.state.editorSaving) return;
+    this.state.configuringModel = true;
+    this.state.editorOpen = false;
+    this.state.editorError = '';
+    const currentId = this.state.currentModelId;
+    if (this.state.models.length === 0) this.editModel('new');
+    else if (currentId.length > 0) this.editModel(currentId);
+    this.state.showModelManager = true;
+  }
+
+  private closeModelManager(): void {
+    this.state.showModelManager = false;
+    this.state.editorOpen = false;
+    this.state.configuringModel = false;
+  }
+
+  private async useModelForSetup(modelId: string): Promise<void> {
+    if (!this.controller || this.state.editorSaving) return;
+    if (!this.controller.hasStoredKey(modelId)) {
+      this.editModel(modelId);
+      return;
+    }
+    this.state.editorSaving = true;
+    this.state.editorError = '';
+    try {
+      await this.controller.chooseModel(modelId);
+      this.closeModelManager();
+    } catch (err) {
+      this.state.editorError = err instanceof Error ? err.message : String(err);
+    } finally {
+      this.state.editorSaving = false;
+    }
+  }
+
   private editModel(modelId: string): void {
     this.state.editingModelId = modelId;
     this.state.editorOpen = true;
@@ -355,9 +397,17 @@ export class LocalGenUIViewModel implements LocalGenUIControllerListener, LocalG
     this.state.editorSaving = true;
     this.state.editorError = '';
     try {
-      await this.controller.saveModel({ id: this.state.editingModelId === 'new' ? '' : this.state.editingModelId, name: input.name, apiUrl: input.apiUrl, modelName: input.modelName, apiKey: input.apiKey });
-      this.state.editorOpen = false;
-      this.notice(RemoteI18n.t('localGenui.saved'));
+      const id = this.state.editingModelId === 'new' ? '' : this.state.editingModelId;
+      const configuring = this.state.configuringModel;
+      const saved = await this.controller.saveModel({ id, name: input.name, apiUrl: input.apiUrl,
+        modelName: input.modelName, apiKey: input.apiKey });
+      if (configuring) {
+        if (id.length > 0) await this.controller.chooseModel(saved.id);
+        this.closeModelManager();
+      } else {
+        this.state.editorOpen = false;
+        this.notice(RemoteI18n.t('localGenui.saved'));
+      }
     } catch (err) {
       this.state.editorError = err instanceof Error ? err.message : String(err);
     } finally {
@@ -388,10 +438,10 @@ export class LocalGenUIViewModel implements LocalGenUIControllerListener, LocalG
         this.state.conversation.setChatInput(intent.value);
         return;
       case ConversationIntentType.Send:
-        void this.send(this.state.conversation.chatInput);
+        void this.send(this.state.conversation.chatInput, true);
         return;
       case ConversationIntentType.RetryMessage:
-        void this.send(intent.value);
+        void this.send(intent.value, false);
         return;
       case ConversationIntentType.Stop:
         if (this.controller) this.controller.cancel();
@@ -458,12 +508,19 @@ export class LocalGenUIViewModel implements LocalGenUIControllerListener, LocalG
   }
 
   /** Follow-up turns in a session refine its latest app. */
-  private async send(text: string): Promise<void> {
+  private async send(text: string, fromDraft: boolean): Promise<void> {
     const prompt = text.trim();
     if (prompt.length === 0 || this.state.conversation.isBusy) return;
+    const sessionId = this.state.sessionId;
+    const submission = fromDraft ? this.state.conversation.prepareComposerSubmission(sessionId, text, []) : undefined;
+    const isCurrent = (): boolean => this.state.visible && this.state.view === 'chat' && this.state.sessionId === sessionId;
     await this.withController(async (c) => {
-      this.state.conversation.setChatInput('');
-      await c.send(prompt, LocalGenUIConversationProjection.latestAppId(this.messages));
+      if (!isCurrent()) return;
+      await c.send(prompt, LocalGenUIConversationProjection.latestAppId(this.messages), '', '', {
+        isCurrent,
+        onAccepted: (): void => { submission?.commit(); },
+        onModelRequired: (): void => this.openModelSetup()
+      });
     });
   }
 
@@ -533,7 +590,8 @@ export class LocalGenUIViewModel implements LocalGenUIControllerListener, LocalG
       const devices = new LocalGenUIDeviceCapabilityHost(context, {
         gesture: (subscriptionId: string, gesture: string): void => this.bridge.sendCapabilityEvent(subscriptionId, gesture),
         status: (subscriptionId: string, status: string): void => this.bridge.sendCapabilityStatus(subscriptionId, status),
-        cameraWanted: (wanted: boolean): void => { this.state.cameraWanted = wanted; }
+        cameraWanted: (wanted: boolean): void => { this.state.cameraWanted = wanted; },
+        cameraActive: (active: boolean): void => { this.state.cameraActive = active; }
       });
       const calendar = new HarmonyCalendarService((): Context => context);
       this.devices = devices;

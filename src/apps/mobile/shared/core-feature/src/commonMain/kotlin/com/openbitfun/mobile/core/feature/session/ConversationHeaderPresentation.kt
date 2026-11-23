@@ -16,14 +16,26 @@ public object ConversationHeaderPresenter {
     private const val BRAND = "OpenBitFun"
 
     /**
-     * @param desktopName the machine being driven, when one is named. It wins
-     * over the branch because a user with two desktops needs to know which one
-     * is answering before anything else about the workspace matters.
+     * The active workspace path is the primary context, matching the HarmonyOS
+     * conversation header. Device and branch labels remain fallbacks for
+     * sessions without a resolved workspace.
      */
-    public fun contextTitle(desktopName: String, workspaceBranch: String): String {
-        val desktop = desktopName.trim()
-        if (desktop.isNotEmpty()) return desktop
+    public fun contextTitle(desktopName: String, workspaceBranch: String): String =
+        contextTitle(desktopName, workspaceBranch, "", "")
+
+    public fun contextTitle(
+        desktopName: String,
+        workspaceBranch: String,
+        workspacePath: String,
+        workspaceName: String,
+    ): String {
+        val path = workspacePath.trim()
+        if (path.isNotEmpty()) return path
+        val name = workspaceName.trim()
+        if (name.isNotEmpty()) return name
         val branch = workspaceBranch.trim()
-        return if (branch.isNotEmpty()) "$BRAND · $branch" else BRAND
+        if (branch.isNotEmpty()) return "$BRAND · $branch"
+        val desktop = desktopName.trim()
+        return if (desktop.isNotEmpty()) desktop else BRAND
     }
 }

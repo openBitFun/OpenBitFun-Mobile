@@ -1,5 +1,6 @@
 import { GitHubAccountProfile, readCachedGitHubProfile } from './GitHubAccountProfile';
 import { BusinessError } from '@kit.BasicServicesKit';
+import { BusinessError } from '@kit.BasicServicesKit';
 import { huks } from '@kit.UniversalKeystoreKit';
 import { preferences } from '@kit.ArkData';
 import { Encoding } from './Encoding';
@@ -17,6 +18,12 @@ const DEVICE_IV_KEY: string = 'device_private_key_v1_iv';
 const GENERATION_KEY: string = 'active_key_generation';
 
 class MissingAccountKeyError extends Error {}
+
+function isUnavailableHuksKeyError(err: Object): boolean {
+  const message = OhosError.reason(err).toLowerCase();
+  return message.indexOf('12000011') >= 0 || message.indexOf('-13') >= 0 ||
+    message.indexOf('entity does not exist') >= 0 || message.indexOf('does not exist') >= 0;
+}
 
 function recordKey(key: string, generation: number): string {
   return generation === 0 ? key : `g${generation}_${key}`;
@@ -113,9 +120,7 @@ export class CloudAccountSessionStore {
     try {
       await huks.deleteKeyItem(recordKey(HUKS_ALIAS, this.generation), {});
     } catch (err) {
-      const message = OhosError.reason(err);
-      if (message.indexOf('12000011') < 0 && message.indexOf('-13') < 0 &&
-        message.toLowerCase().indexOf('does not exist') < 0) {
+      if (!isUnavailableHuksKeyError(err)) {
         throw err instanceof Error ? err : new Error(OhosError.reason(err));
       }
     }
@@ -200,7 +205,8 @@ export class CloudAccountSessionStore {
       try {
         handle = await huks.initSession(recordKey(HUKS_ALIAS, generation), options);
       } catch (err) {
-        if ((err as BusinessError).code === huks.HuksExceptionErrCode.HUKS_ERR_CODE_ITEM_NOT_EXIST) {
+        if ((err as BusinessError).code === huks.HuksExceptionErrCode.HUKS_ERR_CODE_ITEM_NOT_EXIST ||
+          isUnavailableHuksKeyError(err)) {
           throw new MissingAccountKeyError('The key for the saved cloud account is missing.');
         }
         throw OhosError.wrap('cloud account decrypt init', err);
@@ -253,7 +259,8 @@ export class CloudAccountSessionStore {
     try {
       return await huks.isKeyItemExist(recordKey(HUKS_ALIAS, generation), {});
     } catch (err) {
-      if ((err as BusinessError).code === huks.HuksExceptionErrCode.HUKS_ERR_CODE_ITEM_NOT_EXIST) return false;
+      if ((err as BusinessError).code === huks.HuksExceptionErrCode.HUKS_ERR_CODE_ITEM_NOT_EXIST ||
+        isUnavailableHuksKeyError(err)) return false;
       throw OhosError.wrap('cloud account key lookup', err);
     }
   }

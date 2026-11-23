@@ -52,10 +52,12 @@ export const updateCalendarEventAction = defineAction({
   params: z.object({ event: calendarEventPatch }),
 });
 
+const calendarId = z.number().int().positive();
 export const deleteCalendarEventAction = defineAction({
   name: 'DeleteCalendarEvent',
   description: 'Delete an OpenBitFun calendar event by id.',
-  params: z.object({ id: z.number().int().positive() }),
+  // Accept both the positional ID and the object used by older model prompts.
+  params: z.object({ id: z.union([calendarId, z.object({ id: calendarId })]) }),
 });
 
 export const listCalendarEventsAction = defineAction({

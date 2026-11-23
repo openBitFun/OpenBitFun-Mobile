@@ -20,17 +20,22 @@ floating composer with 52pt collapsed height.
 
 ## Build and run
 
-The repository does not change the machine-wide developer directory. Use the
-Xcode copy in `~/Downloads` when it is the compatible version:
+The repository does not change the machine-wide developer directory. Point
+`DEVELOPER_DIR` at the compatible Xcode installation on the machine:
 
 ```bash
-export DEVELOPER_DIR="$HOME/Downloads/Xcode.app/Contents/Developer"
+export DEVELOPER_DIR="${DEVELOPER_DIR:-$HOME/Applications/Xcode-26.3/Xcode.app/Contents/Developer}"
 "$DEVELOPER_DIR/usr/bin/xcodebuild" \
   -project OpenBitFun.xcodeproj -scheme OpenBitFun \
   -destination 'generic/platform=iOS Simulator' \
   -derivedDataPath /tmp/OpenBitFun-iOS-Derived \
-  CODE_SIGNING_ALLOWED=NO build
+  CODE_SIGNING_ALLOWED=YES CODE_SIGN_IDENTITY=- build
 ```
+
+Keep simulator code signing enabled for builds that exercise account login.
+The Keychain rejects an unsigned app with `-34018` because it has no
+`application-identifier` entitlement, which surfaces as a secure-storage login
+failure.
 
 `MobileAppModel` is kept in `Infrastructure` so the SwiftUI views do not know
 about transport or persistence. Local chat, pairing, and remote session state
@@ -45,7 +50,7 @@ focused entry point. It compiles production helpers together with their local
 test executables; test mains are not part of the app target:
 
 ```bash
-export DEVELOPER_DIR="$HOME/Downloads/Xcode.app/Contents/Developer"
+export DEVELOPER_DIR="${DEVELOPER_DIR:-$HOME/Applications/Xcode-26.3/Xcode.app/Contents/Developer}"
 ./Testing/run-pure-swift-tests.sh
 ```
 
@@ -65,10 +70,14 @@ update the XCFramework consumed by this app:
 ```bash
 export JAVA_HOME="/Applications/DevEco-Studio.app/Contents/jbr/Contents/Home"
 export PATH="$JAVA_HOME/bin:$PATH"
-export DEVELOPER_DIR="$HOME/Downloads/Xcode.app/Contents/Developer"
+export DEVELOPER_DIR="${DEVELOPER_DIR:-$HOME/Applications/Xcode-26.3/Xcode.app/Contents/Developer}"
 cd ../shared
 ./gradlew :core-feature:assembleOpenBitFunMobileCoreDebugXCFramework
 ```
+
+Run `pnpm install` and `pnpm run prepare:assets` from the repository root before
+opening Xcode or invoking `xcodebuild`. This stages the local GenUI document and
+its pinned contract. Run the preparation step again after changing its source.
 
 The shell includes both product surfaces already: Local opens the HarmonyOS
 welcome prompts, Remote has the disconnected desktop state and connection

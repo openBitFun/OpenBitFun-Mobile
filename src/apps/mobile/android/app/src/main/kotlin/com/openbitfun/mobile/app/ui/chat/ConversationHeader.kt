@@ -10,9 +10,12 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.BasicTextField
+import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -25,6 +28,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.platform.testTag
+import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
@@ -32,7 +36,6 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.openbitfun.mobile.app.R
-import com.openbitfun.mobile.app.ui.common.CircleControl
 import com.openbitfun.mobile.app.ui.theme.generated.MobileDesignGeometry
 import com.openbitfun.mobile.app.ui.theme.generated.MobileDesignTypography
 
@@ -88,7 +91,7 @@ internal fun ConversationHeader(
             verticalAlignment = Alignment.CenterVertically,
         ) {
             if (onOpenSidebar != null) {
-                CircleControl(
+                HeaderIconButton(
                     icon = R.drawable.ic_symbol_menu_lines,
                     glyphSize = 22,
                     contentDescription = stringResource(R.string.shell_open_sidebar),
@@ -96,7 +99,7 @@ internal fun ConversationHeader(
                     modifier = Modifier.testTag(CONVERSATION_BACK_TEST_TAG),
                 )
             } else {
-                CircleControl(
+                HeaderIconButton(
                     icon = R.drawable.ic_symbol_chevron_left_wide,
                     glyphSize = 20,
                     glyphWidth = 15,
@@ -147,7 +150,7 @@ internal fun ConversationHeader(
             }
 
             Box {
-                CircleControl(
+                HeaderIconButton(
                     icon = R.drawable.ic_symbol_ellipsis,
                     glyphSize = 20,
                     glyphWidth = 23,
@@ -200,6 +203,26 @@ internal fun ConversationHeader(
                 onCancel = { editing = false },
             )
         }
+    }
+}
+
+@Composable
+private fun HeaderIconButton(
+    @androidx.annotation.DrawableRes icon: Int,
+    glyphSize: Int,
+    glyphWidth: Int = glyphSize,
+    glyphHeight: Int = glyphSize,
+    contentDescription: String,
+    onClick: () -> Unit,
+    modifier: Modifier,
+) {
+    IconButton(onClick = onClick, modifier = modifier.size(MobileDesignGeometry.ControlTouchSize)) {
+        Icon(
+            painter = painterResource(icon),
+            contentDescription = contentDescription,
+            tint = MaterialTheme.colorScheme.onSurface,
+            modifier = Modifier.size(width = glyphWidth.dp, height = glyphHeight.dp),
+        )
     }
 }
 

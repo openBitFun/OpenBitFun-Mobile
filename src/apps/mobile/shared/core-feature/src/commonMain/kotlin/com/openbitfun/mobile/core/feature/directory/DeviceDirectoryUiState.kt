@@ -65,7 +65,10 @@ public data class DeviceDirectoryDevice public constructor(
     public val deviceId: String,
     public val deviceName: String,
     public val online: Boolean,
+    public val controllable: Boolean,
 ) {
+    public constructor(deviceId: String, deviceName: String, online: Boolean) : this(deviceId, deviceName, online, true)
+
     /** A device whose display name is unknown; the id stands in until one arrives. */
     public constructor(deviceId: String, online: Boolean) : this(deviceId, deviceId, online)
 }
@@ -82,7 +85,9 @@ public data class DeviceDirectoryEntry public constructor(
     public val workspaceDirectory: List<WorkspaceDirectoryEntry>,
     public val catalogSource: WorkspaceCatalogSource?,
     public val recentWorkspaces: List<RecentWorkspace>,
+    public val controllable: Boolean,
 ) {
+    internal val canRead: Boolean get() = online && controllable
     /**
      * Sessions filed under [workspace]. An ID resolves by ID alone (an unknown ID
      * owns nothing); a pre-ID reference resolves through [LegacyWorkspaceCompatibility]
@@ -131,6 +136,7 @@ public data class DeviceDirectoryEntry public constructor(
                 workspaceDirectory = emptyList(),
                 catalogSource = null,
                 recentWorkspaces = emptyList(),
+                controllable = true,
             )
     }
 }

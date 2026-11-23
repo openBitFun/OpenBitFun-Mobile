@@ -53,7 +53,7 @@ class MobileScreenTest {
     fun welcomeOrDrawerExposesNavigationEntries() {
         if (!hasDrawerEntry()) {
             composeRule.onNodeWithText(text(R.string.welcome_login)).assertIsDisplayed()
-            composeRule.onNodeWithText(text(R.string.miniapps_title)).performClick()
+            composeRule.onNodeWithText(text(R.string.miniapps_explore)).performClick()
             composeRule.onNodeWithContentDescription(text(R.string.miniapps_back)).assertIsDisplayed().performClick()
             composeRule.onNodeWithText(text(R.string.welcome_login)).assertIsDisplayed()
             return

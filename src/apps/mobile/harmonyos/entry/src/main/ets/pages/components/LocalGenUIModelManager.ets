@@ -1,4 +1,4 @@
-import { MobileDesignTypography } from '../../generated/MobileDesignTokens';
+import { MobileDesignGeometry, MobileDesignTypography } from '../../generated/MobileDesignTokens';
 import { RemoteI18n } from '../../i18n/RemoteI18n';
 import { LocalGenUIModelProfile } from '../../services/local-genui/LocalGenUIModelCatalog';
 import { LocalGenUIActions, LocalGenUIState, emptyLocalGenUIActions } from '../state/LocalGenUIState';
@@ -10,15 +10,15 @@ import { AppActionButton, AppActionStyle } from './AppActionButton';
 class LocalFieldStyle implements AttributeModifier<TextInputAttribute> {
   applyNormalAttribute(instance: TextInputAttribute): void {
     instance.width('100%')
-      .height(52)
+      .height(MobileDesignGeometry.genuiModelFieldHeight)
       .fontSize(MobileDesignTypography.titleSmall.size)
       .fontColor(INK)
       .placeholderColor(SUBTLE)
       .backgroundColor(CARD)
       .border({ width: 0.5, color: LINE })
-      .borderRadius(12)
+      .borderRadius(MobileDesignGeometry.settingsCompactCardRadius)
       .shadow({ radius: 12, color: SHADOW_FAINT, offsetY: 4 })
-      .padding({ left: 14, right: 14 });
+      .padding({ left: MobileDesignGeometry.genuiModelFieldPadding, right: MobileDesignGeometry.genuiModelFieldPadding });
   }
 }
 
@@ -35,6 +35,10 @@ export struct LocalGenUIModelManager {
   @Local modelName: string = '';
   @Local apiKey: string = '';
 
+  aboutToAppear(): void {
+    this.onEditorChange();
+  }
+
   @Monitor('state.editorOpen', 'state.editingModelId')
   onEditorChange(): void {
     if (!this.state.editorOpen) return;
@@ -48,7 +52,7 @@ export struct LocalGenUIModelManager {
   build() {
     Column() {
       SheetCloseHeader({
-        title: this.state.editorOpen
+        title: this.state.configuringModel ? RemoteI18n.t('localGenui.configureModel') : this.state.editorOpen
           ? RemoteI18n.t(this.state.editingModelId === 'new' ? 'localGenui.addModel' : 'localGenui.editModel')
           : RemoteI18n.t('localGenui.manageModels'),
         showDivider: true,
@@ -71,7 +75,7 @@ export struct LocalGenUIModelManager {
   @Builder
   ModelList() {
     Scroll() {
-      Column({ space: 10 }) {
+      Column({ space: MobileDesignGeometry.genuiModelListSpacing }) {
         if (this.state.models.length === 0) {
           Text(RemoteI18n.t('localGenui.noModels'))
             .fontSize(MobileDesignTypography.bodyMedium.size).fontColor(MUTED).padding({ top: 8, bottom: 8 })
@@ -91,15 +95,23 @@ export struct LocalGenUIModelManager {
             }
             SymbolGlyph($r('sys.symbol.chevron_right')).fontSize(14).fontColor([MUTED])
           }
-          .width('100%').padding(14).borderRadius(16).backgroundColor(CARD).border({ width: 1, color: LINE })
-          .onClick(() => this.actions.editModel(model.id))
+          .width('100%').padding(MobileDesignGeometry.genuiModelFieldPadding).borderRadius(MobileDesignGeometry.settingsCardRadius).backgroundColor(CARD).border({ width: 1, color: LINE })
+          .enabled(!this.state.editorSaving)
+          .onClick(() => {
+            if (this.state.configuringModel) this.actions.useModel(model.id);
+            else this.actions.editModel(model.id);
+          })
         }, (model: LocalGenUIModelProfile) => `${model.id}:${model.name}:${model.modelName}:${model.apiUrl}`)
         AppActionButton({
           label: RemoteI18n.t('localGenui.addModel'),
           style: AppActionStyle.Primary,
-          actionHeight: 50,
+          actionHeight: MobileDesignGeometry.genuiModelActionHeight,
+          isEnabled: !this.state.editorSaving,
           onAction: (): void => this.actions.editModel('new')
         })
+        if (this.state.editorError.length > 0) {
+          Text(this.state.editorError).fontSize(MobileDesignTypography.bodySmall.size).fontColor(STATUS_DANGER)
+        }
       }
       .width('100%').padding({ left: 16, right: 16, bottom: 24 })
     }
@@ -109,18 +121,20 @@ export struct LocalGenUIModelManager {
   @Builder
   Editor() {
     Scroll() {
-      Column({ space: 12 }) {
+      Column({ space: MobileDesignGeometry.genuiModelEditorSpacing }) {
         this.Field(RemoteI18n.t('localGenui.modelDisplayName'))
         TextInput({ text: this.name, placeholder: RemoteI18n.t('localGenui.modelDisplayNameHint') })
           .attributeModifier(new LocalFieldStyle())
           .onChange((value: string) => { this.name = value; })
         this.Field(RemoteI18n.t('settings.modelService.apiUrl'))
         TextInput({ text: this.apiUrl, placeholder: 'https://api.example.com/v1' })
+          .id('local-genui-model-url')
           .attributeModifier(new LocalFieldStyle())
           .type(InputType.URL)
           .onChange((value: string) => { this.apiUrl = value; })
         this.Field(RemoteI18n.t('localGenui.apiKey'))
         TextInput({ text: this.apiKey, placeholder: this.state.editorHasKey ? RemoteI18n.t('localGenui.apiKeyKept') : RemoteI18n.t('localGenui.apiKey') })
+          .id('local-genui-model-key')
           .attributeModifier(new LocalFieldStyle())
           .type(InputType.Password)
           .showPasswordIcon(true)
@@ -133,11 +147,12 @@ export struct LocalGenUIModelManager {
           }
           Text(RemoteI18n.t('localGenui.fetchModels'))
             .fontSize(MobileDesignTypography.labelSmall.size).fontColor(INK)
-            .padding({ left: 10, right: 10, top: 5, bottom: 5 }).borderRadius(14).backgroundColor(SOFT)
+            .padding({ left: 10, right: 10, top: 5, bottom: 5 }).borderRadius(MobileDesignGeometry.genuiModelChipRadius).backgroundColor(SOFT)
             .enabled(!this.state.fetchingModels && this.apiUrl.trim().length > 0)
             .onClick(() => this.actions.fetchRemoteModels(this.apiUrl, this.apiKey))
         }.width('100%')
         TextInput({ text: this.modelName, placeholder: RemoteI18n.t('settings.modelService.modelName') })
+          .id('local-genui-model-name')
           .attributeModifier(new LocalFieldStyle())
           .onChange((value: string) => { this.modelName = value; })
         if (this.state.remoteModelNames.length > 0) {
@@ -147,7 +162,7 @@ export struct LocalGenUIModelManager {
                 .fontSize(MobileDesignTypography.labelSmall.size)
                 .fontColor(name === this.modelName ? CONTENT_ON_ACTION : INK)
                 .backgroundColor(name === this.modelName ? PRIMARY_ACTION : SOFT)
-                .padding({ left: 10, right: 10, top: 6, bottom: 6 }).borderRadius(14)
+                .padding({ left: 10, right: 10, top: 6, bottom: 6 }).borderRadius(MobileDesignGeometry.genuiModelChipRadius)
                 .margin({ right: 8, bottom: 8 })
                 .onClick(() => { this.modelName = name; })
             }, (name: string) => name)
@@ -158,17 +173,18 @@ export struct LocalGenUIModelManager {
             .copyOption(CopyOptions.InApp)
         }
         AppActionButton({
-          label: this.state.editorSaving ? RemoteI18n.t('common.loading') : RemoteI18n.t('common.save'),
+          label: RemoteI18n.t(this.state.editorSaving ? 'common.loading' :
+            (this.state.configuringModel ? 'localGenui.saveAndUseModel' : 'common.save')),
           style: AppActionStyle.Primary,
-          actionHeight: 50,
+          actionHeight: MobileDesignGeometry.genuiModelActionHeight,
           isEnabled: !this.state.editorSaving,
           onAction: (): void => this.actions.saveModel({ name: this.name, apiUrl: this.apiUrl, modelName: this.modelName, apiKey: this.apiKey })
         })
-        if (this.state.editingModelId !== 'new') {
+        if (!this.state.configuringModel && this.state.editingModelId !== 'new') {
           AppActionButton({
             label: RemoteI18n.t('localGenui.deleteModel'),
             style: AppActionStyle.Destructive,
-            actionHeight: 50,
+            actionHeight: MobileDesignGeometry.genuiModelActionHeight,
             onAction: (): void => this.actions.removeModel(this.state.editingModelId)
           })
         }

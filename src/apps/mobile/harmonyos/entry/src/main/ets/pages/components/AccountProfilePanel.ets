@@ -3,7 +3,7 @@ import { SettingsSectionTitle } from './SettingsSectionTitle';
 import { ConnectionErrorPolicy } from '../../services/ConnectionErrorPolicy';
 import { MobileDesignGeometry, MobileDesignTypography } from '../../generated/MobileDesignTokens';
 import { RemoteI18n } from '../../i18n/RemoteI18n';
-import { accountDeviceDisplayName, CloudAccountDevice } from '../../services/CloudAccountClient';
+import { accountDeviceDisplayName, CloudAccountDevice, isDeviceControllable } from '../../services/CloudAccountClient';
 import { AccountDeviceSelectionPolicy } from '../policy/AccountDeviceSelectionPolicy';
 import { DeviceModelSettingsEntryPolicy } from '../policy/DeviceModelSettingsEntryPolicy';
 import { DeviceDirectoryEntry, DeviceDirectoryState } from '../state/DeviceDirectoryState';
@@ -189,7 +189,7 @@ export struct AccountProfilePanel {
             .width('100%')
           }, (device: CloudAccountDevice): string =>
             `${device.deviceId}:${device.online ? 'online' : 'offline'}:${device.lastSeenAt || 0}:${accountDeviceDisplayName(device)}` +
-              `:${this.isCurrentControlDevice(device) ? 'driven' : 'idle'}` +
+              `:${this.isCurrentControlDevice(device) ? 'driven' : 'idle'}:${isDeviceControllable(device.compatible)}` +
               `:${this.supportsDeviceModelDefaults ? 'model-defaults' : 'no-model-defaults'}`)
         }
         if (this.accountDevicesError.length > 0 && this.desktopDevices().length > 0) {
@@ -221,7 +221,7 @@ export struct AccountProfilePanel {
           .fontSize(MobileDesignTypography.bodyMedium.size).fontWeight(FontWeight.Medium).fontColor(INK)
           .maxLines(1).textOverflow({ overflow: TextOverflow.Ellipsis })
         Text(this.deviceStatus(device))
-          .fontSize(MobileDesignTypography.bodySmall.size).fontColor(device.online ? STATUS_SUCCESS : MUTED)
+          .fontSize(MobileDesignTypography.bodySmall.size).fontColor(device.online && isDeviceControllable(device.compatible) ? STATUS_SUCCESS : MUTED)
       }
       .layoutWeight(1)
       .alignItems(HorizontalAlign.Start)
@@ -360,7 +360,7 @@ export struct AccountProfilePanel {
   }
 
   private canActivateAccountDevice(device: CloudAccountDevice): boolean {
-    return AccountDeviceSelectionPolicy.canActivate(
+    return isDeviceControllable(device.compatible) && AccountDeviceSelectionPolicy.canActivate(
       device.online,
       device.deviceId,
       this.deviceId,
@@ -371,7 +371,7 @@ export struct AccountProfilePanel {
   }
 
   private shouldShowDeviceConnectAction(device: CloudAccountDevice): boolean {
-    return AccountDeviceSelectionPolicy.shouldShowConnectAction(
+    return isDeviceControllable(device.compatible) && AccountDeviceSelectionPolicy.shouldShowConnectAction(
       device.online,
       device.deviceId,
       this.deviceId,
@@ -382,7 +382,7 @@ export struct AccountProfilePanel {
 
   /** The entry belongs to the desktop this phone is connected to and driving. */
   private showsDeviceModelSettingsEntry(device: CloudAccountDevice): boolean {
-    return DeviceModelSettingsEntryPolicy.showsEntry(
+    return isDeviceControllable(device.compatible) && DeviceModelSettingsEntryPolicy.showsEntry(
       device.online,
       device.deviceId,
       this.deviceId,
@@ -431,6 +431,7 @@ export struct AccountProfilePanel {
 
   private deviceStatus(device: CloudAccountDevice): string {
     if (device.deviceId === this.deviceId) return RemoteI18n.t('remote.settings.deviceCurrent');
+    if (!isDeviceControllable(device.compatible)) return RemoteI18n.t('remote.settings.deviceIncompatible');
     const presence = device.online ? RemoteI18n.t('remote.settings.deviceOnline') :
       RemoteI18n.t('remote.settings.deviceOffline');
     if (device.deviceId === this.controlTargetDeviceId && this.connectionState === 'connected') {

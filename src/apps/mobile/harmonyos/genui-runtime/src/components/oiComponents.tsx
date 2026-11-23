@@ -13,6 +13,7 @@ import { sanitizeGenUIHtmlSource } from '../GenUIHtmlDocument';
 import type { GenUIAsyncRuntime, GenUIAsyncExecuteOptions } from '../genUIAsyncCapabilities';
 import { isAbortError } from '../genUIAsyncCapabilities';
 import MapView from './map/MapView';
+import { localImageUrl } from './localImageUrl';
 
 const str = (value: unknown) => value == null ? '' : String(value);
 const node = (value: unknown) => Boolean(value && typeof value === 'object' && (value as { type?: unknown }).type === 'element');
@@ -209,7 +210,7 @@ function ImageView({ view, asyncRuntime }: Pick<GenUIComponentProps, 'view' | 'a
   const image = useSearchImage(str(view.props.query ?? alt), str(view.props.src), asyncRuntime);
   const aspectRatio = typeof view.props.aspectRatio === 'number' && view.props.aspectRatio > 0.2 && view.props.aspectRatio < 5 ? view.props.aspectRatio : 1.5;
   return <figure className="gen-ui-oi-image" data-openbitfun-component="gen-ui-components" data-openbitfun-part="media" data-gen-ui-loading={image.loading || undefined} data-gen-ui-error={image.error || undefined} style={{ aspectRatio, borderRadius: radius(view.props.radius ?? 'lg') }}>
-    {image.src ? <img src={image.src} alt={alt} loading="lazy" referrerPolicy="no-referrer" onError={image.onError} style={{ objectFit: view.props.fit === 'contain' ? 'contain' : 'cover' }} /> : image.loading ? null : <div className="gen-ui-oi-image-empty" role="img" aria-label={alt}><ImageIcon aria-hidden strokeWidth={1.5} /></div>}
+    {image.src ? <img src={localImageUrl(image.src)} alt={alt} loading="lazy" referrerPolicy="no-referrer" onError={image.onError} style={{ objectFit: view.props.fit === 'contain' ? 'contain' : 'cover' }} /> : image.loading ? null : <div className="gen-ui-oi-image-empty" role="img" aria-label={alt}><ImageIcon aria-hidden strokeWidth={1.5} /></div>}
     <figcaption>{view.props.caption ? inlineText(str(view.props.caption)) : image.error ? image.error : null}</figcaption>
   </figure>;
 }

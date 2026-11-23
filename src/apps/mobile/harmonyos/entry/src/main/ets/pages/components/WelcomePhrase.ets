@@ -1,13 +1,14 @@
 import { RemoteI18n } from '../../i18n/RemoteI18n';
 import { MotionPreference } from '../../services/MotionPreference';
 import { INK } from './Theme';
+import { MobileDesignGeometry as G } from '../../generated/MobileDesignTokens';
 
 /** The original welcome phrase sequence, shared without repainting its host's session list. */
 @ComponentV2
 export struct WelcomePhrase {
-  @Param fontSize: number = 30;
-  @Param longWordFontSize: number = 25;
-  @Param stageHeight: number = 48;
+  @Param fontSize: number = G.welcomeWordSize;
+  @Param longWordFontSize: number = G.welcomeLongWordSize;
+  @Param stageHeight: number = G.welcomeStageHeight;
   @Local elapsed: number = 0;
   private timer: number = -1;
   private started: number = 0;

@@ -163,3 +163,6 @@ src/apps/mobile/android/.kotlin/
 /docs/superpowers/
 
 AGENTS.override.md
+
+# Bundled Local GenUI documents projected by prepare:assets.
+/src/shared/generative-ui/generated/mobile/

@@ -63,6 +63,7 @@ internal data class CreateDeviceChoice(
     val name: String,
     val online: Boolean,
     val selected: Boolean,
+    val controllable: Boolean = true,
 )
 
 private enum class CreateSelectionKind { DEVICE, WORKSPACE }
@@ -471,9 +472,13 @@ private fun DevicePicker(
         devices.forEach { device ->
             PickerRow(
                 title = device.name.ifBlank { device.id },
-                subtitle = stringResource(if (device.online) R.string.account_online else R.string.account_offline),
+                subtitle = stringResource(when {
+                    !device.controllable -> R.string.account_device_incompatible
+                    device.online -> R.string.account_online
+                    else -> R.string.account_offline
+                }),
                 selected = device.selected,
-                enabled = device.online || device.selected,
+                enabled = device.controllable && (device.online || device.selected),
                 onClick = { onPick(device.id) },
             )
         }

@@ -109,8 +109,8 @@ export function accountDeviceDisplayName(device: CloudAccountDevice): string {
 }
 
 /** The single gate every control entry point must reuse; see `compatible`. */
-export function isDeviceControllable(device: CloudAccountDevice): boolean {
-  return device.compatible !== false;
+export function isDeviceControllable(compatible: boolean | undefined): boolean {
+  return compatible !== false;
 }
 
 /** A device credential minted for another device, never for this one. */

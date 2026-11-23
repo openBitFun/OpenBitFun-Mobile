@@ -35,6 +35,37 @@ import kotlin.test.assertTrue
 @OptIn(ExperimentalCoroutinesApi::class)
 class DeviceDirectoryStoreTest {
     @Test
+    fun compatibilityChangeSuspendsReadsAndPreservesCachedWorkspaces() = runTest {
+        val transport = FakeDeviceTransport("a")
+        val store = DeviceDirectoryStore.create(this, FakeDeviceStoreFactory(mutableMapOf("a" to transport)))
+        val device = DeviceDirectoryDevice("a", "Desktop", online = true)
+        store.dispatch(DeviceDirectoryIntent.Sync(listOf(device)))
+        store.dispatch(DeviceDirectoryIntent.Load("a"))
+        advanceUntilIdle()
+        val cached = store.state.value.device("a")!!.workspaces
+        val count = transport.commands.size
+        assertTrue(cached.isNotEmpty())
+
+        store.dispatch(DeviceDirectoryIntent.Sync(listOf(device.copy(controllable = false))))
+        store.dispatch(DeviceDirectoryIntent.Retry("a"))
+        store.dispatch(DeviceDirectoryIntent.SetWorkspaceExpanded("a", "/repo-a", true))
+        advanceUntilIdle()
+        val blocked = store.state.value.device("a")!!
+        assertTrue(blocked.online)
+        assertFalse(blocked.controllable)
+        assertEquals(DeviceDirectoryStatus.CACHED, blocked.status)
+        assertEquals(cached, blocked.workspaces)
+        assertEquals(count, transport.commands.size)
+
+        store.dispatch(DeviceDirectoryIntent.Sync(listOf(device)))
+        store.dispatch(DeviceDirectoryIntent.Load("a"))
+        advanceUntilIdle()
+        assertEquals(DeviceDirectoryStatus.READY, store.state.value.device("a")!!.status)
+        assertTrue(transport.commands.size > count)
+        store.stop()
+    }
+
+    @Test
     fun workspaceDisclosureSurvivesRefreshAndOfflineRoundTrip() = runTest {
         val store = DeviceDirectoryStore.create(this, FakeDeviceStoreFactory(mutableMapOf("a" to FakeDeviceTransport("a"))))
         store.dispatch(DeviceDirectoryIntent.Sync(listOf(DeviceDirectoryDevice("a", true))))

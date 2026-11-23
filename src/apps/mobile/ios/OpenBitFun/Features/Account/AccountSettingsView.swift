@@ -237,6 +237,8 @@ struct AccountIdentityCard: View {
 /// in step with Harmony `AccountProfilePanel.DeviceManagementSection`.
 struct AccountDevicesSection: View {
     @ObservedObject var model: MobileAppModel
+    var onOpenDeviceModels: ((String) -> Void)? = nil
+    @State private var modelUpgradeDeviceID: String?
 
     private var desktopDevices: [MobileAccountDevice] { model.accountDevices }
 
@@ -275,13 +277,29 @@ struct AccountDevicesSection: View {
                     emptyMessage("账号下还没有其他已注册设备。")
                 } else {
                     ForEach(desktopDevices) { device in
-                        Button {
-                            guard device.online, !isControlling(device) else { return }
-                            model.selectRemoteDevice(device)
-                        } label: {
-                            SettingsDeviceRow(device: device, connected: isControlling(device))
+                        if device.controllable, device.online, isControlling(device), let onOpenDeviceModels {
+                            SettingsDeviceRow(device: device, connected: true, modelSettings: {
+                                DeviceModelSettingsEntry(model: model) {
+                                    if model.deviceModelDefaults.availability == .unsupported {
+                                        modelUpgradeDeviceID = modelUpgradeDeviceID == device.id ? nil : device.id
+                                    } else {
+                                        onOpenDeviceModels(device.id)
+                                    }
+                                }
+                            })
+                            if modelUpgradeDeviceID == device.id, model.deviceModelDefaults.availability == .unsupported {
+                                emptyMessage("该设备上的 OpenBitFun 版本过旧，不支持配置模型默认值。请升级该设备上的 OpenBitFun 后继续。")
+                            }
+                        } else {
+                            Button {
+                                guard device.online, !isControlling(device) else { return }
+                                model.selectRemoteDevice(device)
+                            } label: {
+                                SettingsDeviceRow(device: device, connected: isControlling(device))
+                            }
+                            .buttonStyle(.plain)
+                            .disabled(!device.controllable)
                         }
-                        .buttonStyle(.plain)
                     }
                 }
             }
@@ -350,6 +368,7 @@ struct AccountSectionTitle: View {
 struct SettingsDeviceRow: View {
     let device: MobileAccountDevice
     let connected: Bool
+    var modelSettings: (() -> DeviceModelSettingsEntry)? = nil
 
     var body: some View {
         HStack(spacing: 12) {
@@ -364,10 +383,12 @@ struct SettingsDeviceRow: View {
                     .lineLimit(1)
                 Text(deviceStatus)
                     .font(MobileDesignTypography.bodySmall.font)
-                    .foregroundStyle(device.online ? OpenBitFunTheme.statusSuccess : OpenBitFunTheme.muted)
+                    .foregroundStyle(device.online && device.controllable ? OpenBitFunTheme.statusSuccess : OpenBitFunTheme.muted)
             }
             Spacer(minLength: 8)
-            if device.online && !connected {
+            if let modelSettings {
+                modelSettings()
+            } else if device.online && device.controllable && !connected {
                 Text(MobileLocalization.text("连接"))
                     .font(MobileDesignTypography.bodyMedium.font)
                     .foregroundStyle(OpenBitFunTheme.ink)
@@ -386,7 +407,8 @@ struct SettingsDeviceRow: View {
     }
 
     private var deviceStatus: String {
-        let presence = MobileLocalization.text(device.online ? "在线" : "离线")
+        let presence = MobileLocalization.text(device.presenceKey)
+        if !device.controllable { return presence }
         if connected { return "\(MobileLocalization.text("当前控制")) · \(presence)" }
         if device.selected { return "\(MobileLocalization.text("上次连接")) · \(presence)" }
         return presence

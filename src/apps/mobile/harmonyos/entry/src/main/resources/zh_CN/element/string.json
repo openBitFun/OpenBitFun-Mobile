@@ -3389,6 +3389,10 @@
       "value": "刚才的应用有点问题，正在自动修正"
     },
     {
+      "name": "localGenui_recovering",
+      "value": "正在恢复上次的校验…"
+    },
+    {
       "name": "localGenui_truncated",
       "value": "内容太长没能生成完，可以再发一次，或者让它做得简单些。"
     },
@@ -3411,6 +3415,14 @@
     {
       "name": "localGenui_manageModels",
       "value": "管理模型"
+    },
+    {
+      "name": "localGenui_configureModel",
+      "value": "配置模型"
+    },
+    {
+      "name": "localGenui_saveAndUseModel",
+      "value": "保存并使用"
     },
     {
       "name": "localGenui_addModel",

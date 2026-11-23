@@ -8,11 +8,99 @@ private let mobilePerformanceLog = Logger(
 )
 
 extension MobileAppModel {
+    func refreshCommandCatalog() { coreAdapter?.refreshCommandCatalog() }
+    func refreshCommandPaletteUsage() { coreAdapter?.refreshCommandPaletteUsage() }
+    func runCommandPaletteAction(_ action: String) {
+        let sessionID = remoteOpenedSessionID ?? selectedSessionID
+        guard !sessionID.isEmpty else { return }
+        coreAdapter?.runCommandPaletteAction(sessionID: sessionID, action: action)
+    }
+    func selectCommandPaletteSkill(id: String, label: String) {
+        coreAdapter?.selectCommandPaletteSkill(id: id, label: label)
+    }
+    func clearCommandPaletteSkill() { coreAdapter?.clearCommandPaletteSkill() }
+    func rollbackSession(to turnID: String) {
+        let sessionID = remoteOpenedSessionID ?? selectedSessionID
+        guard !sessionID.isEmpty else { return }
+        coreAdapter?.rollbackSession(sessionID: sessionID, targetTurnID: turnID)
+    }
+    func stageRollback(for row: MobileConversationRow) {
+        guard let turnID = row.turnID, !turnID.isEmpty else { return }
+        if rollbackDraft == nil {
+            rollbackDraft = MobileRollbackDraft(turnID: turnID, preview: row.text, composerSnapshot: draft)
+        } else {
+            rollbackDraft = MobileRollbackDraft(turnID: turnID, preview: row.text, composerSnapshot: rollbackDraft?.composerSnapshot ?? draft)
+        }
+        draft = row.text
+    }
+    func closeRollback() {
+        guard let rollbackDraft else { return }
+        draft = rollbackDraft.composerSnapshot
+        self.rollbackDraft = nil
+    }
+    func confirmRollback() {
+        guard let rollbackDraft else { return }
+        let sessionID = remoteOpenedSessionID ?? selectedSessionID
+        guard !sessionID.isEmpty else { return }
+        coreAdapter?.rollbackSession(sessionID: sessionID, targetTurnID: rollbackDraft.turnID)
+        self.rollbackDraft = nil
+    }
+
+    func apply(commandPalette state: CommandPaletteUiState, targetKey: String, epoch: UInt64) {
+        guard RemoteAuthorityGate.callbackMatchesAuthority(
+            targetKey: targetKey,
+            epoch: epoch,
+            expectedTargetKey: remoteExpectedDeviceKey,
+            expectedEpoch: remoteTargetEpoch
+        ) else { return }
+        if state.noticeLabelKey == "chat.rollbackFailed", let pending = pendingComposerSend {
+            // A staged rollback owns the send only after the host accepts the
+            // rollback. Restore the draft when that first step is refused so
+            // the user can edit or retry it just like Harmony does.
+            draft = pending.text
+            composerImages = pending.images
+            pendingComposerSend = nil
+            isSending = false
+            busy = false
+        }
+        commandPalette = MobileCommandPaletteState(
+            catalogStatus: state.catalogStatus.name,
+            catalogError: state.catalogErrorText,
+            skills: state.skills.map { MobileCommandPaletteSkill(id: $0.id, name: $0.name, description: $0.description, group: $0.group, source: $0.source) },
+            runningCommand: state.runningCommand,
+            noticeKind: state.noticeKind,
+            noticeLabelKey: state.noticeLabelKey,
+            noticeDetail: state.noticeDetail,
+            noticeRetryAction: state.noticeRetryAction,
+            usageStatus: state.usageStatus.name,
+            usageSections: state.usageSections.map { section in
+                MobileCommandPaletteUsageSection(
+                    id: section.id,
+                    titleKey: section.titleKey,
+                    rows: section.rows.map { MobileCommandPaletteUsageRow(labelKey: $0.labelKey, value: $0.value, valueKey: $0.valueKey) }
+                )
+            },
+            usagePartial: state.usagePartial,
+            usageError: state.usageErrorText,
+            skillID: state.skillId,
+            skillLabel: state.skillLabel
+        )
+    }
+
     func startQuestionInteraction(_ toolID: String) { coreAdapter?.startQuestionInteraction(toolID) }
     func respondPermission(_ requestID: String, approve: Bool, updatedInput: String?) {
         coreAdapter?.respondPermission(requestID, approve: approve, updatedInput: updatedInput)
     }
     func refreshPermissionMailbox() { coreAdapter?.refreshPermissionMailbox() }
+
+    func dispatchDeviceModels(_ intent: RemoteSessionIntent, deviceID: String) {
+        let targetKey = directoryTargetKey(forRawDeviceKey: deviceID)
+        guard remoteExpectedDeviceKey == targetKey else { return }
+        #if DEBUG
+        if let previewDeviceModelDispatch { previewDeviceModelDispatch(intent); return }
+        #endif
+        coreAdapter?.dispatchDeviceModels(intent, targetKey: targetKey)
+    }
 
     func apply(remoteTargetBound targetKey: String, epoch: UInt64, accountGeneration generation: UInt64) {
         guard generation == accountGeneration,
@@ -56,6 +144,7 @@ extension MobileAppModel {
     }
 
     private func clearTargetScopedRemoteProjection(boundTargetKey targetKey: String, epoch: UInt64) {
+        deviceModelDefaults = DeviceModelDefaultsUiState(availability: .disconnected, operation: .idle, roles: [], activeRole: nil, hasModels: false)
         resetRemoteConversationOpen()
         pendingComposerSend = nil
         invalidateTargetScopedFileTransfers()
@@ -188,7 +277,8 @@ extension MobileAppModel {
                     MobileWorkspaceGroup(workspaceId: workspace.workspaceId, path: workspace.path, name: workspace.displayName,
                         selected: false, sessions: [], deviceKey: deviceKey,
                         remoteConnectionId: workspace.remoteConnectionId, remoteSshHost: workspace.remoteSshHost, kind: workspace.kind)
-                }
+                },
+                controllable: entry.controllable
             )
         }
     }
@@ -251,6 +341,10 @@ extension MobileAppModel {
             showToast(localized("这台桌面设备当前离线"))
             return
         }
+        guard matched.controllable && device.controllable else {
+            showToast(localized("客户端版本不兼容，无法互控。"))
+            return
+        }
         let targetKey = "account:\(matched.id)"
         let accountDevice = matched
 
@@ -310,9 +404,9 @@ extension MobileAppModel {
             showToast(localized("远程会话连接已失效，请重新选择设备后重试"))
             return
         }
-        guard device.online else {
+        guard device.online && device.controllable else {
             pendingDirectoryWorkspace = nil
-            showToast(localized("这台桌面设备当前离线"))
+            showToast(localized(device.controllable ? "这台桌面设备当前离线" : device.presenceKey))
             return
         }
         selectRemoteDevice(device)
@@ -344,9 +438,9 @@ extension MobileAppModel {
             showToast(localized("远程会话连接已失效，请重新选择设备后重试"))
             return
         }
-        guard device.online else {
+        guard device.online && device.controllable else {
             pendingDirectorySession = nil
-            showToast(localized("这台桌面设备当前离线"))
+            showToast(localized(device.controllable ? "这台桌面设备当前离线" : device.presenceKey))
             return
         }
         selectRemoteDevice(device)
@@ -818,7 +912,8 @@ extension MobileAppModel {
                 },
                 sessions: device.sessions.filter { !succeeded.contains($0.id) },
                 catalogSource: device.catalogSource,
-                recentWorkspaces: device.recentWorkspaces
+                recentWorkspaces: device.recentWorkspaces,
+                controllable: device.controllable
             )
         }
     }
@@ -850,6 +945,10 @@ extension MobileAppModel {
     }
 
     func retryRemoteConnection() {
+        if accountDevices.contains(where: { $0.id == accountSelectedDeviceID && !$0.controllable }) {
+            refreshRemoteDevices()
+            return
+        }
         // Recovery must reach the shared stores even while the link is down.
         // The adapter owns the current target; stores preserve the transcript
         // and reject superseded work through their existing lifecycle fences.
@@ -907,12 +1006,26 @@ extension MobileAppModel {
     @discardableResult
     func sendRemote() -> Bool {
         let value = draft.trimmingCharacters(in: .whitespacesAndNewlines)
-        guard !value.isEmpty || !composerImages.isEmpty,
+        guard (value != "/goal"),
+              !value.isEmpty || !composerImages.isEmpty,
               let sessionID = remoteSendSessionID,
               let coreAdapter else { return false }
         mobilePerformanceLog.info("Composer send accepted characters=\(value.count) rows=\(self.timelineRows.count) user_rows=\(self.timelineRows.filter { $0.kind == "USER" }.count) generation=\(self.composerSendGeneration)")
         let images = composerImages
-        let submittedText = draft
+        let stagedRollback = rollbackDraft
+        let skillToken = commandPalette.skillLabel.isEmpty ? "" : "[$\(commandPalette.skillLabel)]"
+        let trimmedDraft = draft.trimmingCharacters(in: .whitespacesAndNewlines)
+        let withSkill: String
+        if skillToken.isEmpty {
+            withSkill = draft
+        } else if trimmedDraft.contains(skillToken) {
+            withSkill = trimmedDraft
+        } else if trimmedDraft == "/goal" || trimmedDraft.hasPrefix("/goal ") {
+            withSkill = "\(trimmedDraft) \(skillToken)"
+        } else {
+            withSkill = "\(skillToken) \(trimmedDraft)"
+        }
+        let submittedText = withSkill
         draft = ""
         composerImages = []
         pendingComposerSend = PendingComposerSend(
@@ -923,7 +1036,14 @@ extension MobileAppModel {
         composerSendGeneration &+= 1
         isSending = true
         busy = true
-        coreAdapter.sendRemote(sessionID: sessionID, content: value, images: images)
+        let wireValue = skillToken.isEmpty ? value : withSkill
+        if let stagedRollback {
+            coreAdapter.rollbackAndSend(sessionID: sessionID, targetTurnID: stagedRollback.turnID, content: wireValue, images: images)
+            rollbackDraft = nil
+        } else {
+            coreAdapter.sendRemote(sessionID: sessionID, content: wireValue, images: images)
+        }
+        clearCommandPaletteSkill()
         return true
     }
 
@@ -1066,7 +1186,9 @@ extension MobileAppModel {
             revision: ready.revision,
             lastApplied: remoteLastAppliedAuthority
         ) else { return }
-        setPublishedIfChanged(\.remoteOpenedSessionID, to: ready.timeline?.sessionId)
+        let nextOpenedSessionID = ready.timeline?.sessionId
+        if nextOpenedSessionID != remoteOpenedSessionID { rollbackDraft = nil }
+        setPublishedIfChanged(\.remoteOpenedSessionID, to: nextOpenedSessionID)
         permissionMailbox = ready.permissionMailbox
         messageQueue = ready.messageQueue
         completionNotifier.observe(state, target: "\(targetKey):\(epoch)")
@@ -1275,6 +1397,7 @@ extension MobileAppModel {
         if phase.name == "CONNECTED" || phase.name == "RECONNECTING" {
             promoteLiveAccountTargetPresence(targetKey: targetKey)
         }
+        settleDevicePickerConnection(phase: phase, targetKey: targetKey)
     }
 
     func apply(workspaceState state: RemoteWorkspaceUiState, targetKey: String, epoch: UInt64) {

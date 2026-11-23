@@ -1,6 +1,7 @@
 package com.openbitfun.mobile.app.ui.chat
 
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
@@ -9,6 +10,12 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.foundation.combinedClickable
+import androidx.compose.foundation.ExperimentalFoundationApi
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.stringResource
@@ -36,6 +43,7 @@ internal const val BUBBLE_TEST_TAG: String = "chat-bubble"
  * surface, because an agent turn can be long and reversed contrast is tiring to
  * read. Reasoning and tools hang off the agent side only.
  */
+@OptIn(ExperimentalFoundationApi::class)
 @Composable
 internal fun ChatMessageBubble(
     row: ConversationRow,
@@ -47,6 +55,8 @@ internal fun ChatMessageBubble(
     onAnswerToolStructured: (String, List<QuestionAnswer>) -> Unit,
     onRetry: (ConversationRow) -> Unit,
     onOpenLink: (String, String) -> Unit,
+    onRollback: (String) -> Unit = {},
+    rollbackEnabled: Boolean = false,
     /** The file the preview surface is showing, so its card can say so. */
     previewingRemotePath: String,
     previewLoading: Boolean,
@@ -56,6 +66,7 @@ internal fun ChatMessageBubble(
     modifier: Modifier,
 ) {
     val fromUser = row.kind == ConversationRowKind.USER
+    var rollbackMenu by remember { mutableStateOf(false) }
     Column(
         modifier = modifier
             .fillMaxWidth()
@@ -68,7 +79,26 @@ internal fun ChatMessageBubble(
         verticalArrangement = Arrangement.spacedBy(6.dp),
     ) {
         if (fromUser) {
-            ChatUserMessageBubble(row.text, row.images, Modifier)
+            Box(
+                Modifier.combinedClickable(
+                    onClick = {},
+                    onLongClick = { if (rollbackEnabled && !row.turnId.isNullOrBlank()) rollbackMenu = true },
+                ),
+            ) {
+                ChatUserMessageBubble(row.text, row.images, Modifier)
+                androidx.compose.material3.DropdownMenu(
+                    expanded = rollbackMenu,
+                    onDismissRequest = { rollbackMenu = false },
+                ) {
+                    androidx.compose.material3.DropdownMenuItem(
+                        text = { Text(stringResource(com.openbitfun.mobile.app.R.string.chat_rollback_item)) },
+                        onClick = {
+                            rollbackMenu = false
+                            row.turnId?.let(onRollback)
+                        },
+                    )
+                }
+            }
         } else {
             AssistantContent(
                 row = row,

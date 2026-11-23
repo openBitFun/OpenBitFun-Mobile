@@ -232,7 +232,7 @@ public class ModelProviderStreamClient internal constructor(
         var status = 0
         statement.execute { response ->
             status = response.status.value
-            if (status !in 200..299) throw ModelProviderException(statusFailure(status))
+            if (status !in 200..299) throw ModelProviderException(modelProviderStatusFailure(status))
             val channel = response.bodyAsChannel()
             while (!channel.isClosedForRead) {
                 val line = channel.readLine() ?: break
@@ -252,7 +252,7 @@ public class ModelProviderStreamClient internal constructor(
     }
 }
 
-private fun statusFailure(status: Int): ModelProviderFailure = when (status) {
+internal fun modelProviderStatusFailure(status: Int): ModelProviderFailure = when (status) {
     401, 403 -> ModelProviderFailure.Authentication
     429 -> ModelProviderFailure.RateLimited
     in 500..599 -> ModelProviderFailure.ServiceUnavailable

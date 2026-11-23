@@ -138,6 +138,7 @@ export class ChatTimelineRevisionTracker {
       `${message ? ChatTimelineRevisionTracker.textSignature(message.text) : ''}:` +
       `${message && message.error ? ChatTimelineRevisionTracker.textSignature(message.error) : ''}:` +
       `${message && message.thinking ? ChatTimelineRevisionTracker.textSignature(message.thinking) : ''}:` +
+      `${message && message.appCard ? JSON.stringify(message.appCard) : ''}:` +
       `${message && message.items ? message.items.length : 0}:${message && message.tools ? message.tools.length : 0}`;
   }
 

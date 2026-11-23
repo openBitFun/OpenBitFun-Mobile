@@ -164,6 +164,8 @@ public data class ConversationRow public constructor(
     public val showRetry: Boolean,
     /** A user-visible assistant failure returned by the desktop. */
     public val error: String?,
+    /** Host turn identity used by rollback actions on user messages. */
+    public val turnId: String?,
     /** This is the current turn, including its finalizing snapshot before persistence. */
     public val live: Boolean,
     public val timestampMs: Long?,
@@ -212,6 +214,7 @@ public fun ChatTimelineState.conversationRows(): List<ConversationRow> =
             typing = message?.let { isTyping(it, item.isStreaming) } == true,
             showRetry = item.showRetryAction,
             error = message?.error?.trim()?.takeIf(String::isNotEmpty),
+            turnId = message?.turnId,
             timestampMs = message?.timestamp?.let(SessionTimePresentation::timestampMs),
         )
     }

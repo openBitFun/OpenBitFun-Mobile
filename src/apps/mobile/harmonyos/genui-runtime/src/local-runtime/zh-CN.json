@@ -137,6 +137,10 @@
         }
       },
       "collaboration": {
+        "inviteReady": "点击后接收同一网络中另一台设备的图片。",
+        "invitePending": "请在另一台设备上扫描或输入连接码。",
+        "networkUnavailable": "请先连接 Wi-Fi。",
+        "networkPermission": "未授权访问本地网络。",
         "photo": "从其他设备拍照",
         "scan": "从其他设备扫描文档",
         "gallery": "选择其他设备的图片",

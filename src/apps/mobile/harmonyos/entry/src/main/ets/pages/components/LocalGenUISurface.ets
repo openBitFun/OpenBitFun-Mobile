@@ -1,6 +1,6 @@
 import { KeyboardAvoidMode } from '@kit.ArkUI';
 import { resourceManager } from '@kit.LocalizationKit';
-import { MobileDesignTypography } from '../../generated/MobileDesignTokens';
+import { MobileDesignGeometry, MobileDesignTypography } from '../../generated/MobileDesignTokens';
 import { RemoteI18n } from '../../i18n/RemoteI18n';
 import { LocalGenUIPresentation } from '../../services/local-genui/LocalGenUIModels';
 import { LocalGenUIRuntimeBridge } from '../../services/local-genui/LocalGenUIRuntimeBridge';
@@ -102,6 +102,10 @@ export struct LocalGenUISurface {
     return this.state.view === 'app' && this.state.appId.length > 0;
   }
 
+  private hidesRuntime(): boolean {
+    return this.state.appStatus === 'failed' || this.state.appStatus === 'unsupported';
+  }
+
   /** The conversation pane is the shared remote/general ConversationView. */
   private conversationState(): ConversationViewState {
     return ConversationViewState.local(this.state.conversation, '');
@@ -115,13 +119,9 @@ export struct LocalGenUISurface {
     this.actions.conversation(intent);
   }
 
-  /** Floating controls reserve this much below the top inset (vp). */
-  private static readonly CONTROL_SIZE: number = 40;
-  private static readonly CONTROL_TOP: number = 8;
-
   /** The page runs under the floating controls; tell it how much to keep clear. */
   private syncPageInsets(): void {
-    const chrome = this.showsApp() ? LocalGenUISurface.CONTROL_TOP + LocalGenUISurface.CONTROL_SIZE : 0;
+    const chrome = this.showsApp() ? MobileDesignGeometry.genuiAppControlTopInset + MobileDesignGeometry.genuiAppControlSize : 0;
     this.bridge.setInsets(this.insets.top + chrome, this.insets.left, this.insets.right, this.insets.bottom);
   }
 
@@ -137,6 +137,7 @@ export struct LocalGenUISurface {
 
   /** Only states the person must act on or wait for are shown over the app. */
   private floatingStatus(): string {
+    if (this.state.appStatus === 'recovering') return RemoteI18n.t('localGenui.recovering');
     if (this.state.appStreaming) return RemoteI18n.t('localGenui.generating');
     if (this.state.appStatus === 'failed' || this.state.appStatus === 'unsupported' || this.state.appStatus === 'state_migration_required') {
       return this.statusLine();
@@ -159,6 +160,11 @@ export struct LocalGenUISurface {
         .id(APP_BODY_ID)
         .width('100%')
         .height('100%')
+        // A terminal failure uses the native status, even if the last Web
+        // frame still contains a checker diagnostic after unmounting.
+        .opacity(this.hidesRuntime() ? 0 : 1)
+        .hitTestBehavior(this.hidesRuntime() ? HitTestMode.None : HitTestMode.Default)
+        .accessibilityLevel(this.hidesRuntime() ? 'no-hide-descendants' : 'auto')
         .onAreaChange((_old: Area, next: Area) => {
           this.bodyWidth = Number(next.width);
           this.report();
@@ -171,12 +177,16 @@ export struct LocalGenUISurface {
 
       if (this.showsApp() && this.state.cameraWanted) {
         LocalGenUICameraPreview({
-          compact: this.rootHeight > 0 && this.rootHeight < 480,
+          active: this.state.cameraActive,
+          compact: this.rootHeight > 0 && this.rootHeight < MobileDesignGeometry.genuiCameraCompactHeightThreshold,
           landscape: this.rootWidth > this.rootHeight && this.rootWidth > 0,
           onSurface: (surfaceId: string) => this.actions.cameraSurface(surfaceId),
           onSurfaceGone: () => this.actions.cameraSurfaceGone()
         })
-        .position({ right: this.insets.rightPadding(12), bottom: this.insets.bottom + 16 })
+        .position({
+          right: this.insets.rightPadding(MobileDesignGeometry.genuiCameraSideInset),
+          bottom: this.insets.bottom + MobileDesignGeometry.genuiCameraBottomInset
+        })
       }
 
       if (this.state.view === 'sessions') {
@@ -201,6 +211,9 @@ export struct LocalGenUISurface {
     .width('100%').height('100%').backgroundColor(PAGE_BG)
     .bindSheet($$this.state.showModelManager, this.ModelManagerSheet(), {
       height: SheetSize.LARGE, showClose: false, backgroundColor: PAGE_BG,
+      onWillDismiss: (action: DismissSheetAction): void => {
+        if (!this.state.editorSaving) action.dismiss();
+      },
       onDisappear: () => this.actions.closeModelManager()
     })
     .onAreaChange((_old: Area, next: Area) => {
@@ -237,9 +250,10 @@ export struct LocalGenUISurface {
               onDeleteSession: (id: string): void => this.actions.deleteSession(id)
             })
           }
-        }.width('100%').constraintSize({ maxWidth: 560 })
+        }.width('100%').constraintSize({ maxWidth: MobileDesignGeometry.sheetContentMaxWidth })
       }.width('100%').layoutWeight(1).align(Alignment.Top)
-        .padding({ left: this.insets.leftPadding(12), right: this.insets.rightPadding(12), top: 8 })
+        .padding({ left: this.insets.leftPadding(MobileDesignGeometry.genuiHistoryHorizontalInset),
+          right: this.insets.rightPadding(MobileDesignGeometry.genuiHistoryHorizontalInset), top: MobileDesignGeometry.genuiHistoryVerticalInset })
         .scrollBar(BarState.Auto)
       Column() {
         AppActionButton({
@@ -249,8 +263,9 @@ export struct LocalGenUISurface {
           isEnabled: !this.state.loading && !this.state.conversation.isBusy,
           onAction: (): void => this.actions.newSession()
         })
-      }.width('100%').constraintSize({ maxWidth: 560 })
-        .padding({ left: this.insets.leftPadding(20), right: this.insets.rightPadding(20),
+      }.width('100%').constraintSize({ maxWidth: MobileDesignGeometry.sheetContentMaxWidth })
+        .padding({ left: this.insets.leftPadding(MobileDesignGeometry.genuiHistoryActionInset),
+        right: this.insets.rightPadding(MobileDesignGeometry.genuiHistoryActionInset),
         top: 16, bottom: this.insets.bottomPadding(16) })
     }.id('bot-sessions-page').width('100%').height('100%').padding({ top: this.insets.top })
       .backgroundColor(PAGE_BG)
@@ -275,47 +290,53 @@ export struct LocalGenUISurface {
   FloatingControls() {
     Row({ space: 8 }) {
       Stack() {
-        NavigationBackButton({ controlSize: LocalGenUISurface.CONTROL_SIZE, onBack: (): void => this.goBack() })
+        NavigationBackButton({ controlSize: MobileDesignGeometry.genuiAppControlSize, onBack: (): void => this.goBack() })
       }
-      .width(LocalGenUISurface.CONTROL_SIZE).height(LocalGenUISurface.CONTROL_SIZE)
-      .borderRadius(LocalGenUISurface.CONTROL_SIZE / 2).clip(true)
+      .width(MobileDesignGeometry.genuiAppControlSize).height(MobileDesignGeometry.genuiAppControlSize)
+      .borderRadius(MobileDesignGeometry.genuiAppControlSize / 2).clip(true)
       .backgroundColor(FLOATING_PANEL_BG).backgroundBlurStyle(BlurStyle.Thin)
       .shadow({ radius: 12, color: SHADOW_SUBTLE, offsetY: 2 })
 
       Blank().layoutWeight(1)
       if (this.floatingStatus().length > 0) {
         Row({ space: 6 }) {
-          if (this.state.appStreaming) {
+          if (this.state.appStreaming || this.state.appStatus === 'recovering') {
             LoadingProgress().width(14).height(14)
           }
           Text(this.floatingStatus())
             .fontSize(MobileDesignTypography.labelSmall.size).fontColor(INK)
             .maxLines(1).textOverflow({ overflow: TextOverflow.Ellipsis })
         }
-        .height(32).padding({ left: 12, right: 12 }).borderRadius(16)
+        .height(MobileDesignGeometry.genuiAppStatusHeight).padding({
+          left: MobileDesignGeometry.genuiAppStatusHorizontalPadding,
+          right: MobileDesignGeometry.genuiAppStatusHorizontalPadding
+        }).borderRadius(MobileDesignGeometry.genuiAppStatusHeight / 2)
         .backgroundColor(FLOATING_PANEL_BG).backgroundBlurStyle(BlurStyle.Thin)
-        .constraintSize({ maxWidth: 240 })
+        .constraintSize({ maxWidth: MobileDesignGeometry.genuiAppStatusMaxWidth })
       }
       Blank().layoutWeight(1)
 
-      if (!this.state.appStreaming && this.state.appStatus !== 'failed' && this.state.appStatus !== 'unsupported') {
+      if (!this.state.appStreaming && this.state.appStatus !== 'failed' && this.state.appStatus !== 'unsupported' &&
+        this.state.appStatus !== 'recovering') {
         Stack({ alignContent: Alignment.Center }) {
           TemplateIcon({ src: $r('app.media.remote_ref_more'), iconWidth: 18, iconHeight: 6 })
         }
-        .width(LocalGenUISurface.CONTROL_SIZE).height(LocalGenUISurface.CONTROL_SIZE)
-        .borderRadius(LocalGenUISurface.CONTROL_SIZE / 2)
+        .width(MobileDesignGeometry.genuiAppControlSize).height(MobileDesignGeometry.genuiAppControlSize)
+        .borderRadius(MobileDesignGeometry.genuiAppControlSize / 2)
         .backgroundColor(FLOATING_PANEL_BG).backgroundBlurStyle(BlurStyle.Thin)
         .shadow({ radius: 12, color: SHADOW_SUBTLE, offsetY: 2 })
         .accessibilityText(RemoteI18n.t('localGenui.appActions'))
         .bindMenu(this.AppActionsMenu())
       } else {
-        Blank().width(LocalGenUISurface.CONTROL_SIZE)
+        Blank().width(MobileDesignGeometry.genuiAppControlSize)
       }
     }
     .width('100%')
+    .alignItems(VerticalAlign.Center)
     .padding({
-      left: this.insets.leftPadding(12), right: this.insets.rightPadding(12),
-      top: this.insets.top + LocalGenUISurface.CONTROL_TOP
+      left: this.insets.leftPadding(MobileDesignGeometry.genuiAppControlSideInset),
+      right: this.insets.rightPadding(MobileDesignGeometry.genuiAppControlSideInset),
+      top: this.insets.top + MobileDesignGeometry.genuiAppControlTopInset
     })
     .hitTestBehavior(HitTestMode.Transparent)
   }

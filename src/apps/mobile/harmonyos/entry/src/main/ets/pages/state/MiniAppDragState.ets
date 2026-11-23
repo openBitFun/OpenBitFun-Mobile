@@ -1,7 +1,9 @@
+import { MobileDesignGeometry } from '../../generated/MobileDesignTokens';
+
 /** Geometry is in window vp, so a drag can leave the gallery pane on a foldable. */
 @ObservedV2
 export class MiniAppDragState {
-  static readonly GLOW_HEIGHT: number = 72;
+  static readonly GLOW_HEIGHT: number = MobileDesignGeometry.miniappDragGlowHeight;
   reduceMotion: boolean = false;
   @Trace active: boolean = false;
   @Trace contracted: boolean = false;

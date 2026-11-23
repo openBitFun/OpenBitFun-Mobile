@@ -87,6 +87,7 @@ internal fun AppSidebar(
     searchOpen: Boolean,
     onQueryChange: (String) -> Unit,
     onToggleSearch: () -> Unit,
+    onOpenLocalGenUi: () -> Unit,
     onConnectDesktop: () -> Unit,
     onRetryRemoteDevice: () -> Unit,
     onRefreshRemoteDevices: () -> Unit,
@@ -137,6 +138,7 @@ internal fun AppSidebar(
                     )
                 }
 
+                com.openbitfun.mobile.app.ui.genui.LocalGenUiButton(onOpenLocalGenUi)
                 com.openbitfun.mobile.app.ui.miniapps.MiniAppsButton(sidebar = true)
 
                 Column(Modifier.weight(1f).verticalScroll(rememberScrollState()).padding(bottom = 142.dp)) {

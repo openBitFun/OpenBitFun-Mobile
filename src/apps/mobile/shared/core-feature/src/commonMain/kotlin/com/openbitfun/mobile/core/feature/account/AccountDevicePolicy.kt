@@ -3,18 +3,8 @@ package com.openbitfun.mobile.core.feature.account
 /**
  * Which of an account's registered devices can be driven from this one.
  *
- * Ports the `desktopDevices()` / `canSelectAccountDevice()` pair that
- * `ConnectAccountDevicePage.ets` and `RemoteControlSettingsSheet.ets` both
- * apply — the same rule in both places, which is why it is a rule and not a
- * detail of either screen.
- *
- * The relay's device record carries a name and a presence flag and no kind, so
- * "is this a desktop" has to be answered from the name. That answer is exact for
- * the clients we ship — a HarmonyOS phone registers under a fixed name — and
- * absent for the ones we do not: an Android phone registers under `Build.MODEL`,
- * so a *second* Android install shows up here looking like a desktop. Only the
- * relay can close that gap by reporting a kind; until it does, this is the same
- * list HarmonyOS shows, which is the point.
+ * The transport filters device kinds before projecting the account directory.
+ * Membership, presence and Relay compatibility still govern device selection.
  */
 public object AccountDevicePolicy {
     /**
@@ -37,13 +27,11 @@ public object AccountDevicePolicy {
     public fun controlTargets(
         devices: List<AccountDeviceUi>,
         currentDeviceId: String,
-    ): List<AccountDeviceUi> = devices.filter { device ->
-        device.id != currentDeviceId && device.name !in MOBILE_CLIENT_NAMES
-    }
+    ): List<AccountDeviceUi> = devices.filter { isTarget(it, currentDeviceId) }
 
     /** Whether tapping [device] can do anything. */
     public fun canSelect(device: AccountDeviceUi, currentDeviceId: String): Boolean =
-        device.online && device.id != currentDeviceId && device.name !in MOBILE_CLIENT_NAMES
+        device.online && device.controllable && isTarget(device, currentDeviceId)
 
     /**
      * The device to drive when the user has not picked one — after a fresh sign
@@ -56,5 +44,8 @@ public object AccountDevicePolicy {
     public fun preferredTarget(
         devices: List<AccountDeviceUi>,
         currentDeviceId: String,
-    ): AccountDeviceUi? = controlTargets(devices, currentDeviceId).firstOrNull { it.online }
+    ): AccountDeviceUi? = devices.firstOrNull { canSelect(it, currentDeviceId) }
+
+    private fun isTarget(device: AccountDeviceUi, currentDeviceId: String): Boolean =
+        device.id != currentDeviceId && device.name !in MOBILE_CLIENT_NAMES
 }

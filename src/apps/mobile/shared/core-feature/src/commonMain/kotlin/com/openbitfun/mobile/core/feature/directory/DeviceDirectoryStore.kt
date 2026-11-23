@@ -60,7 +60,7 @@ public class DeviceDirectoryStore internal constructor(
     public fun reconcileKey(deviceId: String): DeviceDirectoryReconcileKey? {
         val id = deviceId.trim()
         val entry = devices[id] ?: return null
-        if (!entry.online) return null
+        if (!entry.canRead) return null
         return DeviceDirectoryReconcileKey(id, epochs[id] ?: return null)
     }
 
@@ -75,7 +75,7 @@ public class DeviceDirectoryStore internal constructor(
     ): Boolean {
         val id = key.deviceId.trim()
         val current = devices[id] ?: return false
-        if (!current.online || epochs[id] != key.epoch || session.id.isBlank()) return false
+        if (!current.canRead || epochs[id] != key.epoch || session.id.isBlank()) return false
         val slot = slotFor(id) ?: return false
         if (!slot.sessionStore.reconcileConfirmedCreatedSession(session)) return false
         val sessions = mergeSession(current.sessions, session)
@@ -101,7 +101,7 @@ public class DeviceDirectoryStore internal constructor(
     ): Boolean {
         val id = deviceId.trim()
         val current = devices[id] ?: return false
-        if (!current.online) return false
+        if (!current.canRead) return false
         val slot = slotFor(id) ?: return false
         val incoming = sessions.filter { it.id.isNotBlank() }
         val next = if (hasMore) {
@@ -160,10 +160,11 @@ public class DeviceDirectoryStore internal constructor(
             if (id.isEmpty()) continue
             ids += id
             val existing = devices[id]
-            if (existing == null) {
+            val canRead = device.online && device.controllable
+            if (existing == null || (!existing.controllable && device.controllable)) {
                 invalidateEpoch(id)
                 added += id
-            } else if (existing.online && !device.online) {
+            } else if ((existing.online && !device.online) || (existing.controllable && !device.controllable)) {
                 invalidate(id)
                 invalidateEpoch(id)
                 loads.remove(id)?.cancel()
@@ -171,24 +172,25 @@ public class DeviceDirectoryStore internal constructor(
                 slots.remove(id)?.let(::stopSlot)
             }
             updated[id] = if (existing == null) {
-                DeviceDirectoryEntry.empty(id, device.deviceName, device.online)
+                DeviceDirectoryEntry.empty(id, device.deviceName, device.online).copy(controllable = device.controllable)
             } else {
                 existing.copy(
                     deviceName = device.deviceName,
                     online = device.online,
+                    controllable = device.controllable,
                     workspaceDirectory = existing.workspaceDirectory.map { workspace ->
-                        if (!device.online && workspace.status == WorkspaceDirectoryStatus.LOADING) {
+                        if (!canRead && workspace.status == WorkspaceDirectoryStatus.LOADING) {
                             workspace.copy(status = WorkspaceDirectoryStatus.IDLE)
                         } else workspace
                     },
-                    status = if (device.online) {
+                    status = if (canRead) {
                         existing.status
                     } else if (existing.workspaces.isNotEmpty() || existing.sessions.isNotEmpty()) {
                         DeviceDirectoryStatus.CACHED
                     } else {
                         DeviceDirectoryStatus.IDLE
                     },
-                    error = if (device.online) existing.error else null,
+                    error = if (canRead) existing.error else null,
                 )
             }
         }
@@ -210,7 +212,7 @@ public class DeviceDirectoryStore internal constructor(
         val id = deviceId.trim()
         if (id.isEmpty()) return
         val entry = devices[id] ?: return
-        if (!entry.online) return
+        if (!entry.canRead) return
         if (loads[id]?.isActive == true) return
         if (entry.status == DeviceDirectoryStatus.READY) return
         val slot = slotFor(id)
@@ -225,7 +227,7 @@ public class DeviceDirectoryStore internal constructor(
         val id = deviceId.trim()
         if (id.isEmpty()) return
         val entry = devices[id] ?: return
-        if (!entry.online) return
+        if (!entry.canRead) return
         if (loads[id]?.isActive == true) return
         val slot = slotFor(id)
         if (slot == null) {
@@ -243,7 +245,7 @@ public class DeviceDirectoryStore internal constructor(
         val entry = devices[id] ?: return
         if (normalizedPath.isEmpty()) return
         updateWorkspaceState(id, identity) { it.copy(expanded = expanded) }
-        if (!expanded || !entry.online) return
+        if (!expanded || !entry.canRead) return
         val state = devices[id]?.workspace(identity)
         if (state?.status != WorkspaceDirectoryStatus.READY) loadWorkspaceSessions(id, identity, false)
     }
@@ -254,7 +256,7 @@ public class DeviceDirectoryStore internal constructor(
         val id = deviceId.trim()
         val normalizedPath = normalizeWorkspacePath(identity.path)
         val entry = devices[id] ?: return
-        if (normalizedPath.isEmpty() || !entry.online) return
+        if (normalizedPath.isEmpty() || !entry.canRead) return
         updateWorkspaceState(id, identity) { it.copy(expanded = true) }
         loadWorkspaceSessions(id, identity, true)
     }
@@ -263,7 +265,7 @@ public class DeviceDirectoryStore internal constructor(
         val key = workspaceKey(deviceId, identity)
         if (workspaceLoads[key]?.isActive == true) return
         val entry = devices[deviceId] ?: return
-        if (!entry.online) return
+        if (!entry.canRead) return
         val existing = entry.workspace(identity)
         if (!force && existing?.status == WorkspaceDirectoryStatus.READY) return
         val slot = slotFor(deviceId) ?: run {
@@ -275,7 +277,7 @@ public class DeviceDirectoryStore internal constructor(
         val job = scope.launch {
             try {
                 val loaded = slot.sessionStore.sessionsForWorkspace(identity)
-                if (!isCurrentWorkspace(key, generation) || devices[deviceId]?.online != true) return@launch
+                if (!isCurrentWorkspace(key, generation) || devices[deviceId]?.canRead != true) return@launch
                 val current = devices[deviceId] ?: return@launch
                 val merged = replaceWorkspaceSessions(current.sessions, identity, loaded)
                 slot.sessionStore.persistDirectorySessions(merged)
@@ -301,6 +303,7 @@ public class DeviceDirectoryStore internal constructor(
     }
 
     private fun slotFor(id: String): DeviceSlot? {
+        if (devices[id]?.controllable != true) return null
         slots[id]?.let { return it }
         val sessionStore = factory.createSessionStore(scope, id) ?: return null
         val workspaceStore = try {
@@ -386,7 +389,7 @@ public class DeviceDirectoryStore internal constructor(
             val current = devices[id] ?: return
             // A device that went offline while its request was in flight stays
             // in the offline state established by sync; the late result is stale.
-            if (!current.online) return
+            if (!current.canRead) return
             devices[id] = current.copy(
                 status = DeviceDirectoryStatus.READY,
                 error = null,
@@ -401,7 +404,7 @@ public class DeviceDirectoryStore internal constructor(
         } catch (_: Throwable) {
             if (!isCurrent(id, generation)) return
             val current = devices[id] ?: return
-            if (!current.online) return
+            if (!current.canRead) return
             devices[id] = current.copy(
                 status = DeviceDirectoryStatus.FAILED,
                 error = DeviceDirectoryFailure.LOAD_FAILED,

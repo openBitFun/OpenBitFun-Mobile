@@ -30,6 +30,7 @@ export class LocalGenUIState {
   @Trace currentModelId: string = '';
   @Trace modelMissing: boolean = false;
   @Trace showModelManager: boolean = false;
+  @Trace configuringModel: boolean = false;
   /** '' = list, 'new' = add form, otherwise the edited model id. */
   @Trace editingModelId: string = '';
   @Trace editorOpen: boolean = false;
@@ -42,6 +43,7 @@ export class LocalGenUIState {
   @Trace showCollaboration: boolean = false;
   @Trace collaborationRequest: LocalCollaborationRequest | undefined = undefined;
   @Trace cameraWanted: boolean = false;
+  @Trace cameraActive: boolean = false;
   // Gallery
   @Trace gallery: LocalGenUIGalleryEntry[] = [];
 
@@ -79,6 +81,7 @@ export interface LocalGenUIActions {
   openModelManager: () => void;
   closeModelManager: () => void;
   editModel: (modelId: string) => void;
+  useModel: (modelId: string) => void;
   closeEditor: () => void;
   saveModel: (input: LocalGenUIModelEditorInput) => void;
   removeModel: (modelId: string) => void;
@@ -111,6 +114,7 @@ export function emptyLocalGenUIActions(): LocalGenUIActions {
     openModelManager: () => {},
     closeModelManager: () => {},
     editModel: (_modelId: string) => {},
+    useModel: (_modelId: string) => {},
     closeEditor: () => {},
     saveModel: (_input: LocalGenUIModelEditorInput) => {},
     removeModel: (_modelId: string) => {},

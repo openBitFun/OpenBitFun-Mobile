@@ -73,7 +73,12 @@ export class UserMessageTruncationPolicy {
     if (normalized.length <= UserMessageTruncationPolicy.MAX_PREVIEW_CHARS) {
       return lineCut;
     }
-    const charCut = UserMessageTruncationPolicy.MAX_PREVIEW_CHARS;
+    let charCut = UserMessageTruncationPolicy.MAX_PREVIEW_CHARS;
+    const before = normalized.charCodeAt(charCut - 1);
+    const after = normalized.charCodeAt(charCut);
+    if (before >= 0xD800 && before <= 0xDBFF && after >= 0xDC00 && after <= 0xDFFF) {
+      charCut -= 1;
+    }
     if (lineCut < 0) {
       return charCut;
     }

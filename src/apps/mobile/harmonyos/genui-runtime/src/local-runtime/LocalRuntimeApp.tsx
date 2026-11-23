@@ -41,17 +41,21 @@ export interface LocalRuntimeBridge {
 /** Checker mounts and unmounted pages have no asynchronous capabilities. */
 const unsupportedProvider = {};
 const IMAGE_SEARCH_TIMEOUT_MS = 20000;
+const PROBE_RENDER_TIMEOUT_MS = 1200;
 
 export default function LocalRuntimeApp({ bridge, build }: { bridge: LocalRuntimeBridge; build: LocalRuntimeBuild }) {
   const [snapshot, setSnapshot] = useState<LocalRuntimeSnapshot>(initialSnapshot);
   const snapshotRef = useRef(snapshot);
   snapshotRef.current = snapshot;
+  const [mountRevision, setMountRevision] = useState(0);
+  const mountRevisionRef = useRef(0);
+  const parsedMountRef = useRef(-1);
   const [calendarStatuses, setCalendarStatuses] = useState(new Map<string, CalendarCreateStatus>());
   const calendarRef = useRef(calendarStatuses);
   const [calendarReady, setCalendarReady] = useState(false);
   const calendarRequests = useRef(new Map<string, string>());
   const calendarSerial = useRef(0);
-  const [collaborationAvailability, setCollaborationAvailability] = useState({ available: false, reason: 'checking' });
+  const [collaborationAvailability, setCollaborationAvailability] = useState<{ available: boolean; reason: string; mode?: 'invite' }>({ available: false, reason: 'checking' });
   const collaborationRequests = useRef(new Map<string, (result: GenUICollaborationResult) => void>());
   const collaborationSerial = useRef(0);
   const updateCalendar = useCallback((next: Map<string, CalendarCreateStatus>) => {
@@ -68,6 +72,29 @@ export default function LocalRuntimeApp({ bridge, build }: { bridge: LocalRuntim
     setSnapshot(result.snapshot);
     result.outbound.forEach(message => bridge.post(message));
   }, [bridge]);
+
+  useEffect(() => {
+    if (snapshot.status !== 'ready' || snapshot.mode !== 'live' || snapshot.streaming || !snapshot.identity) return;
+    const appId = snapshot.identity.appId;
+    const sourceRevision = snapshot.sourceRevision;
+    let disposed = false;
+    let paint = 0;
+    const frame = requestAnimationFrame(() => {
+      // Aurora's introduction starts with faded text. Wait for that finite
+      // entrance animation so the native thumbnail captures readable content.
+      const entrance = (document.getAnimations?.() ?? []).filter(animation =>
+        'animationName' in animation && animation.animationName === 'ax-rise');
+      void Promise.allSettled(entrance.map(animation => animation.finished)).then(() => {
+        if (disposed) return;
+        paint = requestAnimationFrame(() => bridge.post({ type: 'preview_ready', appId, sourceRevision }));
+      });
+    });
+    return () => {
+      disposed = true;
+      cancelAnimationFrame(frame);
+      cancelAnimationFrame(paint);
+    };
+  }, [bridge, snapshot.identity, snapshot.mode, snapshot.sourceRevision, snapshot.status, snapshot.streaming]);
 
   // Gesture subscriptions by id; the host only ever sees ids and gesture names.
   const gestureSubscriptions = useRef(new Map<string, GenUIGestureSubscription>());
@@ -92,10 +119,10 @@ export default function LocalRuntimeApp({ bridge, build }: { bridge: LocalRuntim
         nextSubscription.current += 1;
         const subscriptionId = `gesture-${nextSubscription.current}`;
         gestureSubscriptions.current.set(subscriptionId, subscription);
-        bridge.post({ type: 'capability', appId, op: 'subscribe', subscriptionId, capability: 'gesture', gesture: subscription.gesture });
+        bridge.post({ type: 'capability', appId, sourceRevision: snapshot.sourceRevision, op: 'subscribe', subscriptionId, capability: 'gesture', gesture: subscription.gesture });
         return () => {
           gestureSubscriptions.current.delete(subscriptionId);
-          bridge.post({ type: 'capability', appId, op: 'unsubscribe', subscriptionId, capability: 'gesture' });
+          bridge.post({ type: 'capability', appId, sourceRevision: snapshot.sourceRevision, op: 'unsubscribe', subscriptionId, capability: 'gesture' });
         };
       },
       setOrientation(orientation) {
@@ -111,7 +138,7 @@ export default function LocalRuntimeApp({ bridge, build }: { bridge: LocalRuntim
   // only live pages get it, and answers for another app are ignored.
   const imageRequests = useRef(new Map<string, (images: string[]) => void>());
   const imageSerial = useRef(0);
-  const liveAppId = snapshot.mode === 'live' ? snapshot.identity?.appId : undefined;
+  const liveAppId = snapshot.mode === 'live' && snapshot.imageSearchAvailable !== false ? snapshot.identity?.appId : undefined;
   const asyncProvider = useMemo(() => liveAppId ? {
     capabilities: { 'image.search': { kind: 'image-search' as const, target: 'any' as const } },
     call: (name: string, args: Record<string, unknown>) => {
@@ -137,6 +164,10 @@ export default function LocalRuntimeApp({ bridge, build }: { bridge: LocalRuntim
       return;
     }
     if (message.type === 'init') {
+      mountRevisionRef.current += 1;
+      setMountRevision(mountRevisionRef.current);
+      reportRef.current = undefined;
+      declarationsRef.current = {};
       collaborationRequests.current.clear();
       setCollaborationAvailability({ available: false, reason: 'checking' });
       updateCalendar(new Map());
@@ -147,7 +178,7 @@ export default function LocalRuntimeApp({ bridge, build }: { bridge: LocalRuntim
       const current = snapshotRef.current;
       if (current.mode !== 'live' || current.streaming || message.appId !== current.identity?.appId || message.sourceRevision !== current.sourceRevision) return;
       if (message.type === 'collaboration_availability') {
-        setCollaborationAvailability({ available: message.available, reason: message.reason });
+        setCollaborationAvailability({ available: message.available, reason: message.reason, mode: message.mode });
       } else {
         const callback = collaborationRequests.current.get(message.requestId);
         if (!callback) return;
@@ -181,13 +212,27 @@ export default function LocalRuntimeApp({ bridge, build }: { bridge: LocalRuntim
       return;
     }
     if (message.type === 'probe') {
-      // Let layout settle for the latest source before measuring.
-      requestAnimationFrame(() => requestAnimationFrame(async () => {
-        await waitForHtmlViews();
+      const requestedMount = mountRevisionRef.current;
+      const started = performance.now();
+      const measure = () => {
+        if (requestedMount !== mountRevisionRef.current) return;
         const current = snapshotRef.current;
-        const report: LocalProbeReport = probeLocalCanvas(message.requestId, current, build, reportRef.current, declarationsRef.current);
-        bridge.post({ type: 'probe_result', report });
-      }));
+        const parsed = parsedMountRef.current === requestedMount && reportRef.current?.render !== 'unverified' && reportRef.current;
+        if (current.status === 'ready' && !parsed) {
+          if (performance.now() - started < PROBE_RENDER_TIMEOUT_MS) requestAnimationFrame(measure);
+          return;
+        }
+        // Parsing publishes errors before React commits their layout.
+        requestAnimationFrame(() => requestAnimationFrame(async () => {
+          if (requestedMount !== mountRevisionRef.current) return;
+          await waitForHtmlViews();
+          if (requestedMount !== mountRevisionRef.current) return;
+          const report: LocalProbeReport = probeLocalCanvas(message.requestId, snapshotRef.current, build,
+            reportRef.current, declarationsRef.current);
+          bridge.post({ type: 'probe_result', report });
+        }));
+      };
+      requestAnimationFrame(measure);
       return;
     }
     apply(current => reduceHostMessage(current, message, build));
@@ -212,7 +257,7 @@ export default function LocalRuntimeApp({ bridge, build }: { bridge: LocalRuntim
   } : undefined, [identity, snapshot.source, snapshot.base, snapshot.streaming]); // eslint-disable-line react-hooks/exhaustive-deps
   // Keep the owner snapshot identity stable per accepted revision; OpenUI
   // re-hydrates when the initial-state object changes.
-  const initialState = useMemo<GenUIAppState>(() => snapshot.state, [snapshot.sourceRevision, snapshot.stateRevision]); // eslint-disable-line react-hooks/exhaustive-deps
+  const initialState = useMemo<GenUIAppState>(() => snapshot.state, [mountRevision, snapshot.sourceRevision, snapshot.stateRevision]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const onStateChange = useCallback((state: GenUIAppState) => {
     apply(current => localStateEdit(current, state));
@@ -230,10 +275,17 @@ export default function LocalRuntimeApp({ bridge, build }: { bridge: LocalRuntim
       bridge.post({ type: 'action', appId: current.identity.appId, sourceRevision: current.sourceRevision, action: event.type, message: event.humanFriendlyMessage ?? '', params: JSON.parse(key), requestId });
       return;
     }
-    bridge.post({ type: 'action', appId: current.identity.appId, sourceRevision: current.sourceRevision, action: event.type, message: event.humanFriendlyMessage ?? '', params: event.params ?? {} });
+    const params = event.params ?? {};
+    const id = params.id;
+    const payload = event.type === 'DeleteCalendarEvent' && id && typeof id === 'object' ? id as Record<string, unknown> : params;
+    bridge.post({ type: 'action', appId: current.identity.appId, sourceRevision: current.sourceRevision, action: event.type, message: event.humanFriendlyMessage ?? '', params: payload });
   }, [bridge, calendarReady, updateCalendar]);
   const onTargetEvent = useCallback(() => undefined, []);
-  const onParseResult = useCallback((result: unknown) => { declarationsRef.current = stateTypesOf(result); }, []);
+  const onParseResult = useCallback((result: unknown) => {
+    if (mountRevision !== mountRevisionRef.current) return;
+    parsedMountRef.current = mountRevision;
+    declarationsRef.current = stateTypesOf(result);
+  }, [mountRevision]);
 
   if (snapshot.status === 'waiting') return <div className="local-genui-runtime__waiting" data-local-genui-status="waiting" />;
   if (snapshot.status === 'unsupported' || !definition) {
@@ -243,7 +295,7 @@ export default function LocalRuntimeApp({ bridge, build }: { bridge: LocalRuntim
     <GenUICalendarStatusContext.Provider value={{ ready: calendarReady, statuses: calendarStatuses }}>
     <GenUIDeviceCapabilitiesContext.Provider value={deviceCapabilities}>
     <GenUIApplication
-      key={`${definition.id}:${snapshot.sourceRevision}`}
+      key={`${definition.id}:${snapshot.sourceRevision}:${mountRevision}`}
       look={snapshot.look}
       product={genUIProduct}
       definition={definition}
@@ -256,7 +308,7 @@ export default function LocalRuntimeApp({ bridge, build }: { bridge: LocalRuntim
       asyncProvider={asyncProvider}
       asyncTarget="unsupported"
       onTargetEvent={onTargetEvent}
-      onVerification={report => { reportRef.current = report; }}
+      onVerification={report => { if (mountRevision === mountRevisionRef.current) reportRef.current = report; }}
       onParseResult={onParseResult}
       hostShell="native"
     />

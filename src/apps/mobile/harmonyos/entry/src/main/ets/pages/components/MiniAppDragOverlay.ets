@@ -67,7 +67,7 @@ export struct MiniAppDragOverlay {
         .onAreaChange((_old: Area, area: Area) => {
           this.drag.setTargetTop(Number(area.globalPosition.y));
         })
-    }.width('100%').height(MiniAppDragState.GLOW_HEIGHT + this.drag.bottomInset + 86)
+    }.width('100%').height(MiniAppDragState.GLOW_HEIGHT + this.drag.bottomInset + MobileDesignGeometry.miniappDragTargetExtraHeight)
       .opacity(this.drag.hintVisible ? 1 : 0)
   }
 
@@ -89,7 +89,7 @@ export struct MiniAppDragOverlay {
           }.width(this.drag.initialWidth).padding(20).layoutWeight(1)
             .justifyContent(FlexAlign.Center).opacity(this.drag.contracted ? 0 : 1)
         }.width(this.drag.width).height(this.drag.height).backgroundColor(CARD)
-          .borderRadius(this.drag.contracted ? 14 : MobileDesignGeometry.miniappCardRadius).clip(true)
+          .borderRadius(this.drag.contracted ? MobileDesignGeometry.miniappDragIconRadius : MobileDesignGeometry.miniappCardRadius).clip(true)
           .shadow({ radius: this.drag.contracted ? 6 : 16, color: SHADOW_STRONG, offsetY: 4 })
           .position({ x: this.drag.fingerX + this.drag.offsetX - this.drag.windowX,
             y: this.drag.fingerY + this.drag.offsetY - this.drag.windowY })

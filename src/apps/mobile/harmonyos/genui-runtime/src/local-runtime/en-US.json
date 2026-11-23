@@ -137,6 +137,10 @@
         }
       },
       "collaboration": {
+        "inviteReady": "Receive an image from another device on the same network.",
+        "invitePending": "Scan or enter the code on the other device.",
+        "networkUnavailable": "Connect to Wi-Fi before starting.",
+        "networkPermission": "Local network access is denied.",
         "photo": "Take photo on another device",
         "scan": "Scan on another device",
         "gallery": "Choose image on another device",

@@ -19,6 +19,103 @@ const fixtures = JSON.parse(fs.readFileSync(path.join(repo, 'src/shared/generati
 const manifest = JSON.parse(fs.readFileSync(path.join(__dirname, '../../entry/src/main/resources/rawfile/genui/runtime-manifest.json'), 'utf8'));
 const { GenerativeUIArgumentAccumulator, assembleLocalGeneration } = loadLocalGenUI('LocalGenUIStreamParser');
 
+test('a composer send that needs model setup never accepts the draft or starts a turn', async () => {
+  const { LocalGenUISessionController } = loadLocalGenUI('LocalGenUISessionController', {
+    './LocalGenUIModelCatalog': loadLocalGenUI('LocalGenUIModelCatalog')
+  });
+  const profile = { id: 'demo', modelName: 'demo' };
+  for (const modelState of [
+    { models: [], pinned: '' },
+    { models: [profile], pinned: 'deleted' },
+    { models: [profile], pinned: profile.id }
+  ]) {
+    const controller = Object.assign(Object.create(LocalGenUISessionController.prototype), {
+      activeSessionId: 'local-genui:test',
+      activeSession: { modelId: modelState.pinned },
+      draftModelId: '',
+      turnActive: false,
+      modelStore: { list: () => modelState.models, lastSelectedId: async () => '' },
+      provider: { isConfigured: async () => false }
+    });
+    let setupRequests = 0;
+    await controller.send('Make a timer', '', '', '', {
+      isCurrent: () => true,
+      onAccepted: () => assert.fail('Model setup must leave the draft untouched'),
+      onModelRequired: () => { setupRequests += 1; }
+    });
+    assert.equal(setupRequests, 1);
+    assert.equal(controller.isTurnActive(), false);
+  }
+});
+
+test('saving a mounted app preview refreshes the gallery and its message card', async () => {
+  const { LocalGenUISessionController } = loadLocalGenUI('LocalGenUISessionController', {
+    '../RemoteLogger': { RemoteLogger: { info: () => {} } }
+  });
+  const appId = 'local-genui:app-test-preview';
+  let mount = { identity: { appId }, mode: 'live', streaming: false };
+  let filename = 'previous.jpg';
+  let galleryPath;
+  let messageRefreshes = 0;
+  const controller = Object.assign(Object.create(LocalGenUISessionController.prototype), {
+    activeSessionId: 'local-genui:session-test-preview',
+    messages: [{ appId }],
+    bridge: {
+      currentMount: () => mount,
+      snapshot: async () => ({})
+    },
+    thumbnails: {
+      existing: () => filename,
+      save: async () => { filename = 'updated.jpg'; return filename; }
+    },
+    repository: { listGallery: async () => [{ appId, thumbnailPath: 'previous.jpg' }] },
+    listener: {
+      galleryChanged: (entries) => { galleryPath = entries[0].thumbnailPath; },
+      messagesChanged: () => { messageRefreshes += 1; }
+    },
+    syncDesktopCards: async () => {}
+  });
+
+  assert.equal(await controller.captureThumbnail(appId), true);
+  assert.equal(galleryPath, 'updated.jpg');
+  assert.equal(messageRefreshes, 1);
+
+  let released = false;
+  controller.bridge.snapshot = async () => {
+    mount = { ...mount, streaming: true };
+    return { release: () => { released = true; } };
+  };
+  assert.equal(await controller.captureThumbnail(appId), false);
+  assert.equal(released, true);
+  assert.equal(messageRefreshes, 1);
+});
+
+test('only a settled, accepted live revision can refresh its preview', async () => {
+  const { LocalGenUISessionController } = loadLocalGenUI('LocalGenUISessionController', {
+    './LocalGenUIOwner': { LocalGenUIOwner: {
+      runnableRevision: (record) => record.runnable,
+      isDisplayableStatus: (status) => status === 'ready'
+    } }
+  });
+  const appId = 'local-genui:app-test-preview';
+  const mount = { identity: { appId }, sourceRevision: 2, mode: 'live', streaming: false };
+  const record = { runnable: { sourceRevision: 2, status: 'candidate' } };
+  let captures = 0;
+  const controller = Object.assign(Object.create(LocalGenUISessionController.prototype), {
+    bridge: { currentMount: () => mount },
+    repository: { loadApp: async () => record },
+    captureThumbnail: async () => { captures += 1; }
+  });
+  const preview = { type: 'preview_ready', appId, sourceRevision: 2 };
+  await controller.onRuntimeMessage(preview);
+  assert.equal(captures, 0);
+  record.runnable.status = 'ready';
+  await controller.onRuntimeMessage({ ...preview, sourceRevision: 1 });
+  assert.equal(captures, 0);
+  await controller.onRuntimeMessage(preview);
+  assert.equal(captures, 1);
+});
+
 for (const fixture of fixtures.cases) {
   test(`shared tool-call fixture: ${fixture.name}`, () => {
     const accumulator = new GenerativeUIArgumentAccumulator();

@@ -457,7 +457,7 @@ Calendar capability (Harmony Local GenUI):
 - For a create-only action the native host owns Adding/Added/failed feedback and duplicate prevention. Do not use @Set to claim success on click, do not implement a separate success flag, and do not replace the calendar action with @ToAssistant. A label saying Add to list only changes local state and is not calendar integration. An optional Add all control must call the same per-event actions so the host can skip already-added events.
 - @CreateCalendarEvent({title, startTime, endTime, description?, location?, reminderMinutes?, recurrence?}) creates an event in the app-owned OpenBitFun calendar when the user clicks its calendar control. Times are ISO timestamps or epoch milliseconds.
 - @UpdateCalendarEvent({id, title, startTime, endTime, description?, location?, reminderMinutes?, recurrence?}) updates an event previously created by this app.
-- @DeleteCalendarEvent({id}) deletes an event previously created by this app after the user explicitly asks to remove it.
+- @DeleteCalendarEvent(id) deletes an event previously created by this app after the user explicitly asks to remove it.
 - @ListCalendarEvents({startTime?, endTime?}) counts events created by this app in an optional time range.
 Calendar actions ask for READ_CALENDAR and WRITE_CALENDAR permission on first use and do not edit Huawei Clock alarms.
 

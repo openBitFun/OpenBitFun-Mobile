@@ -1,12 +1,10 @@
-import { MobileDesignTypography } from '../../generated/MobileDesignTokens';
+import { MobileDesignGeometry, MobileDesignTypography } from '../../generated/MobileDesignTokens';
 import { RemoteI18n } from '../../i18n/RemoteI18n';
 import { ChatMessageAppCard } from '../../model/RemoteModels';
 import {
   CARD, CONNECT_HERO_ACCENT, CONNECT_HERO_BG, CONNECT_HERO_SURFACE, CONTENT_ON_ACTION, INK, LINE, MUTED,
   PRIMARY_ACTION, SHADOW_FAINT, TOAST_BACKGROUND
 } from './Theme';
-
-const THUMB_SIZE: number = 76;
 
 /**
  * A generated mini app inside an assistant message: its rendered preview,
@@ -19,7 +17,7 @@ export struct MessageAppCard {
   @Event onOpen: (link: string, title: string) => void = (_link: string, _title: string) => {};
 
   build() {
-    Row({ space: 12 }) {
+    Row({ space: MobileDesignGeometry.messageAppCardPadding }) {
       Stack({ alignContent: Alignment.BottomEnd }) {
         if (this.card.thumbnailPath.length > 0) {
           Image(`file://${this.card.thumbnailPath}`)
@@ -35,10 +33,12 @@ export struct MessageAppCard {
         Stack({ alignContent: Alignment.Center }) {
           SymbolGlyph($r('sys.symbol.wand_and_stars')).fontSize(11).fontColor([CONTENT_ON_ACTION])
         }
-        .width(20).height(20).borderRadius(10)
-        .backgroundColor(TOAST_BACKGROUND).backgroundBlurStyle(BlurStyle.Thin).margin(5)
+        .width(MobileDesignGeometry.messageAppBadgeSize).height(MobileDesignGeometry.messageAppBadgeSize)
+        .borderRadius(MobileDesignGeometry.messageAppBadgeSize / 2)
+        .backgroundColor(TOAST_BACKGROUND).backgroundBlurStyle(BlurStyle.Thin).margin(MobileDesignGeometry.messageAppBadgeInset)
       }
-      .width(THUMB_SIZE).height(THUMB_SIZE).borderRadius(16).clip(true)
+      .width(MobileDesignGeometry.messageAppPreviewSize).height(MobileDesignGeometry.messageAppPreviewSize)
+      .borderRadius(MobileDesignGeometry.messageAppPreviewRadius).clip(true)
       .border({ width: 0.5, color: LINE })
 
       Column({ space: 4 }) {
@@ -51,16 +51,19 @@ export struct MessageAppCard {
         Text(RemoteI18n.t('common.open'))
           .fontSize(MobileDesignTypography.labelMedium.size).fontWeight(FontWeight.Medium)
           .fontColor(CONTENT_ON_ACTION).backgroundColor(PRIMARY_ACTION)
-          .padding({ left: 14, right: 14, top: 6, bottom: 6 }).borderRadius(16)
+          .padding({
+            left: MobileDesignGeometry.messageAppOpenHorizontalPadding, right: MobileDesignGeometry.messageAppOpenHorizontalPadding,
+            top: MobileDesignGeometry.messageAppOpenVerticalPadding, bottom: MobileDesignGeometry.messageAppOpenVerticalPadding
+          }).borderRadius(MobileDesignGeometry.messageAppOpenRadius)
           .margin({ top: 4 })
       }
       .layoutWeight(1)
       .alignItems(HorizontalAlign.Start)
     }
     .width('100%')
-    .padding(12)
+    .padding(MobileDesignGeometry.messageAppCardPadding)
     .backgroundColor(CARD)
-    .borderRadius(20)
+    .borderRadius(MobileDesignGeometry.messageAppCardRadius)
     .border({ width: 0.5, color: LINE })
     .shadow({ radius: 12, color: SHADOW_FAINT, offsetY: 4 })
     .alignItems(VerticalAlign.Center)

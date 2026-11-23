@@ -114,6 +114,7 @@ extension MobileAppModel {
             typing: row.typing,
             showRetry: row.showRetry,
             error: row.error,
+            turnID: row.turnId,
             live: row.live,
             timestamp: row.timestampMs.map { Date(timeIntervalSince1970: $0.doubleValue / 1000) }
         )

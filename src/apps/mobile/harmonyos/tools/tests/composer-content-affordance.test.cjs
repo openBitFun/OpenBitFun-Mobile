@@ -106,7 +106,7 @@ test('a collapsed draft keeps the field to itself', () => {
 
 test('the expanded action row keeps the supplemental microphone behind the policy', () => {
   const composer = builderBody(composerSource, 'AdaptiveComposer');
-  const expanded = composer.indexOf('if (this.isComposerExpanded()) {');
+  const expanded = composer.indexOf('if (this.showsActionRow()) {');
   assert.notEqual(expanded, -1, 'the composer must keep its expanded action row');
   const row = composer.slice(expanded);
   const site = row.indexOf('this.SupplementalVoiceButton()');

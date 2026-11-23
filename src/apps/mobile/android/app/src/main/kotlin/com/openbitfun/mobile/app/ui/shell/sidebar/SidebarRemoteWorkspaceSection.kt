@@ -175,6 +175,7 @@ internal fun SidebarRemoteWorkspaceSection(
                 SidebarDeviceSelectorRow(
                     deviceName = device.displayName,
                     online = device.online,
+                    controllable = device.controllable,
                     selected = active,
                     loading = active && (remoteState is RemoteSessionUiState.Loading ||
                         workspaceState is RemoteWorkspaceUiState.Loading),

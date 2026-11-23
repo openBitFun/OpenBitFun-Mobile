@@ -8,12 +8,14 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.WindowInsets
+import androidx.compose.foundation.layout.asPaddingValues
 import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.ime
 import androidx.compose.foundation.layout.imePadding
+import androidx.compose.foundation.layout.navigationBars
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.safeDrawingPadding
 import androidx.compose.foundation.layout.union
@@ -69,6 +71,7 @@ import com.openbitfun.mobile.core.feature.layout.AdaptiveLayoutInput
 import com.openbitfun.mobile.core.feature.layout.FilePreviewPlacement
 import com.openbitfun.mobile.core.feature.layout.FilePreviewPlacementPolicy
 import com.openbitfun.mobile.core.feature.layout.SettingsPlacementPolicy
+import com.openbitfun.mobile.core.feature.layout.SettingsPlacementMode
 import com.openbitfun.mobile.core.feature.layout.SettingsSheetKind
 import com.openbitfun.mobile.core.feature.session.RemoteSessionUiState
 import com.openbitfun.mobile.core.feature.session.RemoteSessionIntent
@@ -129,12 +132,15 @@ private fun PaneSeparator(gapWidth: Int) {
 @Composable
 internal fun MobileScreen(onAccountRestored: (Boolean) -> Unit = {}) {
     var compactDrawerOpen by rememberSaveable { mutableStateOf(false) }
+    var localGenUiOpen by rememberSaveable { mutableStateOf(false) }
     val shell = rememberAppShellState()
 
     val accountViewModel: AccountViewModel = viewModel(factory = AccountViewModel.Factory)
     val accountWorkspaceState by accountViewModel.workspaceState.collectAsStateWithLifecycle()
     val accountState by accountViewModel.state.collectAsStateWithLifecycle()
     val accountRemoteState by accountViewModel.remoteState.collectAsStateWithLifecycle()
+    val accountCommandPalette by accountViewModel.commandPalette.collectAsStateWithLifecycle()
+    val accountDeviceModels by accountViewModel.deviceModels.collectAsStateWithLifecycle()
     val accountPhase by accountViewModel.connectionPhase.collectAsStateWithLifecycle()
     val accountWorkspaceDirectory by accountViewModel.workspaceDirectory.collectAsStateWithLifecycle()
     val readyAccount = accountState as? AccountUiState.Ready
@@ -290,8 +296,9 @@ internal fun MobileScreen(onAccountRestored: (Boolean) -> Unit = {}) {
         // So the list does not jump sideways the moment a file opens beside it.
         preferredMasterWidth = geometry.masterPaneWidth,
     )
+    val showsWelcome = controlSummary.source == RemoteControlSource.NONE && readyAccount == null
     val sidebarWidth = when {
-        !wide -> 0
+        !wide || showsWelcome -> 0
         previewLayout.placement == FilePreviewPlacement.Hidden -> geometry.masterPaneWidth
         // A focus split gave the list's room to the file; a full-page preview
         // never had room for either.
@@ -326,6 +333,9 @@ internal fun MobileScreen(onAccountRestored: (Boolean) -> Unit = {}) {
     (activeWorkspaceState as? RemoteWorkspaceUiState.Ready)?.let { ready ->
         if (ready.deviceTools.visible) com.openbitfun.mobile.app.ui.remote.DeviceToolsDialog(ready, ::dispatchActiveWorkspace)
     }
+    if (localGenUiOpen) {
+        com.openbitfun.mobile.app.ui.genui.LocalGenUiDialog { localGenUiOpen = false }
+    }
     val sidebar: @Composable () -> Unit = {
         AppSidebar(
             permanent = sidebarWidth > 0,
@@ -349,6 +359,7 @@ internal fun MobileScreen(onAccountRestored: (Boolean) -> Unit = {}) {
             searchOpen = shell.searchOpen,
             onQueryChange = shell::search,
             onToggleSearch = shell::toggleSearch,
+            onOpenLocalGenUi = { localGenUiOpen = true },
             onConnectDesktop = {
                 // Desktops are reached only through the account: signed in, the
                 // row opens the account's device picker; signed out, login.
@@ -435,13 +446,14 @@ internal fun MobileScreen(onAccountRestored: (Boolean) -> Unit = {}) {
     }
 
     val content: @Composable () -> Unit = {
-        if (controlSummary.source == RemoteControlSource.NONE && readyAccount == null) {
+        if (showsWelcome) {
             // The compact signed-out welcome surface owns the full window,
             // including the gesture/navigation area. Keeping it outside the
             // Scaffold prevents Scaffold's content insets from leaving a
             // platform-colored strip below the welcome dock.
             WelcomeHome(
                 signedIn = false,
+                onOpenSidebar = { compactDrawerOpen = true },
                 onLogin = { shell.openAccount(signedIn = false) },
                 modifier = Modifier.fillMaxSize(),
             )
@@ -468,6 +480,7 @@ internal fun MobileScreen(onAccountRestored: (Boolean) -> Unit = {}) {
                     MobileSurface.REMOTE -> when (controlSummary.source) {
                         RemoteControlSource.ACCOUNT_DEVICE -> AccountRemoteScreen(
                             remoteState = accountRemoteState,
+                            commandPalette = accountCommandPalette,
                             workspaceState = accountWorkspaceState,
                             deviceId = readyAccount?.selectedDeviceId.orEmpty(),
                             deviceName = controlSummary.desktopName,
@@ -477,6 +490,7 @@ internal fun MobileScreen(onAccountRestored: (Boolean) -> Unit = {}) {
                                     name = device.displayName,
                                     online = device.online,
                                     selected = device.id == readyAccount?.selectedDeviceId,
+                                    controllable = device.controllable,
                                 )
                             },
                             accountUsername = readyAccount?.username.orEmpty(),
@@ -517,6 +531,7 @@ internal fun MobileScreen(onAccountRestored: (Boolean) -> Unit = {}) {
                             )
                         } else WelcomeHome(
                             signedIn = readyAccount != null,
+                            onOpenSidebar = { compactDrawerOpen = true },
                             onLogin = {
                                 if (readyAccount != null) shell.openRemoteConnect() else shell.openAccount(signedIn = false)
                             },
@@ -631,68 +646,123 @@ internal fun MobileScreen(onAccountRestored: (Boolean) -> Unit = {}) {
         accountViewModel.dispatch(AccountIntent.Logout)
         shell.dismissSettings()
     }
-    val settingsContent: @Composable (Modifier) -> Unit = { contentModifier ->
-        SettingsScreen(
-            modifier = contentModifier,
-            account = readyAccount,
-            summary = controlSummary,
-            // The permission mode belongs to the desktop the summary named, so
-            // it has to be asked of that desktop's store — asking another would
-            // answer for a connection this page is not describing.
-            remoteState = activeRemoteState,
-            onSessionIntent = ::dispatchActiveSession,
-            onClose = shell::dismissSettings,
-            onSignIn = signInFromSettings,
-            onRefreshDevices = refreshAccountDevices,
-            onSelectDevice = selectAccountDevice,
-            onSignOut = signOutFromSettings,
-            onDisconnect = { accountViewModel.disconnectDevice() },
-            onReconnect = {
-                // A device is asked for again, which is the same command its
-                // row in the account sends. Nothing re-pairs behind the user's
-                // back.
-                when (controlSummary.source) {
-                    RemoteControlSource.ACCOUNT_DEVICE -> {
-                        val deviceId = readyAccount?.selectedDeviceId
-                        if (deviceId != null) {
-                            accountViewModel.selectDevice(deviceId)
-                        }
-                    }
 
-                    RemoteControlSource.NONE -> Unit
-                }
-            },
-        )
-    }
-
-    // The connect sheet is the account's device picker and nothing else; a
-    // signed-out user is sent to login by every entry point instead.
     val connectAccount = readyAccount
+    var connectingDeviceId by rememberSaveable { mutableStateOf<String?>(null) }
+    var previousConnectedDeviceId by rememberSaveable { mutableStateOf<String?>(null) }
+    var connectFailed by rememberSaveable { mutableStateOf(false) }
+    val connectVisible = shell.remoteConnectOpen && connectAccount != null
+    val finishDeviceConnection: () -> Unit = {
+        shell.closeRemoteConnect()
+        shell.closeRemoteSession()
+        shell.show(MobileSurface.REMOTE)
+    }
+    LaunchedEffect(connectVisible) {
+        if (connectVisible) {
+            connectFailed = false
+            refreshAccountDevices()
+        }
+    }
+    val pendingDeviceIncompatible = connectAccount?.devices?.any {
+        it.id == connectingDeviceId && !it.controllable
+    } == true
+    LaunchedEffect(connectingDeviceId, connectAccount?.selectedDeviceId, accountPhase, pendingDeviceIncompatible) {
+        val pending = connectingDeviceId ?: return@LaunchedEffect
+        if (connectAccount?.selectedDeviceId != pending) {
+            connectingDeviceId = null
+            previousConnectedDeviceId = null
+            return@LaunchedEffect
+        }
+        when {
+            accountPhase == ConnectionPhase.CONNECTED && !pendingDeviceIncompatible -> {
+                connectingDeviceId = null
+                previousConnectedDeviceId = null
+                finishDeviceConnection()
+            }
+            pendingDeviceIncompatible || accountPhase == ConnectionPhase.FAILED || accountPhase == ConnectionPhase.DISCONNECTED -> {
+                connectFailed = true
+                connectingDeviceId = null
+                val previous = previousConnectedDeviceId
+                previousConnectedDeviceId = null
+                if (previous != null && connectAccount.devices.any { it.id == previous && it.online && it.controllable }) {
+                    accountViewModel.selectDevice(previous)
+                }
+            }
+            else -> Unit
+        }
+    }
     AdaptiveModalSurface(
-        visible = shell.remoteConnectOpen && connectAccount != null,
+        visible = connectVisible,
         edgeToEdgeContent = true,
         placement = connectPlacement,
         onDismissRequest = shell::closeRemoteConnect,
+        connectChrome = true,
     ) { sheetModifier ->
         if (connectAccount != null) {
             ConnectAccountDeviceScreen(
                 state = connectAccount,
                 onBack = shell::closeRemoteConnect,
-                onRefresh = { accountViewModel.dispatch(AccountIntent.RefreshDevices) },
-                onSelect = { shell.closeRemoteConnect(); accountViewModel.selectDevice(it) },
+                onRefresh = { connectFailed = false; refreshAccountDevices() },
+                onSelect = { id ->
+                    if (connectingDeviceId == null) {
+                        val previous = connectAccount.selectedDeviceId.takeIf { accountPhase == ConnectionPhase.CONNECTED }
+                        if (id == previous) {
+                            finishDeviceConnection()
+                        } else {
+                            connectFailed = false
+                            previousConnectedDeviceId = previous
+                            connectingDeviceId = id
+                            accountViewModel.selectDevice(id)
+                        }
+                    }
+                },
                 modifier = sheetModifier,
+                connected = accountPhase == ConnectionPhase.CONNECTED,
+                switchingDeviceId = connectingDeviceId,
+                connectionFailed = connectFailed,
+                bottomInset = if (connectPlacement.mode == SettingsPlacementMode.BOTTOM) {
+                    WindowInsets.navigationBars.asPaddingValues().calculateBottomPadding()
+                } else 0.dp,
             )
         }
     }
-    AdaptiveModalSurface(
+    SettingsScreen(
         visible = shell.showSettings,
         placement = settingsPlacement,
-        onDismissRequest = shell::dismissSettings,
-        // The settings body is one long scroll, so a pull-down has to scroll it
-        // rather than drag the page away. The page closes through its own close
-        // button, the back action, and a tap on the scrim.
-        draggable = false,
-        content = settingsContent,
+        account = readyAccount,
+        summary = controlSummary,
+        // The permission mode belongs to the desktop the summary named, so
+        // it has to be asked of that desktop's store — asking another would
+        // answer for a connection this page is not describing.
+        remoteState = activeRemoteState,
+        onSessionIntent = ::dispatchActiveSession,
+        deviceModels = accountDeviceModels,
+        onDeviceModelsIntent = accountViewModel::dispatchDeviceModels,
+        onClose = shell::dismissSettings,
+        onSignIn = signInFromSettings,
+        onRefreshDevices = refreshAccountDevices,
+        onSelectDevice = selectAccountDevice,
+        onSignOut = signOutFromSettings,
+        onDisconnect = { accountViewModel.disconnectDevice() },
+        onReconnect = {
+            // A device is asked for again, which is the same command its
+            // row in the account sends. Nothing re-pairs behind the user's
+            // back.
+            when (controlSummary.source) {
+                RemoteControlSource.ACCOUNT_DEVICE -> {
+                    val deviceId = readyAccount?.selectedDeviceId
+                    if (deviceId != null) {
+                        if (readyAccount.devices.any { it.id == deviceId && !it.controllable }) {
+                            refreshAccountDevices()
+                        } else {
+                            accountViewModel.selectDevice(deviceId)
+                        }
+                    }
+                }
+
+                RemoteControlSource.NONE -> Unit
+            }
+        },
     )
     AdaptiveModalSurface(
         visible = shell.showAccount,

@@ -39,17 +39,22 @@ internal fun SidebarDeviceSelectorRow(
     selected: Boolean,
     loading: Boolean,
     phase: ConnectionPhase? = null,
+    controllable: Boolean = true,
     onSelect: () -> Unit,
 ) {
     val deviceLabel = deviceName
-    val healthLabel = phase?.let { stringResource(it.labelRes()) }
+    val healthLabel = if (controllable) phase?.let { stringResource(it.labelRes()) }
+        else stringResource(R.string.account_device_incompatible)
     Row(
         modifier = Modifier
             .fillMaxWidth()
             .height(52.dp)
             .clip(RoundedCornerShape(10.dp))
             .background(if (selected) openBitFunColors.sidebar.selection else openBitFunColors.transparent)
-            .clickable(enabled = online || (selected && phase in listOf(ConnectionPhase.FAILED, ConnectionPhase.DISCONNECTED)), role = Role.Button, onClick = onSelect)
+            .clickable(
+                enabled = controllable && (online || (selected && phase in listOf(ConnectionPhase.FAILED, ConnectionPhase.DISCONNECTED))),
+                role = Role.Button, onClick = onSelect,
+            )
             .semantics(mergeDescendants = true) {
                 this.selected = selected
                 contentDescription = deviceLabel
@@ -81,7 +86,12 @@ internal fun SidebarDeviceSelectorRow(
                 modifier = Modifier.size(14.dp),
             )
         } else {
-            ConnectionDot(phase ?: if (online) ConnectionPhase.CONNECTED else ConnectionPhase.DISCONNECTED)
+            ConnectionDot(when {
+                !controllable -> ConnectionPhase.FAILED
+                phase != null -> phase
+                online -> ConnectionPhase.CONNECTED
+                else -> ConnectionPhase.DISCONNECTED
+            })
         }
     }
 }

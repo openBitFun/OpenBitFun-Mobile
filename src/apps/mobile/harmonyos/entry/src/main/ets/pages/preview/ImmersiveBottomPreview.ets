@@ -337,7 +337,10 @@ export struct ImmersiveBottomPreview {
    * its filters are what scroll in it.
    */
   private seedRemoteState(scenarioId: string): void {
-    if (this.settings || (scenarioId.endsWith('-connect') && AppStorage.get<string>('previewOption') === 'account')) {
+    const previewOption = AppStorage.get<string>('previewOption');
+    const connectAccount = scenarioId.endsWith('-connect') &&
+      (previewOption === 'account' || previewOption === 'account-incompatible');
+    if (this.settings || connectAccount) {
       this.remotePageState.setAccountUserId('octocat');
       this.remotePageState.setAccountUsername('octocat');
       this.remotePageState.setControlTarget('account_device', 'account-desktop-1', 'Account desktop 1');
@@ -349,6 +352,7 @@ export struct ImmersiveBottomPreview {
       // advertises the command and the sheet shows the entry it really shows.
       this.remotePageState.setHostCapabilities([REMOTE_CAPABILITY_DEVICE_MODEL_DEFAULTS_V1]);
       const devices = settingsDevices();
+      if (connectAccount && previewOption === 'account-incompatible') devices[4].compatible = false;
       this.directoryState.replace(devices);
       this.previewActions = previewActionsWithDevices(devices);
       return;

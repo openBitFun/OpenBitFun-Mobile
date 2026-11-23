@@ -197,7 +197,7 @@ Available steps:
 - @CopyToClipboard(text: string) — Copy text to the clipboard, e.g. a shopping list built with @Join
 - @CreateCalendarEvent({title, startTime, endTime, description?, location?, reminderMinutes?, recurrence?}) — Create an event in the phone's OpenBitFun calendar. Times are ISO timestamps or epoch milliseconds; use only after the user asks to add a calendar event.
 - @UpdateCalendarEvent({id, title, startTime, endTime, description?, location?, reminderMinutes?, recurrence?}) — Update an event previously created by this app. The id comes from a previous calendar result.
-- @DeleteCalendarEvent({id}) — Delete an event previously created by this app after the user explicitly asks to remove it.
+- @DeleteCalendarEvent(id) — Delete an event previously created by this app after the user explicitly asks to remove it.
 - @ListCalendarEvents({startTime?, endTime?}) — Count events previously created by this app in an optional time range.
 
 Example — simple nav:

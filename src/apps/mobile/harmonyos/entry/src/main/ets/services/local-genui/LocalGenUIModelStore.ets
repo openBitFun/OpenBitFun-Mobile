@@ -3,6 +3,7 @@ import { huks } from '@kit.UniversalKeystoreKit';
 import { util } from '@kit.ArkTS';
 import { Encoding } from '../Encoding';
 import { OhosError } from '../OhosError';
+import { RemoteLogger } from '../RemoteLogger';
 import { RemoteI18n } from '../../i18n/RemoteI18n';
 import { GeneralChatConfigStore } from '../general-chat/GeneralChatConfigStore';
 import { LocalGenUIModelCatalog, LocalGenUIModelProfile } from './LocalGenUIModelCatalog';
@@ -13,6 +14,12 @@ const LAST_SELECTED_KEY: string = 'last_selected_model_id';
 const IMPORTED_KEY: string = 'imported_general_chat_config';
 const HUKS_ALIAS: string = 'openbitfun_local_genui_model_keys';
 
+function isUnavailableHuksKeyError(err: Object): boolean {
+  const message = OhosError.reason(err).toLowerCase();
+  return message.indexOf('12000011') >= 0 || message.indexOf('-13') >= 0 ||
+    message.indexOf('entity does not exist') >= 0 || message.indexOf('does not exist') >= 0;
+}
+
 /** Stored row. Unknown fields written by newer builds are preserved. */
 interface StoredModel {
   id: string;
@@ -20,8 +27,11 @@ interface StoredModel {
   apiUrl: string;
   modelName: string;
   createdAt: string;
-  keyCipher: string;
-  keyIv: string;
+  /** New records keep the user-provided key in app-private Preferences. */
+  apiKey?: string;
+  /** Legacy HUKS fields are read once and migrated when possible. */
+  keyCipher?: string;
+  keyIv?: string;
 }
 
 export interface LocalGenUIModelUpdate {
@@ -41,13 +51,15 @@ export interface LocalGenUIModelCredentials {
 }
 
 /**
- * Model profiles for Local GenUI Mode only. Keys never leave the phone and are
- * encrypted with a HUKS AES key. The legacy single General Chat configuration
- * is imported once as the first profile and left untouched.
+ * Model profiles for Local GenUI Mode only. Keys stay in the app-private
+ * Preferences store. Legacy HUKS-encrypted keys are migrated on first use.
+ * The legacy single General Chat configuration is imported once as the first
+ * profile and left untouched.
  */
 export class LocalGenUIModelStore {
   private store?: preferences.Preferences;
   private models: StoredModel[] = [];
+  private keyMigrationWork?: Promise<void>;
 
   async init(context: Context, legacy: GeneralChatConfigStore): Promise<void> {
     try {
@@ -69,7 +81,7 @@ export class LocalGenUIModelStore {
 
   hasKey(id: string): boolean {
     const model = this.models.find((item: StoredModel) => item.id === id);
-    return model !== undefined && model.keyCipher.length > 0 && model.keyIv.length > 0;
+    return model !== undefined && this.hasCredential(model);
   }
 
   async lastSelectedId(): Promise<string> {
@@ -84,21 +96,21 @@ export class LocalGenUIModelStore {
   async save(update: LocalGenUIModelUpdate): Promise<LocalGenUIModelProfile> {
     const existing = this.models.find((item: StoredModel) => item.id === update.id);
     const error = LocalGenUIModelCatalog.validate(update.apiUrl, update.modelName, update.apiKey,
-      existing !== undefined && existing.keyCipher.length > 0);
+      existing !== undefined && this.hasCredential(existing));
     if (error.length > 0) {
       throw new Error(RemoteI18n.t(error));
     }
     const row: StoredModel = existing ? JSON.parse(JSON.stringify(existing)) as StoredModel : {
       id: `model-${util.generateRandomUUID(false)}`,
-      name: '', apiUrl: '', modelName: '', createdAt: new Date().toISOString(), keyCipher: '', keyIv: ''
+      name: '', apiUrl: '', modelName: '', createdAt: new Date().toISOString(), apiKey: ''
     };
     row.name = update.name.trim();
     row.apiUrl = LocalGenUIModelCatalog.normalizeUrl(update.apiUrl);
     row.modelName = update.modelName.trim();
     if (update.apiKey.trim().length > 0) {
-      const encrypted = await this.encrypt(update.apiKey.trim());
-      row.keyCipher = encrypted[0];
-      row.keyIv = encrypted[1];
+      row.apiKey = update.apiKey.trim();
+      row.keyCipher = '';
+      row.keyIv = '';
     }
     const next = this.models.filter((item: StoredModel) => item.id !== row.id);
     next.push(row);
@@ -120,10 +132,34 @@ export class LocalGenUIModelStore {
 
   async credentials(id: string): Promise<LocalGenUIModelCredentials | undefined> {
     const model = this.models.find((item: StoredModel) => item.id === id);
-    if (!model || model.keyCipher.length === 0) {
+    if (!model) {
       return undefined;
     }
-    return { apiUrl: model.apiUrl, modelName: model.modelName, apiKey: await this.decrypt(model.keyCipher, model.keyIv) };
+    const apiKey = model.apiKey || '';
+    if (apiKey.length > 0) {
+      return { apiUrl: model.apiUrl, modelName: model.modelName, apiKey };
+    }
+    const cipher = model.keyCipher || '';
+    const iv = model.keyIv || '';
+    if (cipher.length === 0 || iv.length === 0) return undefined;
+    try {
+      const legacyKey = await this.decrypt(cipher, iv);
+      const migrated = JSON.parse(JSON.stringify(model)) as StoredModel;
+      migrated.apiKey = legacyKey;
+      migrated.keyCipher = '';
+      migrated.keyIv = '';
+      await this.persist(this.models.map((item: StoredModel): StoredModel => item.id === migrated.id ? migrated : item));
+      return { apiUrl: migrated.apiUrl, modelName: migrated.modelName, apiKey: legacyKey };
+    } catch (err) {
+      if (!isUnavailableHuksKeyError(err)) {
+        throw err instanceof Error ? err : new Error(OhosError.reason(err));
+      }
+      // A new application signature can make the old HUKS alias unavailable.
+      // The API keys cannot be recovered, but model metadata remains useful.
+      RemoteLogger.warn('local genui HUKS key unavailable; clearing encrypted model keys');
+      await this.clearLegacyEncryptedKeysAfterHuksKeyLoss();
+      return undefined;
+    }
   }
 
   private async importLegacy(legacy: GeneralChatConfigStore): Promise<void> {
@@ -157,22 +193,6 @@ export class LocalGenUIModelStore {
     }
   }
 
-  private async encrypt(apiKey: string): Promise<string[]> {
-    try {
-      await this.ensureKey();
-      const iv = Encoding.randomBytes(16);
-      const options = LocalGenUIModelStore.options(huks.HuksKeyPurpose.HUKS_KEY_PURPOSE_ENCRYPT, iv);
-      const session = await huks.initSession(HUKS_ALIAS, options);
-      const result = await huks.finishSession(session.handle, { properties: options.properties, inData: Encoding.utf8ToBytes(apiKey) });
-      if (!result.outData || result.outData.length === 0) {
-        throw new Error(RemoteI18n.t('settings.modelService.encryptFailed'));
-      }
-      return [Encoding.bytesToBase64(result.outData), Encoding.bytesToBase64(iv)];
-    } catch (err) {
-      throw OhosError.wrap('local genui encrypt model key', err);
-    }
-  }
-
   private async decrypt(cipher: string, ivText: string): Promise<string> {
     try {
       const options = LocalGenUIModelStore.options(huks.HuksKeyPurpose.HUKS_KEY_PURPOSE_DECRYPT, Encoding.base64ToBytes(ivText));
@@ -184,25 +204,29 @@ export class LocalGenUIModelStore {
     }
   }
 
-  private async ensureKey(): Promise<void> {
-    let exists = false;
+  private async clearLegacyEncryptedKeysAfterHuksKeyLoss(): Promise<void> {
+    if (!this.keyMigrationWork) {
+      this.keyMigrationWork = this.rotateEncryptedKeysAfterHuksKeyLoss();
+    }
     try {
-      exists = await huks.isKeyItemExist(HUKS_ALIAS, {});
-    } catch (_err) {
-      exists = false;
+      await this.keyMigrationWork;
+    } finally {
+      this.keyMigrationWork = undefined;
     }
-    if (exists) {
-      return;
-    }
-    await huks.generateKeyItem(HUKS_ALIAS, {
-      properties: [
-        { tag: huks.HuksTag.HUKS_TAG_ALGORITHM, value: huks.HuksKeyAlg.HUKS_ALG_AES },
-        { tag: huks.HuksTag.HUKS_TAG_KEY_SIZE, value: huks.HuksKeySize.HUKS_AES_KEY_SIZE_256 },
-        { tag: huks.HuksTag.HUKS_TAG_PURPOSE, value: huks.HuksKeyPurpose.HUKS_KEY_PURPOSE_ENCRYPT | huks.HuksKeyPurpose.HUKS_KEY_PURPOSE_DECRYPT },
-        { tag: huks.HuksTag.HUKS_TAG_BLOCK_MODE, value: huks.HuksCipherMode.HUKS_MODE_CBC },
-        { tag: huks.HuksTag.HUKS_TAG_PADDING, value: huks.HuksKeyPadding.HUKS_PADDING_PKCS7 }
-      ]
+  }
+
+  private async rotateEncryptedKeysAfterHuksKeyLoss(): Promise<void> {
+    const reset = this.models.map((model: StoredModel): StoredModel => {
+      const next = JSON.parse(JSON.stringify(model)) as StoredModel;
+      next.keyCipher = '';
+      next.keyIv = '';
+      return next;
     });
+    await this.persist(reset);
+  }
+
+  private hasCredential(model: StoredModel): boolean {
+    return (model.apiKey || '').length > 0 || ((model.keyCipher || '').length > 0 && (model.keyIv || '').length > 0);
   }
 
   private static options(purpose: huks.HuksKeyPurpose, iv: Uint8Array): huks.HuksOptions {

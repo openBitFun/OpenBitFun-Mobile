@@ -57,6 +57,34 @@ struct ComposerBar: View {
 
     var body: some View {
         VStack(spacing: 0) {
+            if model.surface == .remote && model.remoteSessionSelected && model.remoteOpenedSessionID != nil {
+                CommandPaletteRow(model: model)
+            }
+            if let rollback = model.rollbackDraft {
+                HStack(spacing: 8) {
+                    Text(model.localized("回退到"))
+                        .font(MobileDesignTypography.bodySmall.font)
+                        .fontWeight(.medium)
+                    Text(rollback.preview)
+                        .font(MobileDesignTypography.bodySmall.font)
+                        .foregroundStyle(OpenBitFunTheme.muted)
+                        .lineLimit(1)
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                    Button { model.confirmRollback() } label: {
+                        Text("↶").font(.title3)
+                    }
+                    .accessibilityLabel(model.localized("回退到此消息"))
+                    Button { model.closeRollback() } label: {
+                        Text("×").font(.title3)
+                    }
+                    .accessibilityLabel(model.localized("关闭"))
+                }
+                .padding(.horizontal, 12)
+                .frame(minHeight: 48)
+                .background(OpenBitFunTheme.soft, in: RoundedRectangle(cornerRadius: 16))
+                .padding(.horizontal, MobileDesignGeometry.conversationOverlaySideInset)
+                .padding(.top, 6)
+            }
             if let suggestion = model.visiblePromptSuggestion, !speech.isListening {
                 Button {
                     if model.acceptPromptSuggestion(suggestion) {
@@ -82,6 +110,9 @@ struct ComposerBar: View {
 
     private var composerBody: some View {
         VStack(spacing: 2) {
+            if !model.commandPalette.skillLabel.isEmpty {
+                skillTokenStrip
+            }
             if !model.composerImages.isEmpty {
                 attachmentStrip
             }
@@ -106,6 +137,7 @@ struct ComposerBar: View {
         .overlay(
             RoundedRectangle(
                 cornerRadius: expanded || !model.composerImages.isEmpty
+                    || !model.commandPalette.skillLabel.isEmpty
                     ? MobileDesignGeometry.composerExpandedRadius
                     : MobileDesignGeometry.composerCollapsedRadius
             )
@@ -114,6 +146,7 @@ struct ComposerBar: View {
         .clipShape(
             RoundedRectangle(
                 cornerRadius: expanded || !model.composerImages.isEmpty
+                    || !model.commandPalette.skillLabel.isEmpty
                     ? MobileDesignGeometry.composerExpandedRadius
                     : MobileDesignGeometry.composerCollapsedRadius
             )
@@ -124,6 +157,7 @@ struct ComposerBar: View {
         .padding(.bottom, 14)
         .animation(.easeOut(duration: 0.22), value: expanded)
         .animation(.easeOut(duration: 0.18), value: model.composerImages.count)
+        .animation(.easeOut(duration: 0.18), value: model.commandPalette.skillLabel)
         .photosPicker(isPresented: $photoPickerOpen, selection: $pickerItems,
             maxSelectionCount: max(1, 4 - model.composerImages.count), matching: .images)
         .onChange(of: focused) { value in
@@ -197,6 +231,35 @@ struct ComposerBar: View {
                 .presentationDetents([.height(modelSelectorHeight(asSheet: true))])
                 .presentationDragIndicator(.visible)
         }
+    }
+
+    private var skillTokenStrip: some View {
+        HStack(spacing: 5) {
+            Button {
+                model.clearCommandPaletteSkill()
+            } label: {
+                HStack(spacing: 5) {
+                    Image(systemName: "wrench.and.screwdriver")
+                        .font(.system(size: 12, weight: .medium))
+                    Text("[$\(model.commandPalette.skillLabel)]")
+                        .font(MobileDesignTypography.labelSmall.font.weight(.medium))
+                        .lineLimit(1)
+                    Image(systemName: "xmark")
+                        .font(.system(size: 10, weight: .semibold))
+                }
+                .foregroundStyle(OpenBitFunTheme.ink)
+                .padding(.horizontal, 9)
+                .frame(minHeight: 28)
+                .background(OpenBitFunTheme.soft, in: Capsule())
+            }
+            .buttonStyle(.plain)
+            .disabled(model.busy)
+            .accessibilityLabel(model.localized("移除技能"))
+            Spacer(minLength: 0)
+        }
+        .padding(.horizontal, 4)
+        .padding(.top, 4)
+        .frame(minHeight: 28)
     }
 
     /// Keep the same TextField instance alive while focus expands the composer.
