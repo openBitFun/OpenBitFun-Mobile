@@ -40,6 +40,7 @@ export class AppRootRuntime extends AppRootRuntimeComposition {
 
   constructor(host: AppRootHostPort) {
     super(host);
+    this.localGenUIViewModel.setBackgroundKeepAlive(this.localGenUIBackgroundPort);
   }
 
   subscribeToDesktopLaunch(onLaunch: () => void): void {

@@ -34,6 +34,7 @@ import {
   LocalGenUIPresentationSource,
   LocalGenUISessionController
 } from '../../services/local-genui/LocalGenUISessionController';
+import { LocalGenUIBackgroundKeepAlive } from '../../services/local-genui/LocalGenUIBackgroundKeepAlive';
 import { LocalGenUIActions, LocalGenUIModelEditorInput, LocalGenUIState } from '../state/LocalGenUIState';
 import { ConversationIntent, ConversationIntentType, MessageCopyScope } from '../actions/ConversationIntent';
 import { ConversationViewModel } from './ConversationViewModel';
@@ -70,6 +71,7 @@ export class LocalGenUIViewModel implements LocalGenUIControllerListener, LocalG
   private showActiveTurn: boolean = true;
   private readonly orientation: LocalGenUIOrientation;
   private preferredOrientation: string = 'auto';
+  private backgroundKeepAlive?: LocalGenUIBackgroundKeepAlive;
 
   readonly actions: LocalGenUIActions = {
     open: (): void => {
@@ -229,7 +231,17 @@ export class LocalGenUIViewModel implements LocalGenUIControllerListener, LocalG
   /** The phone app went to the background or came back. */
   setForeground(foreground: boolean): void {
     this.foreground = foreground;
+    if (foreground) {
+      this.controller?.onForeground();
+    } else {
+      this.controller?.onBackground();
+    }
     this.syncDeviceVisibility();
+  }
+
+  setBackgroundKeepAlive(backgroundKeepAlive: LocalGenUIBackgroundKeepAlive): void {
+    this.backgroundKeepAlive = backgroundKeepAlive;
+    this.controller?.setBackgroundKeepAlive(backgroundKeepAlive);
   }
 
   /** Camera surface from the preview leaf; recognition starts once it exists. */
@@ -604,6 +616,9 @@ export class LocalGenUIViewModel implements LocalGenUIControllerListener, LocalG
       this.devices = devices;
       this.syncDeviceVisibility();
       this.controller = new LocalGenUISessionController(repository, provider, contract, this.bridge, this, this, models, thumbnails, devices, desktopCards, calendar, collaboration, photos);
+      if (this.backgroundKeepAlive) {
+        this.controller.setBackgroundKeepAlive(this.backgroundKeepAlive);
+      }
       await this.controller.refreshModels();
       RemoteLogger.info(`local genui ready renderer=${contract.manifest.rendererRevision} models=${models.list().length}`);
     } finally {

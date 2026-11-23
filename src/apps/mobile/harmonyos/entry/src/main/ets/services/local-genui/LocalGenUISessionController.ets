@@ -38,6 +38,7 @@ import { LocalProviderFrame } from './LocalProviderSseParser';
 import { LocalGenUIModelStore, LocalGenUIModelUpdate } from './LocalGenUIModelStore';
 import { LocalGenUIImageSearch } from './LocalGenUIImageSearch';
 import { LocalGenUIModelCatalog, LocalGenUIModelChoice, LocalGenUIModelProfile } from './LocalGenUIModelCatalog';
+import { LocalGenUIBackgroundKeepAlive } from './LocalGenUIBackgroundKeepAlive';
 
 /** Projection of one app for the presentation layer. */
 export interface LocalGenUIAppView {
@@ -137,6 +138,9 @@ export class LocalGenUISessionController {
   private readonly collaboration: LocalGenUICollaborationHost;
   private readonly calendarActions: LocalGenUICalendarActions;
   private readonly desktopCards: LocalGenUIDesktopCardStore;
+  private backgroundKeepAlive?: LocalGenUIBackgroundKeepAlive;
+  private backgrounded: boolean = false;
+  private backgroundKeepAliveActive: boolean = false;
   private activeSessionId: string = '';
   private activeSession?: LocalGenUISession;
   /** Model for the next new session; follows the last explicit choice. */
@@ -162,9 +166,11 @@ export class LocalGenUISessionController {
     desktopCards: LocalGenUIDesktopCardStore,
     calendar: HarmonyCalendarService,
     collaboration: LocalGenUICollaborationHost,
-    imageSearch?: LocalGenUIImageSearch
+    imageSearch?: LocalGenUIImageSearch,
+    backgroundKeepAlive?: LocalGenUIBackgroundKeepAlive
   ) {
     this.imageSearch = imageSearch;
+    this.backgroundKeepAlive = backgroundKeepAlive;
     this.devices = devices;
     this.calendar = calendar;
     this.collaboration = collaboration;
@@ -234,6 +240,46 @@ export class LocalGenUISessionController {
 
   isTurnActive(): boolean {
     return this.turnActive;
+  }
+
+  setBackgroundKeepAlive(backgroundKeepAlive: LocalGenUIBackgroundKeepAlive): void {
+    this.backgroundKeepAlive = backgroundKeepAlive;
+  }
+
+  /** Preserve the direct provider stream while Harmony suspends the UI ability. */
+  onBackground(): void {
+    this.backgrounded = true;
+    this.ensureBackgroundKeepAlive();
+  }
+
+  /** Release the temporary background lease after the page is visible again. */
+  onForeground(): void {
+    this.backgrounded = false;
+    this.releaseBackgroundKeepAlive();
+  }
+
+  private ensureBackgroundKeepAlive(): void {
+    if (!this.backgrounded || !this.turnActive || this.backgroundKeepAliveActive || !this.backgroundKeepAlive) {
+      return;
+    }
+    const keptAlive = this.backgroundKeepAlive.keepAlive((): void => {
+      this.backgroundKeepAliveActive = false;
+      if (this.backgrounded && this.turnActive) {
+        RemoteLogger.warn('local genui background keep-alive expired; cancelling provider turn');
+        this.cancel();
+      }
+    });
+    this.backgroundKeepAliveActive = keptAlive;
+    RemoteLogger.info(`local genui background keep-alive ${keptAlive ? 'started' : 'unavailable'}`);
+  }
+
+  private releaseBackgroundKeepAlive(): void {
+    if (!this.backgroundKeepAliveActive || !this.backgroundKeepAlive) {
+      return;
+    }
+    this.backgroundKeepAliveActive = false;
+    this.backgroundKeepAlive.releaseKeepAlive();
+    RemoteLogger.info('local genui background keep-alive released');
   }
 
   async refreshSessions(): Promise<void> {
@@ -602,6 +648,7 @@ export class LocalGenUISessionController {
     const modelId = choice.model.id;
     this.turnActive = true;
     const serial = ++this.turnSerial;
+    this.ensureBackgroundKeepAlive();
     const internalRepair = repairMessageId.length > 0;
     this.listener.busyChanged(true, serial, !internalRepair);
     composer?.onAccepted();
@@ -639,6 +686,7 @@ export class LocalGenUISessionController {
       this.listener.notice(String(err instanceof Error ? err.message : err));
     } finally {
       this.turnActive = false;
+      this.releaseBackgroundKeepAlive();
       this.listener.busyChanged(false, serial, !internalRepair);
     }
     const repair = this.pendingRepair;

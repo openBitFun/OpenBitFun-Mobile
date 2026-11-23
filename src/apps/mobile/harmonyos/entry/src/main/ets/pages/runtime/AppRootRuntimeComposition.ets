@@ -162,6 +162,9 @@ export abstract class AppRootRuntimeComposition {
   readonly localGenUIViewModel: LocalGenUIViewModel = new LocalGenUIViewModel((): Context => this.host.context());
   readonly taskCompletionNotificationPort: HarmonyTaskCompletionNotificationPort =
     new HarmonyTaskCompletionNotificationPort((): Context => this.host.context());
+  /** Separate suspend-delay lease so local GenUI never cancels remote task observation. */
+  readonly localGenUIBackgroundPort: HarmonyTaskCompletionNotificationPort =
+    new HarmonyTaskCompletionNotificationPort((): Context => this.host.context());
   readonly taskCompletionNotificationController: TaskCompletionNotificationController =
     new TaskCompletionNotificationController(
       this.taskCompletionNotificationPort,

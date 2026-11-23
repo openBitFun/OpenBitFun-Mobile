@@ -4,6 +4,7 @@ import { backgroundTaskManager } from '@kit.BackgroundTasksKit';
 import { notificationManager } from '@kit.NotificationKit';
 import { RemoteI18n } from '../i18n/RemoteI18n';
 import { RemoteLogger } from './RemoteLogger';
+import { LocalGenUIBackgroundKeepAlive } from './local-genui/LocalGenUIBackgroundKeepAlive';
 import {
   TaskCompletionNotificationPort,
   TaskCompletionObservation
@@ -12,7 +13,7 @@ import {
 const BACKGROUND_REASON: string = 'Waiting for an active OpenBitFun task to finish';
 
 /** HarmonyOS platform leaf for task-completion notifications. */
-export class HarmonyTaskCompletionNotificationPort implements TaskCompletionNotificationPort {
+export class HarmonyTaskCompletionNotificationPort implements TaskCompletionNotificationPort, LocalGenUIBackgroundKeepAlive {
   private readonly contextProvider: () => Context;
   private permissionPrepared: boolean = false;
   private suspendRequestId: number = 0;
