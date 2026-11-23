@@ -26,6 +26,7 @@ export function HtmlSandboxFrame({ html, height, title }: { html: string; height
   const frame = useRef<HTMLIFrameElement>(null);
   const scheme = useColorScheme(frame);
   const srcDoc = useMemo(() => documentFor(html, scheme), [html, scheme]);
+  const gameInput = useMemo(() => /data-openbitfun-game|<canvas(?:\s|>)/i.test(html), [html]);
 
   useEffect(() => {
     const onMessage = (event: MessageEvent) => {
@@ -49,7 +50,7 @@ export function HtmlSandboxFrame({ html, height, title }: { html: string; height
       ref={frame}
       className="gen-ui-oi-html"
       title={title}
-      style={{ height }}
+      style={{ height, touchAction: gameInput ? "none" : "auto" }}
       sandbox="allow-scripts"
       src={SANDBOX_URL}
       referrerPolicy="no-referrer"

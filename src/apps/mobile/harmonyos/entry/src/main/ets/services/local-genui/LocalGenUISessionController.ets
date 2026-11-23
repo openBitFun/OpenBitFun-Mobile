@@ -56,7 +56,7 @@ export interface LocalGenUIControllerListener {
   messagesChanged(sessionId: string, messages: LocalGenUIMessage[]): void;
   streamingText(sessionId: string, text: string): void;
   appChanged(app: LocalGenUIAppView | undefined): void;
-  busyChanged(busy: boolean, turnSerial: number): void;
+  busyChanged(busy: boolean, turnSerial: number, showInTimeline?: boolean): void;
   notice(text: string): void;
   /** Models plus the model the current (or next new) session uses. */
   modelsChanged(models: LocalGenUIModelProfile[], currentId: string, missing: boolean): void;
@@ -104,6 +104,7 @@ interface LocalGenUIPendingRepair {
   base: string;
   appId: string;
   prompt: string;
+  messageId: string;
 }
 
 class TurnSink implements LocalGenUIFrameSink {
@@ -584,7 +585,7 @@ export class LocalGenUISessionController {
    * `repairBase` is the failed source a repair patch applies to.
    */
   async send(text: string, targetAppId: string = '', modelPrompt: string = '', repairBase: string = '',
-    composer?: LocalGenUIComposerSend): Promise<void> {
+    composer?: LocalGenUIComposerSend, repairMessageId: string = ''): Promise<void> {
     const prompt = text.trim();
     if (prompt.length === 0 || this.turnActive) {
       return;
@@ -601,16 +602,33 @@ export class LocalGenUISessionController {
     const modelId = choice.model.id;
     this.turnActive = true;
     const serial = ++this.turnSerial;
-    this.listener.busyChanged(true, serial);
+    const internalRepair = repairMessageId.length > 0;
+    this.listener.busyChanged(true, serial, !internalRepair);
     composer?.onAccepted();
     try {
       const sessionId = await this.ensureSession(prompt, modelId);
       const now = new Date().toISOString();
-      const userMessage: LocalGenUIMessage = this.message(sessionId, LocalGenUIMessageRole.User, prompt, now);
-      await this.appendMessage(userMessage);
+      if (!internalRepair) {
+        const userMessage: LocalGenUIMessage = this.message(sessionId, LocalGenUIMessageRole.User, prompt, now);
+        await this.appendMessage(userMessage);
+      }
       const target = targetAppId.length > 0 ? await this.repository.loadApp(targetAppId) : undefined;
-      const assistant = this.message(sessionId, LocalGenUIMessageRole.Assistant, '', new Date(Date.now() + 1).toISOString());
-      assistant.status = 'streaming';
+      let assistant: LocalGenUIMessage | undefined = undefined;
+      if (internalRepair) {
+        assistant = this.messages.find((item: LocalGenUIMessage): boolean => item.id === repairMessageId);
+        if (!assistant) {
+          assistant = (await this.repository.loadMessages(sessionId)).find((item: LocalGenUIMessage): boolean => item.id === repairMessageId);
+        }
+      }
+      if (!assistant) {
+        assistant = this.message(sessionId, LocalGenUIMessageRole.Assistant, '', new Date(Date.now() + 1).toISOString());
+        if (internalRepair) assistant.id = repairMessageId;
+      }
+      assistant.status = internalRepair ? 'recovering' : 'streaming';
+      assistant.error = '';
+      if (internalRepair) {
+        await this.appendMessage(assistant);
+      }
       // A change to an existing app is an edit patch over the program it changes:
       // the failed candidate for a repair, the running revision for a follow-up.
       const runnable = target && this.owner.isRunnable(target) ? LocalGenUIOwner.runnableRevision(target) : undefined;
@@ -621,12 +639,12 @@ export class LocalGenUISessionController {
       this.listener.notice(String(err instanceof Error ? err.message : err));
     } finally {
       this.turnActive = false;
-      this.listener.busyChanged(false, serial);
+      this.listener.busyChanged(false, serial, !internalRepair);
     }
     const repair = this.pendingRepair;
     this.pendingRepair = undefined;
     if (repair && serial === this.turnSerial) {
-      await this.send(RemoteI18n.t('localGenui.autoRepair'), repair.appId, repair.prompt, repair.base);
+      await this.send(RemoteI18n.t('localGenui.autoRepair'), repair.appId, repair.prompt, repair.base, undefined, repair.messageId);
     }
   }
 
@@ -647,6 +665,7 @@ export class LocalGenUISessionController {
     });
     let streamingText = '';
     let identity: LocalGenUIIdentity | undefined = undefined;
+    const repairTurn = assistant.status === 'recovering';
     const handle = (events: LocalGenUIEvent[]): void => {
       if (serial !== this.turnSerial) {
         return;
@@ -658,7 +677,7 @@ export class LocalGenUISessionController {
         } else if (event.type === LocalGenUIEventType.GenUIStarted && event.identity) {
           identity = event.identity;
           // An inherited identity edits the target; a new app has no base.
-          this.mountStreaming(event.identity, target, target && event.identity.appId === target.appId ? editBase : '');
+          this.mountStreaming(event.identity, target, target && event.identity.appId === target.appId ? editBase : '', repairTurn);
         } else if (event.type === LocalGenUIEventType.GenUISourceDelta && event.delta) {
           this.bridge.appendSource(event.delta.appId, event.delta.text, event.delta.reset);
         }
@@ -734,13 +753,23 @@ export class LocalGenUISessionController {
     const failedSource = record.sourceContent;
     const verified = await this.verify(record, serial);
     if (serial !== this.turnSerial) return;
-    await this.queueRepair(verified, failedSource);
-    assistant.status = verified.status;
+    const repairQueued = await this.queueRepair(verified, failedSource, assistant);
+    assistant.status = repairQueued ? 'recovering' : verified.status;
+    if (repairQueued) assistant.error = '';
     await this.appendMessage(assistant);
-    await this.openApp(verified.appId);
+    if (repairQueued) {
+      if (LocalGenUIOwner.runnableRevision(verified)) {
+        await this.openApp(verified.appId);
+      }
+      const recovering = this.viewOf(verified, false, '');
+      recovering.status = 'recovering';
+      this.listener.appChanged(recovering);
+    } else {
+      await this.openApp(verified.appId);
+    }
   }
 
-  private async queueRepair(record: LocalGenUIAppRecord, failedSource: string): Promise<void> {
+  private async queueRepair(record: LocalGenUIAppRecord, failedSource: string, assistant: LocalGenUIMessage): Promise<boolean> {
     let verification: LocalGenUIVerification | undefined = undefined;
     try {
       const parsed = JSON.parse(record.verificationJson.length > 0 ? record.verificationJson : '{}') as LocalGenUIVerification;
@@ -749,18 +778,19 @@ export class LocalGenUISessionController {
       verification = undefined;
     }
     if (!verification) {
-      return;
+      return false;
     }
     const repair = nextLocalRepair(record, verification, failedSource);
     if (!repair) {
-      return;
+      return false;
     }
     // Persist the attempt first so a restart cannot repeat the same repair.
     if (!(await this.owner.recordRepairAttempt(record.appId, repair.errorKey))) {
-      return;
+      return false;
     }
     RemoteLogger.info(`local genui automatic repair ${record.appId} attempt ${repair.attempt}`);
-    this.pendingRepair = { appId: record.appId, prompt: repair.prompt, base: failedSource };
+    this.pendingRepair = { appId: record.appId, prompt: repair.prompt, base: failedSource, messageId: assistant.id };
+    return true;
   }
 
   /** Local acceptance: checker-mode probe, owner readback, then live reopen probe. */
@@ -833,7 +863,7 @@ export class LocalGenUISessionController {
     return result;
   }
 
-  private mountStreaming(identity: LocalGenUIIdentity, target: LocalGenUIAppRecord | undefined, base: string): void {
+  private mountStreaming(identity: LocalGenUIIdentity, target: LocalGenUIAppRecord | undefined, base: string, repairing: boolean = false): void {
     this.setMountedApp(identity.appId);
     void this.bridge.mountApp({
       identity, mode: 'live', source: '', streaming: true, base,
@@ -841,7 +871,7 @@ export class LocalGenUISessionController {
       stateRevision: target ? target.stateRevision : 1,
       stateJson: target ? target.stateJson : '{}'
     });
-    this.listener.appChanged({ appId: identity.appId, title: identity.title, status: 'candidate', detail: RemoteI18n.t('localGenui.generating'), unverified: [], sourceRevision: 0, streaming: true });
+    this.listener.appChanged({ appId: identity.appId, title: identity.title, status: repairing ? 'recovering' : 'candidate', detail: RemoteI18n.t('localGenui.generating'), unverified: [], sourceRevision: 0, streaming: true });
   }
 
   private async onRuntimeMessage(message: LocalRuntimeInbound): Promise<void> {

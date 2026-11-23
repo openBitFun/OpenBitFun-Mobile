@@ -130,9 +130,53 @@ test('the standalone Harmony GenUI bundle boots and renders at phone and foldabl
     await game.$eval('button', button => button.click());
     assert.equal(await game.evaluate(() => document.querySelector('canvas').getContext('2d').getImageData(0,0,1,1).data[3]), 255);
 
+    await mountHtml('<div data-openbitfun-game><button data-game-control="move">MOVE</button><button data-game-control="attack">ATTACK</button></div><script>' +
+      'window.held = new Set(); for (const button of document.querySelectorAll("[data-game-control]")) {' +
+      'button.addEventListener("pointerdown", event => { event.preventDefault(); window.held.add(button.dataset.gameControl); });' +
+      'button.addEventListener("pointerup", event => window.held.delete(button.dataset.gameControl));' +
+      'button.addEventListener("pointercancel", event => window.held.delete(button.dataset.gameControl));' +
+      '}</script>', 9.5);
+    const waitForHtmlFrame = async selector => {
+      const deadline = Date.now() + 15000;
+      while (Date.now() < deadline) {
+        for (const frame of page.frames()) {
+          if (frame === page.mainFrame()) continue;
+          try {
+            if (await frame.$(selector)) return frame;
+          } catch {
+            // The sandbox navigates while document.write mounts the next view.
+          }
+        }
+        await new Promise(resolve => setTimeout(resolve, 50));
+      }
+      throw new Error(`Timed out waiting for HtmlView frame selector ${selector}`);
+    };
+    const multitouch = await waitForHtmlFrame('[data-game-control="attack"]');
+
+    const inputState = await multitouch.evaluate(() => {
+      const move = document.querySelector('[data-game-control="move"]');
+      const attack = document.querySelector('[data-game-control="attack"]');
+      move.dispatchEvent(new PointerEvent('pointerdown', { bubbles: true, pointerId: 11, pointerType: 'touch' }));
+      attack.dispatchEvent(new PointerEvent('pointerdown', { bubbles: true, pointerId: 12, pointerType: 'touch' }));
+      const heldTogether = [...window.held].sort();
+      move.dispatchEvent(new PointerEvent('pointerup', { bubbles: true, pointerId: 11, pointerType: 'touch' }));
+      return {
+        heldTogether,
+        heldAfterMoveRelease: [...window.held],
+        gameMarker: document.documentElement.dataset.openbitfunGame,
+        moveTouchAction: getComputedStyle(move).touchAction,
+        activePointers: window.__openbitfunGameInput.activePointerCount(),
+      };
+    });
+    assert.deepEqual(inputState.heldTogether, ['attack', 'move']);
+    assert.deepEqual(inputState.heldAfterMoveRelease, ['attack']);
+    assert.equal(inputState.gameMarker, 'true');
+    assert.equal(inputState.moveTouchAction, 'none');
+    assert.equal(inputState.activePointers, 1);
+    assert.equal(await page.$eval('iframe.gen-ui-oi-html', frame => getComputedStyle(frame).touchAction), 'none');
+
     await mountHtml('<h1>Static chart</h1><div style="height:1600px">Chart details</div>', 10);
-    const chart = await page.waitForFrame(frame => frame.url() === 'about:srcdoc', { timeout: 5000 });
-    await chart.waitForSelector('h1', { timeout: 5000 });
+    const chart = await waitForHtmlFrame('h1');
     assert.equal(await chart.$eval('h1', node => node.textContent), 'Static chart');
     assert.ok(await chart.evaluate(() => { window.scrollTo(0, 80); return window.scrollY > 0; }));
     await mountHtml('<canvas></canvas><script>throw new Error("test game startup failed")</script>', 11);

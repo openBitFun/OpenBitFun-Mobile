@@ -1,9 +1,36 @@
 <!doctype html><meta charset="utf-8"><script>
+const GAME_INPUT_SHIM = '<script>(function(){\n' +
+  'const root=document.documentElement;\n' +
+  'root.dataset.openbitfunGame="true";\n' +
+  'root.style.touchAction="none";\n' +
+  'root.style.overscrollBehavior="none";\n' +
+  'const style=document.createElement("style");\n' +
+  'style.textContent="html[data-openbitfun-game],html[data-openbitfun-game] body,html[data-openbitfun-game] canvas,html[data-openbitfun-game] button,html[data-openbitfun-game] [data-game-control]{touch-action:none;-webkit-user-select:none;user-select:none;-webkit-touch-callout:none}";\n' +
+  '(document.head||root).appendChild(style);\n' +
+  'const pointers=new Map();\n' +
+  'const clearPointer=e=>{if(typeof e.pointerId==="number")pointers.delete(e.pointerId)};\n' +
+  'addEventListener("pointerdown",e=>{if(typeof e.pointerId==="number")pointers.set(e.pointerId,e.target)},{capture:true,passive:false});\n' +
+  'addEventListener("pointerup",clearPointer,{capture:true,passive:true});\n' +
+  'addEventListener("pointercancel",clearPointer,{capture:true,passive:true});\n' +
+  'addEventListener("lostpointercapture",clearPointer,{capture:true,passive:true});\n' +
+  'addEventListener("blur",()=>pointers.clear(),{passive:true});\n' +
+  'window.__openbitfunGameInput={activePointerCount:()=>pointers.size};\n' +
+  '})();<\/script>';
+
+function gameDocument(html) {
+  if (!/data-openbitfun-game|<canvas(?:\s|>)/i.test(html)) return html;
+  const head = /<head(?:\s[^>]*)?>/i.exec(html);
+  if (head) return html.slice(0, head.index + head[0].length) + GAME_INPUT_SHIM + html.slice(head.index + head[0].length);
+  const doctype = /<!doctype[^>]*>/i.exec(html);
+  if (doctype) return html.slice(0, doctype.index + doctype[0].length) + GAME_INPUT_SHIM + html.slice(doctype.index + doctype[0].length);
+  return GAME_INPUT_SHIM + html;
+}
+
 function mount(event) {
   if (event.source !== parent || event.data?.type !== 'html-view-mount' || typeof event.data.html !== 'string') return;
   removeEventListener('message', mount);
   document.open();
-  document.write(event.data.html);
+  document.write(gameDocument(event.data.html));
   document.close();
 }
 addEventListener('message', mount);

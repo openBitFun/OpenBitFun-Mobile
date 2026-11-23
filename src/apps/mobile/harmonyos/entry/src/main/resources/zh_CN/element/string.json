@@ -3365,6 +3365,10 @@
       "value": "没有生成成功"
     },
     {
+      "name": "localGenui_status_recovering",
+      "value": "正在自动修正"
+    },
+    {
       "name": "localGenui_status_state_migration_required",
       "value": "新版本和已有数据不兼容，已保留原来的版本"
     },

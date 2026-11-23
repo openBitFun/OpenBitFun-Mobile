@@ -67,6 +67,7 @@ export class LocalGenUIViewModel implements LocalGenUIControllerListener, LocalG
   private appOnScreen: boolean = false;
   private streaming: string = '';
   private activeTurnSerial: number = 0;
+  private showActiveTurn: boolean = true;
   private readonly orientation: LocalGenUIOrientation;
   private preferredOrientation: string = 'auto';
 
@@ -290,7 +291,7 @@ export class LocalGenUIViewModel implements LocalGenUIControllerListener, LocalG
 
   streamingText(_sessionId: string, text: string): void {
     this.streaming = text;
-    if (this.state.conversation.isBusy) {
+    if (this.state.conversation.isBusy && this.showActiveTurn) {
       this.timeline.setActiveTurn(LocalGenUIConversationProjection.activeTurn(this.activeTurnSerial, text));
     }
     this.syncTimeline();
@@ -317,13 +318,19 @@ export class LocalGenUIViewModel implements LocalGenUIControllerListener, LocalG
     if (app.streaming && this.state.view !== 'sessions') this.state.view = 'app';
   }
 
-  busyChanged(busy: boolean, turnSerial: number): void {
+  busyChanged(busy: boolean, turnSerial: number, showInTimeline: boolean = true): void {
     this.state.conversation.setBusy(busy);
     if (busy) {
       this.activeTurnSerial = turnSerial;
-      this.timeline.setActiveTurn(LocalGenUIConversationProjection.activeTurn(turnSerial, this.streaming));
+      this.showActiveTurn = showInTimeline;
+      if (showInTimeline) {
+        this.timeline.setActiveTurn(LocalGenUIConversationProjection.activeTurn(turnSerial, this.streaming));
+      } else {
+        this.timeline.clearActiveTurn();
+      }
     } else {
       this.streaming = '';
+      this.showActiveTurn = true;
       this.timeline.clearActiveTurn();
     }
     this.syncTimeline();
