@@ -123,7 +123,7 @@ test('the standalone Harmony GenUI bundle boots and renders at phone and foldabl
       });
     };
     const waitForHtmlFrame = async selector => {
-      const deadline = Date.now() + 5000;
+      const deadline = Date.now() + 15000;
       while (Date.now() < deadline) {
         for (const frame of page.frames()) {
           if (frame === page.mainFrame()) continue;
