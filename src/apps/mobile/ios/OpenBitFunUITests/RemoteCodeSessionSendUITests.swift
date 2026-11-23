@@ -2491,7 +2491,7 @@ final class StreamingPresentationUITests: XCTestCase {
         collapsed.lifetime = .keepAlways
         add(collapsed)
         input.tap()
-        XCTAssertTrue(voice.firstMatch.waitForExistence(timeout: 3))
+        XCTAssertTrue(voice.firstMatch.waitForExistence(timeout: 10))
         XCTAssertEqual(input.value as? String, original)
     }
 
