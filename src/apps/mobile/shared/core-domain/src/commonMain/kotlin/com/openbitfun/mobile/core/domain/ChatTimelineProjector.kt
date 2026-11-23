@@ -64,7 +64,10 @@ public object ChatTimelineProjector {
         val pendingItems = pendingMessagesNotPersisted(pendingMessages, timelineMessages)
         val renderActiveTurn = activeTurn?.takeIf { shouldRenderActiveTurn(timelineMessages, it) }
         val renderedMessages = if (renderActiveTurn != null) {
-            timelineMessages.filterNot { message -> isMatchingAssistantTurn(renderActiveTurn, message) }
+            timelineMessages.filterNot { message ->
+                isMatchingAssistantTurn(renderActiveTurn, message) &&
+                    (MessageStatusSemantics.isStreaming(renderActiveTurn.status) || hasDisplayableAssistantFinal(message))
+            }
         } else {
             timelineMessages
         }

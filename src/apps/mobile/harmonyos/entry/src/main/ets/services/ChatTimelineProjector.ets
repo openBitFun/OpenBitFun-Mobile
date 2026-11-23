@@ -24,7 +24,9 @@ export class ChatTimelineProjector {
     // one visual row and share one stable turn key, so retaining both would
     // violate the uniqueness contract required by Repeat.virtualScroll().
     const timelineMessages = shouldRenderActiveTurn ? persistedMessages.filter((message: ChatMessage) => {
-      return !ChatTimelineProjector.isMatchingAssistantTurn(activeTurn, message);
+      if (!ChatTimelineProjector.isMatchingAssistantTurn(activeTurn, message)) return true;
+      return !(ChatTimelineProjector.isStreamingStatus((activeTurn.status || '').toLowerCase()) ||
+        ChatTimelineProjector.hasDisplayableAssistantFinal(message));
     }) : persistedMessages;
     const pendingItems = ChatTimelineProjector.pendingMessagesNotPersisted(pendingMessages, timelineMessages);
     const anchorIndex = ChatTimelineProjector.anchorIndex(pendingItems, activeTurnAnchorId);
