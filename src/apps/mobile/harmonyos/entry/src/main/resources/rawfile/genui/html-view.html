@@ -21,7 +21,9 @@ function gameDocument(html) {
   if (!/data-openbitfun-game|<canvas(?:\s|>)/i.test(html)) return html;
   const head = /<head(?:\s[^>]*)?>/i.exec(html);
   if (head) return html.slice(0, head.index + head[0].length) + GAME_INPUT_SHIM + html.slice(head.index + head[0].length);
-  return html.replace(/<!doctype[^>]*>/i, match => match + GAME_INPUT_SHIM);
+  const doctype = /<!doctype[^>]*>/i.exec(html);
+  if (doctype) return html.slice(0, doctype.index + doctype[0].length) + GAME_INPUT_SHIM + html.slice(doctype.index + doctype[0].length);
+  return GAME_INPUT_SHIM + html;
 }
 
 function mount(event) {

@@ -122,17 +122,6 @@ test('the standalone Harmony GenUI bundle boots and renders at phone and foldabl
         stateRevision: 0, state: {}, streaming: false, scheme: 'light', locale: 'en-US',
       });
     };
-    const waitForHtmlFrame = async selector => {
-      const deadline = Date.now() + 15000;
-      while (Date.now() < deadline) {
-        for (const frame of page.frames()) {
-          if (frame === page.mainFrame()) continue;
-          if (await frame.$(selector)) return frame;
-        }
-        await new Promise(resolve => setTimeout(resolve, 50));
-      }
-      throw new Error(`Timed out waiting for HtmlView frame selector ${selector}`);
-    };
     await mountHtml('<button>Draw</button><canvas width="8" height="8"></canvas><script>' +
       'document.querySelector("button").onclick = () => document.querySelector("canvas").getContext("2d").fillRect(0,0,8,8)' +
       '</script>', 9);
@@ -147,7 +136,23 @@ test('the standalone Harmony GenUI bundle boots and renders at phone and foldabl
       'button.addEventListener("pointerup", event => window.held.delete(button.dataset.gameControl));' +
       'button.addEventListener("pointercancel", event => window.held.delete(button.dataset.gameControl));' +
       '}</script>', 9.5);
+    const waitForHtmlFrame = async selector => {
+      const deadline = Date.now() + 15000;
+      while (Date.now() < deadline) {
+        for (const frame of page.frames()) {
+          if (frame === page.mainFrame()) continue;
+          try {
+            if (await frame.$(selector)) return frame;
+          } catch {
+            // The sandbox navigates while document.write mounts the next view.
+          }
+        }
+        await new Promise(resolve => setTimeout(resolve, 50));
+      }
+      throw new Error(`Timed out waiting for HtmlView frame selector ${selector}`);
+    };
     const multitouch = await waitForHtmlFrame('[data-game-control="attack"]');
+
     const inputState = await multitouch.evaluate(() => {
       const move = document.querySelector('[data-game-control="move"]');
       const attack = document.querySelector('[data-game-control="attack"]');
