@@ -16,7 +16,7 @@ import {
   type LocalRuntimeMessage,
   type LocalRuntimeSnapshot,
 } from './localRuntimeProtocol';
-import { probeLocalCanvas } from './localRuntimeProbe';
+import { probeLocalCanvas, waitForHtmlViews } from './localRuntimeProbe';
 import {
   GenUIDeviceCapabilitiesContext,
   type GenUIDeviceCapabilityPort,
@@ -223,7 +223,9 @@ export default function LocalRuntimeApp({ bridge, build }: { bridge: LocalRuntim
           return;
         }
         // Parsing publishes errors before React commits their layout.
-        requestAnimationFrame(() => requestAnimationFrame(() => {
+        requestAnimationFrame(() => requestAnimationFrame(async () => {
+          if (requestedMount !== mountRevisionRef.current) return;
+          await waitForHtmlViews();
           if (requestedMount !== mountRevisionRef.current) return;
           const report: LocalProbeReport = probeLocalCanvas(message.requestId, snapshotRef.current, build,
             reportRef.current, declarationsRef.current);

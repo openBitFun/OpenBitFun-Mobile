@@ -68,3 +68,49 @@ test('dropping on the measured hint or below it is accepted across window sizes'
     assert.equal(drag.overEdge, true);
   }
 });
+
+for (const cancelled of [true, false]) {
+  test(cancelled ? 'a query arriving after cancellation cannot background the app' :
+    'a new shortcut reveals the desktop only once across observation and confirmation', async (t) => {
+    t.mock.timers.enable({ apis: ['setTimeout'] });
+    const id = 'builtin-gomoku';
+    const turn = () => new Promise(resolve => setImmediate(resolve));
+    let finishConfirmation;
+    let cancelConfirmation;
+    const confirmation = new Promise((resolve, reject) => {
+      finishConfirmation = resolve;
+      cancelConfirmation = reject;
+    });
+    let finishQuery;
+    let queries = 0;
+    let moves = 0;
+    const { MiniAppShortcut } = load('services/MiniAppShortcut', {
+      './DeviceApiLevelService': { DeviceApiLevelService: { sdkApiVersion: () => 26 } },
+      './RemoteLogger': { RemoteLogger: { info() {}, warn() {} } },
+      '@kit.AppGalleryKit': { productViewManager: {
+        getPinShortcutInfos: () => ++queries === 1 ? Promise.resolve([]) :
+          new Promise(resolve => { finishQuery = resolve; }),
+        requestNewPinShortcut: () => confirmation
+      } }
+    });
+    const pin = MiniAppShortcut.pinAndReveal({
+      moveAbilityToBackground: async () => { moves++; }
+    }, id, 'verified');
+    await turn();
+    t.mock.timers.tick(250);
+    await turn();
+    assert.equal(queries, 2);
+    if (cancelled) {
+      cancelConfirmation(new Error('user cancelled'));
+      await assert.rejects(pin, /user cancelled/);
+    }
+    finishQuery([{ shortcutId: id }]);
+    await turn();
+    assert.equal(moves, cancelled ? 0 : 1);
+    if (!cancelled) {
+      finishConfirmation();
+      await pin;
+      assert.equal(moves, 1);
+    }
+  });
+}

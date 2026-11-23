@@ -10,7 +10,7 @@
     },
     {
       "name": "miniapp_releaseShortcut",
-      "value": "Release to add a home screen icon"
+      "value": "Release to confirm"
     },
     {
       "name": "miniapp_pinned",
@@ -34,7 +34,7 @@
     },
     {
       "name": "miniapp_pinIcon",
-      "value": "Add home screen icon"
+      "value": "Add to home screen"
     },
     {
       "name": "settings_genui_look",

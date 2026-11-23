@@ -1,0 +1,10 @@
+<!doctype html><meta charset="utf-8"><script>
+function mount(event) {
+  if (event.source !== parent || event.data?.type !== 'html-view-mount' || typeof event.data.html !== 'string') return;
+  removeEventListener('message', mount);
+  document.open();
+  document.write(event.data.html);
+  document.close();
+}
+addEventListener('message', mount);
+</script>

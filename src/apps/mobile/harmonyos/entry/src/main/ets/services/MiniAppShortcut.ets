@@ -1,3 +1,4 @@
+import { DeviceApiLevelService } from './DeviceApiLevelService';
 import { RemoteLogger } from './RemoteLogger';
 import { common, Want } from '@kit.AbilityKit';
 import { productViewManager } from '@kit.AppGalleryKit';
@@ -40,15 +41,62 @@ export class MiniAppShortcut {
       const result = await productViewManager.checkPinShortcutPermitted(context, id, want,
         title.slice(0, 255), path, '');
       if (result.code !== 0 || !result.tid) return result.code || -1;
-      await productViewManager.requestNewPinShortcut(context, result.tid);
       if (revealDesktop) {
-        // Pinning has already succeeded if returning to the launcher is interrupted.
-        try { await context.moveAbilityToBackground(); }
-        catch (error) { RemoteLogger.warn('Unable to background mini app after pin: ' + String(error)); }
+        await MiniAppShortcut.pinAndReveal(context, id, result.tid);
+      } else {
+        await productViewManager.requestNewPinShortcut(context, result.tid);
       }
       return 0;
     } finally {
       if (fs.accessSync(path)) fs.unlinkSync(path);
     }
+  }
+
+  private static async containsShortcut(id: string): Promise<boolean> {
+    const shortcuts = await productViewManager.getPinShortcutInfos();
+    return shortcuts.some((shortcut: productViewManager.PinShortcutInfo) => shortcut.shortcutId === id);
+  }
+
+  private static async pinAndReveal(context: common.UIAbilityContext, id: string, tid: string): Promise<void> {
+    let watch = false;
+    if (DeviceApiLevelService.sdkApiVersion() >= 24) {
+      try { watch = !(await MiniAppShortcut.containsShortcut(id)); }
+      catch (error) { RemoteLogger.warn('Shortcut query unavailable: ' + String(error)); }
+    }
+    let settled = false;
+    let moved: Promise<void> | undefined;
+    const reveal = (): Promise<void> => {
+      if (!moved) {
+        moved = context.moveAbilityToBackground().catch((error: Error) => {
+          moved = undefined;
+          RemoteLogger.warn('Unable to background mini app after pin: ' + String(error));
+        });
+      }
+      return moved;
+    };
+    const observe = async (): Promise<void> => {
+      while (!settled) {
+        await new Promise<void>((resolve) => setTimeout(resolve, 250));
+        if (settled) return;
+        const present = await MiniAppShortcut.containsShortcut(id);
+        if (settled) return;
+        if (present) {
+          RemoteLogger.info('Newly pinned shortcut visible before confirmation callback');
+          await reveal();
+          return;
+        }
+      }
+    };
+    const confirmation = productViewManager.requestNewPinShortcut(context, tid);
+    if (watch) {
+      void observe().catch((error: Error) => RemoteLogger.warn('Shortcut observation stopped: ' + String(error)));
+    }
+    try {
+      await confirmation;
+      RemoteLogger.info('Shortcut confirmation completed');
+    } finally {
+      settled = true;
+    }
+    await reveal();
   }
 }

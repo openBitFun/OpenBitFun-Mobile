@@ -8,6 +8,7 @@ import { DynamicIcon, iconNames, type IconName } from 'lucide-react/dynamic';
 import { ImageIcon } from 'lucide-react';
 import { i18nService } from '../local-runtime/i18n';
 import type { GenUIComponentImplementation, GenUIComponentProps, GenUIImplementations } from '../genUILibrary';
+import { HtmlSandboxFrame } from "./HtmlSandboxFrame";
 import { sanitizeGenUIHtmlSource } from '../GenUIHtmlDocument';
 import type { GenUIAsyncRuntime, GenUIAsyncExecuteOptions } from '../genUIAsyncCapabilities';
 import { isAbortError } from '../genUIAsyncCapabilities';
@@ -393,7 +394,12 @@ export const oiComponents: GenUIImplementations['components'] = {
   HtmlView: define(({ view, isStreaming, htmlScriptEnabled }) => {
     const height = typeof view.props.height === 'number' ? view.props.height : 360;
     if (isStreaming) return <div className="gen-ui-oi-html-slot" style={{ height }} role="status">Preparing the interactive view…</div>;
-    const source = sanitizeGenUIHtmlSource({ kind: 'html-document', html: str(view.props.html) }, undefined, '', htmlScriptEnabled === true, false, true).document;
-    return <iframe className="gen-ui-oi-html" title={str(view.props.title || 'Interactive view')} style={{ height }} sandbox="allow-scripts" srcDoc={source} />;
+    const html = str(view.props.html);
+    const title = str(view.props.title || 'Interactive view');
+    if (htmlScriptEnabled && /<script\b|\son[a-z]+\s*=/i.test(html)) {
+      return <HtmlSandboxFrame html={html} height={height} title={title} />;
+    }
+    const source = sanitizeGenUIHtmlSource({ kind: 'html-document', html }, undefined, '', false).document;
+    return <iframe className="gen-ui-oi-html" title={title} style={{ height }} sandbox="allow-scripts" srcDoc={source} />;
   }),
 };

@@ -30,7 +30,7 @@ const HTML = `<!doctype html>
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, user-scalable=no">
-<meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'self' resource:; style-src 'self' resource: 'unsafe-inline'; img-src data: blob: https://genui-assets.openbitfun.invalid; font-src 'self' data: resource:; connect-src 'none'; frame-src 'none'; object-src 'none'; form-action 'none'; base-uri 'none'">
+<meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'self' resource:; style-src 'self' resource: 'unsafe-inline'; img-src data: blob: https://genui-assets.openbitfun.invalid; font-src 'self' data: resource:; connect-src 'none'; frame-src https://genui-sandbox.openbitfun.invalid/view; object-src 'none'; form-action 'none'; base-uri 'none'">
 <link rel="stylesheet" href="runtime.css">
 <title>Local GenUI</title>
 </head>

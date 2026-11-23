@@ -1,4 +1,6 @@
 import { GitHubAccountProfile, readCachedGitHubProfile } from './GitHubAccountProfile';
+import { BusinessError } from '@kit.BasicServicesKit';
+import { BusinessError } from '@kit.BasicServicesKit';
 import { huks } from '@kit.UniversalKeystoreKit';
 import { preferences } from '@kit.ArkData';
 import { Encoding } from './Encoding';
@@ -11,10 +13,20 @@ const CIPHER_KEY: string = 'github_device_session_v1_cipher';
 const IV_KEY: string = 'github_device_session_v1_iv';
 const HUKS_ALIAS: string = HarmonyUpgradeIdentityContract.CLOUD_ACCOUNT_HUKS_ALIAS;
 
+const DEVICE_CIPHER_KEY: string = 'device_private_key_v1_cipher';
+const DEVICE_IV_KEY: string = 'device_private_key_v1_iv';
+const GENERATION_KEY: string = 'active_key_generation';
+
+class MissingAccountKeyError extends Error {}
+
 function isUnavailableHuksKeyError(err: Object): boolean {
   const message = OhosError.reason(err).toLowerCase();
   return message.indexOf('12000011') >= 0 || message.indexOf('-13') >= 0 ||
     message.indexOf('entity does not exist') >= 0 || message.indexOf('does not exist') >= 0;
+}
+
+function recordKey(key: string, generation: number): string {
+  return generation === 0 ? key : `g${generation}_${key}`;
 }
 
 export interface PersistedCloudAccountSession {
@@ -38,11 +50,18 @@ export interface PersistedWatchProvisionIdentity {
 /** Persists only an HUKS-encrypted account session, never plaintext secrets. */
 export class CloudAccountSessionStore {
   private store?: preferences.Preferences;
+  private generation: number = 0;
   private deviceKeyWork?: Promise<Uint8Array>;
 
   async init(context: Context): Promise<void> {
     try {
-      this.store = await preferences.getPreferences(context, STORE_NAME);
+      const store = await preferences.getPreferences(context, STORE_NAME);
+      const generation = await store.get(GENERATION_KEY, 0);
+      if (typeof generation !== 'number' || !Number.isSafeInteger(generation) || generation < 0) {
+        throw new Error('Invalid cloud account key generation.');
+      }
+      this.generation = generation;
+      this.store = store;
     } catch (err) {
       throw OhosError.wrap('cloud account session init', err);
     }
@@ -55,35 +74,36 @@ export class CloudAccountSessionStore {
   }
 
   private async loadOrCreateDeviceSecret(): Promise<Uint8Array> {
+    let value: string | undefined;
+    let previous: PersistedCloudAccountSession | undefined;
     try {
-      return await this.loadOrCreateDeviceSecretWithKey();
+      value = await this.readSealed(DEVICE_CIPHER_KEY, DEVICE_IV_KEY);
+      if (!value) previous = await this.load();
     } catch (err) {
-      if (!isUnavailableHuksKeyError(err)) throw err instanceof Error ? err : new Error(OhosError.reason(err));
-
-      // A signature change can leave Preferences encrypted with a HUKS alias
-      // that is no longer available to the new application identity. The old
-      // ciphertext cannot be recovered, so rotate only this account store and
-      // create a fresh device identity. Other app data remains untouched.
-      RemoteLogger.warn('cloud account HUKS key unavailable; rotating encrypted account store');
-      await this.recoverAfterHuksKeyLoss();
+      if (!(err instanceof MissingAccountKeyError) || await this.keyItemExists()) {
+        throw OhosError.wrap('device identity read', err);
+      }
+      // Only explicit sign-in calls deviceSecret(). Preserve every record from
+      // the previous generation, including its session and watch identities.
+      const next = this.generation + 1;
       const secret = Encoding.randomBytes(32);
-      await this.writeSealed('device_private_key_v1_cipher', 'device_private_key_v1_iv', Encoding.bytesToBase64(secret));
+      await this.writeSealed(DEVICE_CIPHER_KEY, DEVICE_IV_KEY, Encoding.bytesToBase64(secret), next);
+      const store = this.requireStore();
+      await store.put(GENERATION_KEY, next);
+      await store.flush();
+      this.generation = next;
+      RemoteLogger.warn('Cloud account sign-in created a new device identity after confirming the previous key is missing');
       return secret;
     }
-  }
-
-  private async loadOrCreateDeviceSecretWithKey(): Promise<Uint8Array> {
-    const value = await this.readSealed('device_private_key_v1_cipher', 'device_private_key_v1_iv');
     if (value) {
       const secret = Encoding.base64ToBytes(value);
       if (secret.length !== 32) throw new Error('Stored device identity is invalid.');
       return secret;
     }
-    const previous = await this.load();
     const secret = previous ? Encoding.base64ToBytes(previous.masterKey) : Encoding.randomBytes(32);
     if (secret.length !== 32) throw new Error('Stored device identity is invalid.');
     try {
-      await this.writeSealed('device_private_key_v1_cipher', 'device_private_key_v1_iv', Encoding.bytesToBase64(secret));
+      await this.writeSealed(DEVICE_CIPHER_KEY, DEVICE_IV_KEY, Encoding.bytesToBase64(secret));
     } catch (err) {
       // A reinstall clears Preferences but HarmonyOS may retain the HUKS alias.
       // Only rotate the alias when there is no prior session record: existing
@@ -91,24 +111,16 @@ export class CloudAccountSessionStore {
       if (previous) throw err instanceof Error ? err : new Error(OhosError.reason(err));
       RemoteLogger.warn('cloud account device identity write failed on fresh install; recreating local key');
       await this.recreateKeyForFreshInstall();
-      await this.writeSealed('device_private_key_v1_cipher', 'device_private_key_v1_iv', Encoding.bytesToBase64(secret));
+      await this.writeSealed(DEVICE_CIPHER_KEY, DEVICE_IV_KEY, Encoding.bytesToBase64(secret));
     }
     return secret;
   }
 
-  private async recoverAfterHuksKeyLoss(): Promise<void> {
-    const store = this.requireStore();
-    await store.clear();
-    await store.flush();
-    await this.recreateKeyForFreshInstall();
-  }
-
   private async recreateKeyForFreshInstall(): Promise<void> {
     try {
-      await huks.deleteKeyItem(HUKS_ALIAS, {});
+      await huks.deleteKeyItem(recordKey(HUKS_ALIAS, this.generation), {});
     } catch (err) {
-      const message = OhosError.reason(err);
-      if (!isUnavailableHuksKeyError(message)) {
+      if (!isUnavailableHuksKeyError(err)) {
         throw err instanceof Error ? err : new Error(OhosError.reason(err));
       }
     }
@@ -150,13 +162,14 @@ export class CloudAccountSessionStore {
     return `watch_provision_v1_${encodeURIComponent(relayUrl)}_${encodeURIComponent(userId)}_${deviceId}`;
   }
 
-  private async writeSealed(cipherKey: string, ivKey: string, plaintext: string): Promise<void> {
+  private async writeSealed(cipherKey: string, ivKey: string, plaintext: string,
+    generation: number = this.generation): Promise<void> {
     try {
       const store = this.requireStore();
-      await this.ensureKey();
+      await this.ensureKey(generation);
       const iv = Encoding.randomBytes(16);
       const options = this.options(huks.HuksKeyPurpose.HUKS_KEY_PURPOSE_ENCRYPT, iv);
-      const handle = await huks.initSession(HUKS_ALIAS, options);
+      const handle = await huks.initSession(recordKey(HUKS_ALIAS, generation), options);
       const encrypted = await huks.finishSession(handle.handle, {
         properties: options.properties,
         inData: Encoding.utf8ToBytes(plaintext)
@@ -164,8 +177,8 @@ export class CloudAccountSessionStore {
       if (!encrypted.outData || encrypted.outData.length === 0) {
         throw new Error('Cloud account session encryption failed.');
       }
-      await store.put(cipherKey, Encoding.bytesToBase64(encrypted.outData));
-      await store.put(ivKey, Encoding.bytesToBase64(iv));
+      await store.put(recordKey(cipherKey, generation), Encoding.bytesToBase64(encrypted.outData));
+      await store.put(recordKey(ivKey, generation), Encoding.bytesToBase64(iv));
       await store.flush();
     } catch (err) {
       throw OhosError.wrap('cloud account session save', err);
@@ -180,14 +193,24 @@ export class CloudAccountSessionStore {
   private async readSealed(cipherKey: string, ivKey: string): Promise<string | undefined> {
     try {
       const store = this.requireStore();
-      const cipher = await store.get(cipherKey, '');
-      const ivText = await store.get(ivKey, '');
+      const generation = this.generation;
+      const cipher = await store.get(recordKey(cipherKey, generation), '');
+      const ivText = await store.get(recordKey(ivKey, generation), '');
       if (typeof cipher !== 'string' || typeof ivText !== 'string' || cipher.length === 0 || ivText.length === 0) {
         return undefined;
       }
       const iv = Encoding.base64ToBytes(ivText);
       const options = this.options(huks.HuksKeyPurpose.HUKS_KEY_PURPOSE_DECRYPT, iv);
-      const handle = await huks.initSession(HUKS_ALIAS, options);
+      let handle: huks.HuksSessionHandle;
+      try {
+        handle = await huks.initSession(recordKey(HUKS_ALIAS, generation), options);
+      } catch (err) {
+        if ((err as BusinessError).code === huks.HuksExceptionErrCode.HUKS_ERR_CODE_ITEM_NOT_EXIST ||
+          isUnavailableHuksKeyError(err)) {
+          throw new MissingAccountKeyError('The key for the saved cloud account is missing.');
+        }
+        throw OhosError.wrap('cloud account decrypt init', err);
+      }
       const decrypted = await huks.finishSession(handle.handle, {
         properties: options.properties,
         inData: Encoding.base64ToBytes(cipher)
@@ -204,20 +227,21 @@ export class CloudAccountSessionStore {
   async clear(): Promise<void> {
     try {
       const store = this.requireStore();
-      await store.delete(CIPHER_KEY);
-      await store.delete(IV_KEY);
+      const generation = this.generation;
+      await store.delete(recordKey(CIPHER_KEY, generation));
+      await store.delete(recordKey(IV_KEY, generation));
       await store.flush();
     } catch (err) {
       throw OhosError.wrap('cloud account session clear', err);
     }
   }
 
-  private async ensureKey(): Promise<void> {
-    if (await this.keyItemExists()) {
+  private async ensureKey(generation: number = this.generation): Promise<void> {
+    if (await this.keyItemExists(generation)) {
       return;
     }
     try {
-      await huks.generateKeyItem(HUKS_ALIAS, {
+      await huks.generateKeyItem(recordKey(HUKS_ALIAS, generation), {
         properties: [
           { tag: huks.HuksTag.HUKS_TAG_ALGORITHM, value: huks.HuksKeyAlg.HUKS_ALG_AES },
           { tag: huks.HuksTag.HUKS_TAG_KEY_SIZE, value: huks.HuksKeySize.HUKS_AES_KEY_SIZE_256 },
@@ -231,14 +255,13 @@ export class CloudAccountSessionStore {
     }
   }
 
-  private async keyItemExists(): Promise<boolean> {
+  private async keyItemExists(generation: number = this.generation): Promise<boolean> {
     try {
-      return await huks.isKeyItemExist(HUKS_ALIAS, {});
+      return await huks.isKeyItemExist(recordKey(HUKS_ALIAS, generation), {});
     } catch (err) {
-      if (isUnavailableHuksKeyError(err)) {
-        return false;
-      }
-      throw new Error(OhosError.reason(err) || 'HUKS key lookup failed.');
+      if ((err as BusinessError).code === huks.HuksExceptionErrCode.HUKS_ERR_CODE_ITEM_NOT_EXIST ||
+        isUnavailableHuksKeyError(err)) return false;
+      throw OhosError.wrap('cloud account key lookup', err);
     }
   }
 

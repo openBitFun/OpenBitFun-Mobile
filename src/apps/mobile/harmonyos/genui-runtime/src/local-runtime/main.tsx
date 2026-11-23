@@ -10,8 +10,6 @@ declare const __LOCAL_GENUI_BUILD__: LocalRuntimeBuild;
 
 declare global {
   interface Window {
-    /** ArkWeb javaScriptProxy installed by LocalGenUIWebSurface. */
-    genuiNative?: { post(raw: string): void };
     /** Host -> runtime entry point called through runJavaScript. */
     __genuiHost?: { receive(raw: string): void };
     __genuiCanvasScale?: number;
@@ -22,9 +20,20 @@ const build = __LOCAL_GENUI_BUILD__;
 const listeners = new Set<(message: LocalHostMessage) => void>();
 const backlog: LocalHostMessage[] = [];
 
+let nativePort: MessagePort | undefined;
+const pendingPosts: string[] = [];
+window.addEventListener('message', event => {
+  if (event.source !== null || event.data !== 'local-genui-port' || event.ports.length !== 1) return;
+  nativePort?.close();
+  nativePort = event.ports[0];
+  for (const raw of pendingPosts.splice(0)) nativePort.postMessage(raw);
+});
+
 const bridge: LocalRuntimeBridge = {
   post(message: LocalRuntimeMessage) {
-    window.genuiNative?.post(JSON.stringify(message));
+    const raw = JSON.stringify(message);
+    if (nativePort) nativePort.postMessage(raw);
+    else pendingPosts.push(raw);
   },
   subscribe(listener) {
     listeners.add(listener);
@@ -75,7 +84,7 @@ window.__genuiHost = {
 };
 
 window.addEventListener('error', event => {
-  window.genuiNative?.post(JSON.stringify({ type: 'error', appId: '', code: 'runtime', message: String(event.message) }));
+  bridge.post({ type: 'error', appId: '', code: 'runtime', message: String(event.message) });
 });
 
 /**
