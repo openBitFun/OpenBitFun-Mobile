@@ -12,6 +12,64 @@ const assets = new Map([
   ['/fonts/hm-symbol/HMSymbolVF.ttf', ['fonts/hm-symbol/HMSymbolVF.ttf', 'font/ttf']],
 ]);
 
+test('a desktop MiniApp runs an offline game under the strict parent policy', { timeout: 30000 }, async () => {
+  const manifest = JSON.parse(await readFile(new URL('runtime-manifest.json', resources), 'utf8'));
+  const runtime = await readFile(new URL('runtime/runtime.js', resources), 'utf8');
+  const browser = await launchBrowser();
+  const server = createServer((_request, response) => {
+    response.writeHead(200, { 'content-type': 'text/html; charset=utf-8' }).end(`<!doctype html>
+      <meta http-equiv="Content-Security-Policy"
+        content="default-src 'none'; script-src 'unsafe-inline'; style-src 'unsafe-inline'; frame-src 'none'">
+      <div id="root"></div><script>window.app = { storage: {} };</script>
+      <script type="module">${runtime.replace(/<\/script/gi, '<\\/script')}</script>`);
+  });
+  try {
+    await new Promise(resolve => server.listen(0, '127.0.0.1', resolve));
+    const page = await browser.newPage();
+    const errors = [];
+    page.on('pageerror', error => errors.push(error.message));
+    await page.goto(`http://127.0.0.1:${server.address().port}/`);
+    const requests = [];
+    page.on('request', request => {
+      if (request.url().startsWith('https://')) requests.push(request.url());
+    });
+    assert.deepEqual(errors, []);
+    assert.equal(await page.evaluate(() => typeof window.__genuiHost), 'object');
+    await page.evaluate(() => {
+      const channel = new MessageChannel();
+      window.dispatchEvent(new MessageEvent('message', { data: 'local-genui-port', ports: [channel.port2] }));
+    });
+    const html = '<button>Start</button><canvas width="8" height="8"></canvas><script>' +
+      'document.querySelector("button").onclick = () => {' +
+      'document.querySelector("canvas").getContext("2d").fillRect(0,0,8,8);' +
+      'fetch("https://example.invalid/game").catch(() => {});' +
+      '};</script>';
+    await page.evaluate(message => window.__genuiHost.receive(JSON.stringify(message)), {
+      type: 'init', manifest,
+      identity: {
+        appId: 'local-genui:desktop', title: 'Desktop game',
+        template: manifest.template, libraryId: manifest.libraryId, libraryRevision: manifest.libraryRevision,
+        designSpec: manifest.designSpec, sourceFormat: 'openui-lang',
+      },
+      mode: 'live', sourceRevision: 1, stateRevision: 0, streaming: false, state: {}, scheme: 'light', locale: 'en-US',
+      source: 'root = Page([game], "Desktop game")\ngame = HtmlView(' + JSON.stringify(html) + ', 300, "Game")',
+    });
+    await page.waitForSelector('iframe[data-html-view-status="ready"]', { timeout: 5000 });
+    const game = await page.waitForFrame(frame => frame.url() === 'about:srcdoc', { timeout: 5000 });
+    await game.$eval('button', button => button.click());
+    assert.deepEqual(await game.evaluate(() => ({
+      url: document.URL,
+      alpha: document.querySelector('canvas').getContext('2d').getImageData(0, 0, 1, 1).data[3],
+      origin: self.origin,
+      desktopBridge: typeof window.app,
+    })), { url: 'about:srcdoc', alpha: 255, origin: 'null', desktopBridge: 'undefined' });
+    assert.deepEqual(requests, []);
+  } finally {
+    await browser.close();
+    server.close();
+  }
+});
+
 test('the standalone Harmony GenUI bundle boots and renders at phone and foldable widths', { timeout: 30000 }, async () => {
   const manifest = JSON.parse(await readFile(new URL('runtime-manifest.json', resources), 'utf8'));
   const browser = await launchBrowser();
